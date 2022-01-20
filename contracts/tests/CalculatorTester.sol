@@ -44,7 +44,9 @@ contract CalculatorTester is MarginCalculator {
         uint256 _spotPrice,
         uint256 _auctionStartingTime,
         uint256 _collateralDecimals,
-        bool _isPut
+        bool _isPut,
+        address collateral,
+        address underlying
     ) external view returns (uint256) {
         FixedPointInt256.FixedPointInt memory vaultCollateral = FixedPointInt256.fromScaledUint(
             _vaultCollateral,
@@ -55,6 +57,16 @@ contract CalculatorTester is MarginCalculator {
         FixedPointInt256.FixedPointInt memory spotPrice = FixedPointInt256.fromScaledUint(_spotPrice, BASE);
 
         return
-            _getDebtPrice(vaultCollateral, vaultDebt, cv, spotPrice, _auctionStartingTime, _collateralDecimals, _isPut);
+            _getDebtPrice(
+                vaultCollateral,
+                vaultDebt,
+                cv,
+                spotPrice,
+                _auctionStartingTime,
+                _collateralDecimals,
+                _isPut,
+                underlying,
+                collateral
+            );
     }
 }

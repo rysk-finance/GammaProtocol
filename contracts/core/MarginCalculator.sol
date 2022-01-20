@@ -348,7 +348,9 @@ contract MarginCalculator is Ownable {
                     shortUnderlyingPrice,
                     shortStrike,
                     _shortExpiryTimestamp,
-                    _isPut
+                    _isPut,
+                    _collateral,
+                    _underlying
                 ),
                 _collateralDecimals,
                 false
@@ -474,7 +476,9 @@ contract MarginCalculator is Ownable {
             shortDetails.shortUnderlyingPrice,
             shortDetails.shortStrike,
             vaultDetails.shortExpiryTimestamp,
-            vaultDetails.isShortPut
+            vaultDetails.isShortPut,
+            vaultDetails.shortCollateralAsset,
+            vaultDetails.shortUnderlyingAsset
         );
 
         // if collateral required <= collateral in the vault, the vault is not liquidatable
@@ -496,7 +500,9 @@ contract MarginCalculator is Ownable {
             shortDetails.shortUnderlyingPrice,
             timestamp,
             vaultDetails.collateralDecimals,
-            vaultDetails.isShortPut
+            vaultDetails.isShortPut,
+            vaultDetails.shortUnderlyingAsset,
+            vaultDetails.shortCollateralAsset
         );
 
         return (true, debtPrice, dust[vaultDetails.shortCollateralAsset]);
@@ -675,7 +681,9 @@ contract MarginCalculator is Ownable {
                         shortUnderlyingPrice,
                         shortStrike,
                         otokenDetails.otokenExpiry,
-                        otokenDetails.isPut
+                        otokenDetails.isPut,
+                        _vaultDetails.shortCollateralAsset,
+                        _vaultDetails.shortUnderlyingAsset
                     )
                 );
             } else {
@@ -783,7 +791,9 @@ contract MarginCalculator is Ownable {
         FPI.FixedPointInt memory _underlyingPrice,
         FPI.FixedPointInt memory _strikePrice,
         uint256 _shortExpiryTimestamp,
-        bool _isPut
+        bool _isPut,
+        address collateral,
+        address underlying
     ) internal view returns (FPI.FixedPointInt memory) {
         // find option upper bound value
         FPI.FixedPointInt memory optionUpperBoundValue = _findUpperBoundValue(_productHash, _shortExpiryTimestamp);
@@ -792,20 +802,19 @@ contract MarginCalculator is Ownable {
 
         FPI.FixedPointInt memory a;
         FPI.FixedPointInt memory b;
-        FPI.FixedPointInt memory marginRequired;
 
         if (_isPut) {
             a = FPI.min(_strikePrice, spotShockValue.mul(_underlyingPrice));
             b = FPI.max(_strikePrice.sub(spotShockValue.mul(_underlyingPrice)), ZERO);
-            marginRequired = optionUpperBoundValue.mul(a).add(b).mul(_shortAmount);
-        } else {
+        } else if (!_isPut && (collateral == underlying)) {
             FPI.FixedPointInt memory one = FPI.fromScaledUint(1e27, SCALING_FACTOR);
             a = FPI.min(one, _strikePrice.mul(spotShockValue).div(_underlyingPrice));
             b = FPI.max(one.sub(_strikePrice.mul(spotShockValue).div(_underlyingPrice)), ZERO);
-            marginRequired = optionUpperBoundValue.mul(a).add(b).mul(_shortAmount);
+        } else {
+            a = FPI.min(_strikePrice, (_strikePrice.mul(spotShockValue)));
+            b = FPI.max(_underlyingPrice.sub(_strikePrice.mul(spotShockValue)), ZERO);
         }
-
-        return marginRequired;
+        return optionUpperBoundValue.mul(a).add(b).mul(_shortAmount);
     }
 
     /**
@@ -975,7 +984,9 @@ contract MarginCalculator is Ownable {
         FPI.FixedPointInt memory _spotPrice,
         uint256 _auctionStartingTime,
         uint256 _collateralDecimals,
-        bool _isPut
+        bool _isPut,
+        address underlyingAsset,
+        address collateralAsset
     ) internal view returns (uint256) {
         // price of 1 repaid otoken in collateral asset, scaled to 1e27
         FPI.FixedPointInt memory price;
@@ -998,8 +1009,10 @@ contract MarginCalculator is Ownable {
 
                 if (_isPut) {
                     startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO);
-                } else {
+                } else if (_isPut && collateralAsset == underlyingAsset) {
                     startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO).div(_spotPrice);
+                } else {
+                    startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO);
                 }
             }
 
