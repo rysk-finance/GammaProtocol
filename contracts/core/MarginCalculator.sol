@@ -331,27 +331,12 @@ contract MarginCalculator is Ownable {
         bool _isPut
     ) external view returns (uint256) {
         bytes32 productHash = _getProductHash(_underlying, _strike, _collateral, _isPut);
-
-        // scale short amount from 1e8 to 1e27 (oToken is always in 1e8)
-        FPI.FixedPointInt memory shortAmount = FPI.fromScaledUint(_shortAmount, BASE);
-        // scale short strike from 1e8 to 1e27
-        FPI.FixedPointInt memory shortStrike = FPI.fromScaledUint(_strikePrice, BASE);
-        // scale short underlying price from 1e8 to 1e27
-        FPI.FixedPointInt memory shortUnderlyingPrice = FPI.fromScaledUint(_underlyingPrice, BASE);
-
+        FPs memory fps = makeFPs(_shortAmount, _strikePrice, _underlyingPrice);
+        uint256 opType = getOptionType(_isPut, _collateral, _underlying);
         // return required margin, scaled by collateral asset decimals, explicitly rounded up
         return
             FPI.toScaledUint(
-                _getNakedMarginRequired(
-                    productHash,
-                    shortAmount,
-                    shortUnderlyingPrice,
-                    shortStrike,
-                    _shortExpiryTimestamp,
-                    _isPut,
-                    _collateral,
-                    _underlying
-                ),
+                _getNakedMarginRequired(productHash, fps, _shortExpiryTimestamp, opType),
                 _collateralDecimals,
                 false
             );
@@ -472,13 +457,9 @@ contract MarginCalculator is Ownable {
 
         FPI.FixedPointInt memory collateralRequired = _getNakedMarginRequired(
             productHash,
-            shortDetails.shortAmount,
-            shortDetails.shortUnderlyingPrice,
-            shortDetails.shortStrike,
+            FPs(shortDetails.shortAmount, shortDetails.shortUnderlyingPrice, shortDetails.shortStrike),
             vaultDetails.shortExpiryTimestamp,
-            vaultDetails.isShortPut,
-            vaultDetails.shortCollateralAsset,
-            vaultDetails.shortUnderlyingAsset
+            getOptionType(vaultDetails.isShortPut, vaultDetails.shortCollateralAsset, vaultDetails.shortUnderlyingAsset)
         );
 
         // if collateral required <= collateral in the vault, the vault is not liquidatable
@@ -491,7 +472,11 @@ contract MarginCalculator is Ownable {
             shortDetails.shortUnderlyingPrice,
             vaultDetails.isShortPut
         );
-
+        uint256 opType = getOptionType(
+            vaultDetails.isShortPut,
+            vaultDetails.shortUnderlyingAsset,
+            vaultDetails.shortCollateralAsset
+        );
         // get the amount of collateral per 1 repaid otoken
         uint256 debtPrice = _getDebtPrice(
             depositedCollateral,
@@ -500,9 +485,7 @@ contract MarginCalculator is Ownable {
             shortDetails.shortUnderlyingPrice,
             timestamp,
             vaultDetails.collateralDecimals,
-            vaultDetails.isShortPut,
-            vaultDetails.shortUnderlyingAsset,
-            vaultDetails.shortCollateralAsset
+            opType
         );
 
         return (true, debtPrice, dust[vaultDetails.shortCollateralAsset]);
@@ -671,19 +654,19 @@ contract MarginCalculator is Ownable {
                     _vaultDetails.shortCollateralAsset,
                     _vaultDetails.isShortPut
                 );
-
+                uint256 opType = getOptionType(
+                    otokenDetails.isPut,
+                    _vaultDetails.shortCollateralAsset,
+                    _vaultDetails.shortUnderlyingAsset
+                );
                 // return amount of collateral in vault and needed collateral amount for margin
                 return (
                     collateralAmount,
                     _getNakedMarginRequired(
                         productHash,
-                        shortAmount,
-                        shortUnderlyingPrice,
-                        shortStrike,
+                        FPs(shortAmount, shortStrike, shortUnderlyingPrice),
                         otokenDetails.otokenExpiry,
-                        otokenDetails.isPut,
-                        _vaultDetails.shortCollateralAsset,
-                        _vaultDetails.shortUnderlyingAsset
+                        opType
                     )
                 );
             } else {
@@ -778,22 +761,14 @@ contract MarginCalculator is Ownable {
      * b = max(1- (strike price / (underlying price / spot shock value)), 0)
      * marginRequired = (option upper bound value * a + b) * short amount
      * @param _productHash product hash
-     * @param _shortAmount short amount in vault, in FixedPointInt type
-     * @param _strikePrice strike price of short otoken, in FixedPointInt type
-     * @param _underlyingPrice underlying price of short otoken underlying asset, in FixedPointInt type
      * @param _shortExpiryTimestamp short otoken expiry timestamp
-     * @param _isPut otoken type, true if put option, false for call option
      * @return required margin for this naked vault, in FixedPointInt type (scaled by 1e27)
      */
     function _getNakedMarginRequired(
         bytes32 _productHash,
-        FPI.FixedPointInt memory _shortAmount,
-        FPI.FixedPointInt memory _underlyingPrice,
-        FPI.FixedPointInt memory _strikePrice,
+        FPs memory fps,
         uint256 _shortExpiryTimestamp,
-        bool _isPut,
-        address collateral,
-        address underlying
+        uint256 optionType
     ) internal view returns (FPI.FixedPointInt memory) {
         // find option upper bound value
         FPI.FixedPointInt memory optionUpperBoundValue = _findUpperBoundValue(_productHash, _shortExpiryTimestamp);
@@ -803,18 +778,25 @@ contract MarginCalculator is Ownable {
         FPI.FixedPointInt memory a;
         FPI.FixedPointInt memory b;
 
-        if (_isPut) {
-            a = FPI.min(_strikePrice, spotShockValue.mul(_underlyingPrice));
-            b = FPI.max(_strikePrice.sub(spotShockValue.mul(_underlyingPrice)), ZERO);
-        } else if (!_isPut && (collateral == underlying)) {
-            FPI.FixedPointInt memory one = FPI.fromScaledUint(1e27, SCALING_FACTOR);
-            a = FPI.min(one, _strikePrice.mul(spotShockValue).div(_underlyingPrice));
-            b = FPI.max(one.sub(_strikePrice.mul(spotShockValue).div(_underlyingPrice)), ZERO);
+        if (optionType == 0) {
+            a = FPI.min(fps.shortStrike, spotShockValue.mul(fps.shortUnderlyingPrice));
+            b = FPI.max(fps.shortStrike.sub(spotShockValue.mul(fps.shortUnderlyingPrice)), ZERO);
+        } else if (optionType == 1) {
+            a = FPI.min(
+                FPI.fromScaledUint(1e27, SCALING_FACTOR),
+                fps.shortStrike.mul(spotShockValue).div(fps.shortUnderlyingPrice)
+            );
+            b = FPI.max(
+                FPI.fromScaledUint(1e27, SCALING_FACTOR).sub(
+                    fps.shortStrike.mul(spotShockValue).div(fps.shortUnderlyingPrice)
+                ),
+                ZERO
+            );
         } else {
-            a = FPI.min(_strikePrice, (_strikePrice.mul(spotShockValue)));
-            b = FPI.max(_underlyingPrice.sub(_strikePrice.mul(spotShockValue)), ZERO);
+            a = FPI.min(fps.shortStrike, (fps.shortStrike.mul(spotShockValue)));
+            b = FPI.max(fps.shortUnderlyingPrice.sub(fps.shortStrike.mul(spotShockValue)), ZERO);
         }
-        return optionUpperBoundValue.mul(a).add(b).mul(_shortAmount);
+        return optionUpperBoundValue.mul(a).add(b).mul(fps.shortAmount);
     }
 
     /**
@@ -974,7 +956,6 @@ contract MarginCalculator is Ownable {
      * @param _spotPrice option underlying asset price (in USDC)
      * @param _auctionStartingTime auction starting timestamp (_spotPrice timestamp from chainlink)
      * @param _collateralDecimals collateral asset decimals
-     * @param _isPut otoken type, true for put, false for call option
      * @return price of 1 debt otoken in collateral asset scaled by collateral decimals
      */
     function _getDebtPrice(
@@ -984,9 +965,7 @@ contract MarginCalculator is Ownable {
         FPI.FixedPointInt memory _spotPrice,
         uint256 _auctionStartingTime,
         uint256 _collateralDecimals,
-        bool _isPut,
-        address underlyingAsset,
-        address collateralAsset
+        uint256 optionType
     ) internal view returns (uint256) {
         // price of 1 repaid otoken in collateral asset, scaled to 1e27
         FPI.FixedPointInt memory price;
@@ -1007,9 +986,9 @@ contract MarginCalculator is Ownable {
                 // store oracle deviation in a FixedPointInt (already scaled by 1e27)
                 FPI.FixedPointInt memory fixedOracleDeviation = FPI.fromScaledUint(oracleDeviation, SCALING_FACTOR);
 
-                if (_isPut) {
+                if (optionType == 0) {
                     startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO);
-                } else if (_isPut && collateralAsset == underlyingAsset) {
+                } else if (optionType == 1) {
                     startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO).div(_spotPrice);
                 } else {
                     startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO);
@@ -1296,6 +1275,40 @@ contract MarginCalculator is Ownable {
                 otoken.expiryTimestamp(),
                 otoken.isPut()
             );
+        }
+    }
+
+    struct FPs {
+        FPI.FixedPointInt shortAmount;
+        FPI.FixedPointInt shortStrike;
+        FPI.FixedPointInt shortUnderlyingPrice;
+    }
+
+    function makeFPs(
+        uint256 short,
+        uint256 strike,
+        uint256 underlying
+    ) internal pure returns (FPs memory) {
+        // scale short amount from 1e8 to 1e27 (oToken is always in 1e8)
+        FPI.FixedPointInt memory shortAmount = FPI.fromScaledUint(short, BASE);
+        // scale short strike from 1e8 to 1e27
+        FPI.FixedPointInt memory shortStrike = FPI.fromScaledUint(strike, BASE);
+        // scale short underlying price from 1e8 to 1e27
+        FPI.FixedPointInt memory shortUnderlyingPrice = FPI.fromScaledUint(underlying, BASE);
+        return FPs(shortAmount, shortStrike, shortUnderlyingPrice);
+    }
+
+    function getOptionType(
+        bool _isPut,
+        address collateral,
+        address underlying
+    ) internal pure returns (uint256) {
+        if (_isPut) {
+            return 0;
+        } else if (_isPut && collateral == underlying) {
+            return 1;
+        } else {
+            return 2;
         }
     }
 }
