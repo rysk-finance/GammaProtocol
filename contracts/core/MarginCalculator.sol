@@ -1305,7 +1305,7 @@ contract MarginCalculator is Ownable {
     ) internal pure returns (uint256) {
         if (_isPut) {
             return 0;
-        } else if (_isPut && collateral == underlying) {
+        } else if (!_isPut && collateral == underlying) {
             return 1;
         } else {
             return 2;

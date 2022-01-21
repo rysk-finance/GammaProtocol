@@ -140,8 +140,8 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
       from: owner,
     })
     // mint usdc to user
-    await weth.mint(accountOwner1, createTokenAmount(1000, wethDecimals))
-    await weth.mint(liquidator, createTokenAmount(1000, wethDecimals))
+    await weth.mint(accountOwner1, createTokenAmount(100, wethDecimals))
+    await weth.mint(liquidator, createTokenAmount(100, wethDecimals))
   })
 
   describe('open position - update price far OTM - update price to go underwater - update price to go overcollateral - update price to go underwater & fully liquidate', () => {
@@ -474,7 +474,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
         wethDecimals,
         isPut,
       )
-
+      console.log()
       const mintArgs = [
         {
           actionType: ActionType.OpenVault,
