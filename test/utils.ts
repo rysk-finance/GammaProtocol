@@ -149,7 +149,7 @@ export const signOrder = async (signer: any, order: any, key: any) => {
   return order
 }
 
-export const expectedLiqudidationPrice = (
+export const expectedLiquidationPrice = (
   collateral: number | string,
   debt: number,
   cashValue: number,
@@ -159,6 +159,8 @@ export const expectedLiqudidationPrice = (
   currentBlockTime: number,
   isPut: boolean,
   collateralDecimals: number,
+  collateralAsset: string,
+  underlyingAsset: string,
 ) => {
   const endingPrice = new BigNumber(collateral).dividedBy(debt)
   const auctionElapsedTime = currentBlockTime - auctionStartingTime
@@ -171,6 +173,11 @@ export const expectedLiqudidationPrice = (
   let startingPrice
 
   if (isPut) {
+    startingPrice = BigNumber.max(
+      new BigNumber(cashValue).minus(new BigNumber(spotPrice).multipliedBy(oracleDeviation)),
+      0,
+    )
+  } else if (!isPut && underlyingAsset == collateralAsset) {
     startingPrice = BigNumber.max(
       new BigNumber(cashValue).minus(new BigNumber(spotPrice).multipliedBy(oracleDeviation)),
       0,

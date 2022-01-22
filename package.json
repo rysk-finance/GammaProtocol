@@ -81,10 +81,6 @@
     "**/*.sol": [
       "npm run lint:sol:prettier:fix",
       "git add"
-    ],
-    "test/**": [
-      "npm run lint:tests:fix",
-      "git add"
     ]
   },
   "dependencies": {

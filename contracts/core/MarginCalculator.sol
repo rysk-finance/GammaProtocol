@@ -457,7 +457,7 @@ contract MarginCalculator is Ownable {
 
         FPI.FixedPointInt memory collateralRequired = _getNakedMarginRequired(
             productHash,
-            FPs(shortDetails.shortAmount, shortDetails.shortUnderlyingPrice, shortDetails.shortStrike),
+            FPs(shortDetails.shortAmount, shortDetails.shortStrike, shortDetails.shortUnderlyingPrice),
             vaultDetails.shortExpiryTimestamp,
             getOptionType(vaultDetails.isShortPut, vaultDetails.shortCollateralAsset, vaultDetails.shortUnderlyingAsset)
         );
@@ -474,8 +474,8 @@ contract MarginCalculator is Ownable {
         );
         uint256 opType = getOptionType(
             vaultDetails.isShortPut,
-            vaultDetails.shortUnderlyingAsset,
-            vaultDetails.shortCollateralAsset
+            vaultDetails.shortCollateralAsset,
+            vaultDetails.shortUnderlyingAsset
         );
         // get the amount of collateral per 1 repaid otoken
         uint256 debtPrice = _getDebtPrice(

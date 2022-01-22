@@ -751,7 +751,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
           isPut,
         ),
       )
-
+      console.log('required margin ' + requiredMargin.toString())
       const mintArgs = [
         {
           actionType: ActionType.OpenVault,
@@ -817,7 +817,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       await time.increase(600)
 
       const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
-
+      console.log(isLiquidatable[1].toString(), isLiquidatable[2].toString())
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')
 
@@ -869,6 +869,8 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
         errorDelta,
         'Liquidator collateral balance mismatch after liquidation',
       )
+      const Liquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      console.log(Liquidatable[0], Liquidatable[1].toString(), Liquidatable[2].toString())
     })
 
     it('should revert liquidating the rest of debt when vault is back overcollateralized', async () => {
@@ -884,7 +886,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       await time.increase(600)
 
       const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
-
+      console.log(isLiquidatable[1].toString(), isLiquidatable[2].toString())
       assert.equal(isLiquidatable[0], false, 'Vault liquidation state mismatch')
 
       // const vaultCollateral = requiredMargin.dividedBy(10 ** usdcDecimals).toString()

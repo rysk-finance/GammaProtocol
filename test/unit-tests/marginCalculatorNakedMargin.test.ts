@@ -30,6 +30,8 @@ const expectedRequiredMargin = (
   isPut: boolean,
   upperBoundValue: number,
   spotShockValue: number,
+  collateralAsset: string,
+  underlyingAsset: string,
 ) => {
   let a, b, marginRequired
 
@@ -37,9 +39,13 @@ const expectedRequiredMargin = (
     a = Math.min(strikePrice, spotShockValue * underlyingPrice)
     b = Math.max(strikePrice - spotShockValue * underlyingPrice, 0)
     marginRequired = (upperBoundValue * a + b) * shortAmount
-  } else {
+  } else if (!isPut && collateralAsset == underlyingAsset) {
     a = Math.min(1, strikePrice / (underlyingPrice / spotShockValue))
     b = Math.max(1 - strikePrice / (underlyingPrice / spotShockValue), 0)
+    marginRequired = (upperBoundValue * a + b) * shortAmount
+  } else {
+    a = Math.min(strikePrice, strikePrice * spotShockValue)
+    b = Math.max(underlyingPrice - strikePrice * spotShockValue, 0)
     marginRequired = (upperBoundValue * a + b) * shortAmount
   }
 
@@ -439,6 +445,8 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         isPut,
         upperBoundValue,
         productSpotShockValue.dividedBy(1e27).toNumber(),
+        usdc.address,
+        weth.address,
       )
 
       const requiredMargin = new BigNumber(
@@ -496,6 +504,8 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         isPut,
         upperBoundValue,
         productSpotShockValue.dividedBy(1e27).toNumber(),
+        weth.address,
+        weth.address,
       )
 
       const requiredMargin = new BigNumber(
@@ -553,6 +563,8 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         isPut,
         upperBoundValue,
         productSpotShockValue.dividedBy(1e27).toNumber(),
+        weth.address,
+        weth.address,
       )
 
       const requiredMargin = new BigNumber(
@@ -604,6 +616,8 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         isPut,
         upperBoundValue,
         productSpotShockValue.dividedBy(1e27).toNumber(),
+        usdc.address,
+        weth.address,
       )
 
       const requiredMargin = new BigNumber(
@@ -619,7 +633,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
           isPut,
         ),
       )
-
+      console.log(requiredMargin.dividedBy(10 ** usdcDecimals).toNumber(), expectedRequiredNakedMargin.toString())
       assert.equal(
         requiredMargin.dividedBy(10 ** usdcDecimals).toNumber(),
         expectedRequiredNakedMargin,
@@ -651,6 +665,8 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         isPut,
         upperBoundValue,
         productSpotShockValue.dividedBy(1e27).toNumber(),
+        usdc.address,
+        weth.address,
       )
 
       const requiredMargin = new BigNumber(
@@ -759,6 +775,8 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         isPut,
         upperBoundValue,
         productSpotShockValue.dividedBy(1e27).toNumber(),
+        usdc.address,
+        usdc.address,
       )
 
       assert.isAtMost(
@@ -816,6 +834,8 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         isPut,
         upperBoundValue,
         productSpotShockValue.dividedBy(1e27).toNumber(),
+        usdc.address,
+        usdc.address,
       )
 
       assert.isAtMost(
@@ -851,10 +871,10 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
       assert.equal(getExcessCollateralResult[1], true, 'isValid vault result mismatch')
     })
 
-    it('should return correct excess value for naked margin vault: 100$ WETH call option with 150 spot, 1 week to expiry, 30 USDC collateral and 13.22 USDC excess', async () => {
+    it('should return correct excess value for naked margin vault: 100$ WETH call option usdc collat with 50 spot, 1 week to expiry, 30 USDC collateral and 13.22 USDC excess', async () => {
       const shortAmount = 1
       const shortStrike = 100
-      const underlyingPrice = 150
+      const underlyingPrice = 50
       const scaledUnderlyingPrice = scaleBigNum(underlyingPrice, 8)
       const isPut = false
       const optionExpiry = new BigNumber(await time.latest()).plus(timeToExpiry[0])
@@ -873,10 +893,12 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         isPut,
         upperBoundValue,
         productSpotShockValue.dividedBy(1e27).toNumber(),
+        usdc.address,
+        weth.address,
       )
 
       assert.isAtMost(
-        calcRelativeDiff(new BigNumber('16.77778677'), new BigNumber(expectedRequiredNakedMargin)).toNumber(),
+        calcRelativeDiff(new BigNumber('12.59'), new BigNumber(expectedRequiredNakedMargin)).toNumber(),
         errorDelta,
         'big error delta',
       )
@@ -930,6 +952,8 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         isPut,
         upperBoundValue,
         productSpotShockValue.dividedBy(1e27).toNumber(),
+        weth.address,
+        weth.address,
       )
 
       assert.isAtMost(
