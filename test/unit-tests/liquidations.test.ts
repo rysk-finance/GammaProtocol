@@ -259,7 +259,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
       assert.equal(isLiquidatable[0], true, 'isLiquidatable boolean value mismatch')
       assert.equal(
         new BigNumber(isLiquidatable[1].toString()).toString(),
-        new BigNumber(expectedLiquidation).toString(),
+        new BigNumber(expectedLiquidation.toString()).toString(),
         'debt price value mismatch',
       )
       assert.equal(isLiquidatable[2].toString(), usdcDust, 'collateral dust value mismatch')
