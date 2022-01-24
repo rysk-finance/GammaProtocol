@@ -332,7 +332,7 @@ contract MarginCalculator is Ownable {
     ) external view returns (uint256) {
         bytes32 productHash = _getProductHash(_underlying, _strike, _collateral, _isPut);
         FPs memory fps = makeFPs(_shortAmount, _strikePrice, _underlyingPrice);
-        uint256 opType = getOptionType(_isPut, _collateral, _underlying);
+        OptionType opType = getOptionType(_isPut, _collateral, _underlying);
         // return required margin, scaled by collateral asset decimals, explicitly rounded up
         return
             FPI.toScaledUint(
@@ -472,7 +472,7 @@ contract MarginCalculator is Ownable {
             shortDetails.shortUnderlyingPrice,
             vaultDetails.isShortPut
         );
-        uint256 opType = getOptionType(
+        OptionType opType = getOptionType(
             vaultDetails.isShortPut,
             vaultDetails.shortCollateralAsset,
             vaultDetails.shortUnderlyingAsset
@@ -654,7 +654,7 @@ contract MarginCalculator is Ownable {
                     _vaultDetails.shortCollateralAsset,
                     _vaultDetails.isShortPut
                 );
-                uint256 opType = getOptionType(
+                OptionType opType = getOptionType(
                     otokenDetails.isPut,
                     _vaultDetails.shortCollateralAsset,
                     _vaultDetails.shortUnderlyingAsset
@@ -768,7 +768,7 @@ contract MarginCalculator is Ownable {
         bytes32 _productHash,
         FPs memory fps,
         uint256 _shortExpiryTimestamp,
-        uint256 optionType
+        OptionType optionType
     ) internal view returns (FPI.FixedPointInt memory) {
         // find option upper bound value
         FPI.FixedPointInt memory optionUpperBoundValue = _findUpperBoundValue(_productHash, _shortExpiryTimestamp);
@@ -778,10 +778,10 @@ contract MarginCalculator is Ownable {
         FPI.FixedPointInt memory a;
         FPI.FixedPointInt memory b;
 
-        if (optionType == 0) {
+        if (optionType == OptionType.PUT) {
             a = FPI.min(fps.shortStrike, spotShockValue.mul(fps.shortUnderlyingPrice));
             b = FPI.max(fps.shortStrike.sub(spotShockValue.mul(fps.shortUnderlyingPrice)), ZERO);
-        } else if (optionType == 1) {
+        } else if (optionType == OptionType.COVERED_CALL) {
             a = FPI.min(
                 FPI.fromScaledUint(1e27, SCALING_FACTOR),
                 fps.shortStrike.mul(spotShockValue).div(fps.shortUnderlyingPrice)
@@ -965,7 +965,7 @@ contract MarginCalculator is Ownable {
         FPI.FixedPointInt memory _spotPrice,
         uint256 _auctionStartingTime,
         uint256 _collateralDecimals,
-        uint256 optionType
+        OptionType optionType
     ) internal view returns (uint256) {
         // price of 1 repaid otoken in collateral asset, scaled to 1e27
         FPI.FixedPointInt memory price;
@@ -986,9 +986,9 @@ contract MarginCalculator is Ownable {
                 // store oracle deviation in a FixedPointInt (already scaled by 1e27)
                 FPI.FixedPointInt memory fixedOracleDeviation = FPI.fromScaledUint(oracleDeviation, SCALING_FACTOR);
 
-                if (optionType == 0) {
+                if (optionType == OptionType.PUT) {
                     startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO);
-                } else if (optionType == 1) {
+                } else if (optionType == OptionType.COVERED_CALL) {
                     startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO).div(_spotPrice);
                 } else {
                     startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO);
@@ -1284,6 +1284,12 @@ contract MarginCalculator is Ownable {
         FPI.FixedPointInt shortUnderlyingPrice;
     }
 
+    enum OptionType {
+        PUT,
+        NAKED_CALL,
+        COVERED_CALL
+    }
+
     function makeFPs(
         uint256 short,
         uint256 strike,
@@ -1302,13 +1308,13 @@ contract MarginCalculator is Ownable {
         bool _isPut,
         address collateral,
         address underlying
-    ) internal pure returns (uint256) {
+    ) internal pure returns (OptionType) {
         if (_isPut) {
-            return 0;
+            return OptionType.PUT;
         } else if (!_isPut && collateral == underlying) {
-            return 1;
+            return OptionType.COVERED_CALL;
         } else {
-            return 2;
+            return OptionType.NAKED_CALL;
         }
     }
 }
