@@ -793,7 +793,7 @@ contract MarginCalculator is Ownable {
                 ZERO
             );
         } else {
-            a = FPI.min(fps.shortStrike, (fps.shortStrike.mul(spotShockValue)));
+            a = FPI.min(fps.shortUnderlyingPrice, (fps.shortStrike.mul(spotShockValue)));
             b = FPI.max(fps.shortUnderlyingPrice.sub(fps.shortStrike.mul(spotShockValue)), ZERO);
         }
         return optionUpperBoundValue.mul(a).add(b).mul(fps.shortAmount);

@@ -46,7 +46,7 @@ enum ActionType {
   Liquidate,
 }
 
-contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liquidator, buyer1]) => {
+contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, liquidator, buyer1]) => {
   let addressBook: AddressBookInstance
   let calculator: MarginCalculatorInstance
   let controllerProxy: ControllerInstance
@@ -190,7 +190,6 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
         usdcDecimals,
         isPut,
       )
-      console.log(collateralToDeposit.toString())
       const mintArgs = [
         {
           actionType: ActionType.OpenVault,
@@ -263,7 +262,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
     })
 
     it('update price, option goes far OTM, collateral required decrease, user should be able to remove excess collateral', async () => {
-      const underlyingPrice = 1300
+      const underlyingPrice = 1500
       scaledUnderlyingPrice = scaleBigNum(underlyingPrice, 8)
       await oracle.setRealTimePrice(weth.address, scaledUnderlyingPrice)
 
@@ -278,12 +277,11 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
         usdcDecimals,
         isPut,
       )
-
+      console.log(collateralNeeded.toString())
       const userVaultBefore = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
-      console.log('Collat needed: ' + collateralNeeded.toString())
-      console.log('Vault collat: ' + userVaultBefore[0].collateralAmounts[0].toString())
       const amountToWithdraw = new BigNumber(userVaultBefore[0].collateralAmounts[0]).minus(collateralNeeded)
-      console.log('Amount to withdraw: ' + amountToWithdraw)
+      console.log(amountToWithdraw.toString())
+      console.log(userVaultBefore[0].collateralAmounts[0].toString())
       const withdrawArgs = [
         {
           actionType: ActionType.WithdrawCollateral,
@@ -319,7 +317,20 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
       const underlyingPrice = 2000
       scaledUnderlyingPrice = scaleBigNum(underlyingPrice, 8)
       await oracle.setRealTimePrice(weth.address, scaledUnderlyingPrice)
-
+      const collateralNeeded = await calculator.getNakedMarginRequired(
+        weth.address,
+        usdc.address,
+        usdc.address,
+        createTokenAmount(shortAmount),
+        createTokenAmount(shortStrike),
+        scaledUnderlyingPrice,
+        optionExpiry,
+        usdcDecimals,
+        isPut,
+      )
+      console.log(collateralNeeded.toString())
+      const userVaultBefore = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
+      console.log(userVaultBefore[0].collateralAmounts[0].toString())
       await expectRevert(controllerProxy.sync(accountOwner1, vaultCounter, { from: accountOwner1 }), 'C14')
 
       roundId = new BigNumber(10)
@@ -328,21 +339,36 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
 
     it('update price, OTM position is overcollateralized again, user call sync, liquidation should revert with price timestamp T at underwater', async () => {
       await shortOtoken.transfer(liquidator, createTokenAmount(shortAmount), { from: accountOwner1 })
-
       const underlyingPrice = 1400
       scaledUnderlyingPrice = scaleBigNum(underlyingPrice, 8)
       await oracle.setRealTimePrice(weth.address, scaledUnderlyingPrice)
 
+      const collateralNeeded = await calculator.getNakedMarginRequired(
+        weth.address,
+        usdc.address,
+        usdc.address,
+        createTokenAmount(shortAmount),
+        createTokenAmount(shortStrike),
+        scaledUnderlyingPrice,
+        optionExpiry,
+        usdcDecimals,
+        isPut,
+      )
+      console.log(collateralNeeded.toString())
+      const userVaultBefore = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
+      const amountToWithdraw = new BigNumber(userVaultBefore[0].collateralAmounts[0]).minus(collateralNeeded)
+      console.log(amountToWithdraw.toString())
+      console.log(userVaultBefore[0].collateralAmounts[0].toString())
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      console.log(isLiquidatable[0], isLiquidatable[1].toString(), isLiquidatable[2].toString())
       await controllerProxy.sync(accountOwner1, vaultCounter, { from: accountOwner1 })
-
       const userVault = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
-
       assert.equal(
         userVault[2].toString(),
         (await time.latest()).toString(),
         'User vault latest update timestamp mismatch',
       )
-
+      
       const liquidateArgs = [
         {
           actionType: ActionType.Liquidate,
@@ -355,7 +381,6 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
           data: web3.eth.abi.encodeParameter('uint256', roundId.toString()),
         },
       ]
-
       await expectRevert(
         controllerProxy.operate(liquidateArgs, { from: liquidator }),
         'MarginCalculator: auction timestamp should be post vault latest update',
@@ -383,7 +408,6 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
 
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')
-      console.log(isLiquidatable[1].toString())
       const liquidateArgs = [
         {
           actionType: ActionType.Liquidate,
@@ -399,22 +423,20 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
 
       const liquidatorCollateralBalanceBefore = new BigNumber(await usdc.balanceOf(liquidator))
       const vaultBeforeLiquidation = (
-        await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter.toString())
-      )[0]
-
+        await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter.toString()))[0]
       await controllerProxy.operate(liquidateArgs, { from: liquidator })
 
       const liquidatorCollateralBalanceAfter = new BigNumber(await usdc.balanceOf(liquidator))
       const vaultAfterLiquidation = (
         await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter.toString())
       )[0]
-
+      const vaultCollatAmountBef = new BigNumber(vaultBeforeLiquidation.collateralAmounts[0])
+      const vaultCollatAmountAft = new BigNumber(vaultAfterLiquidation.collateralAmounts[0])
       assert.equal(vaultAfterLiquidation.shortAmounts[0].toString(), '0', 'Vault was not fully liquidated')
-      console.log(vaultBeforeLiquidation.collateralAmounts[0].toString())
       assert.isAtMost(
         calcRelativeDiff(
-          vaultAfterLiquidation.collateralAmounts[0],
-          new BigNumber(vaultBeforeLiquidation.collateralAmounts[0]).minus(isLiquidatable[1]),
+          vaultCollatAmountAft.plus(isLiquidatable[1]),
+          vaultCollatAmountBef,
         )
           .dividedBy(10 ** usdcDecimals)
           .toNumber(),
@@ -478,7 +500,6 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
         usdcDecimals,
         isPut,
       )
-      console.log('collateral amount: ' + collateralToDeposit.toString())
       const mintArgs = [
         {
           actionType: ActionType.OpenVault,

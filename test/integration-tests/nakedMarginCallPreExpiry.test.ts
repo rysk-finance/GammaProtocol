@@ -279,8 +279,12 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
         wethDecimals,
         isPut,
       )
+
+      console.log(collateralNeeded.toString())
       const userVaultBefore = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
       const amountToWithdraw = new BigNumber(userVaultBefore[0].collateralAmounts[0]).minus(collateralNeeded)
+      console.log(amountToWithdraw.toString())
+      console.log(userVaultBefore[0].collateralAmounts[0].toString())
       const withdrawArgs = [
         {
           actionType: ActionType.WithdrawCollateral,
@@ -329,7 +333,23 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
       const underlyingPrice = 1400
       scaledUnderlyingPrice = scaleBigNum(underlyingPrice, 8)
       await oracle.setRealTimePrice(weth.address, scaledUnderlyingPrice)
+      const collateralNeeded = await calculator.getNakedMarginRequired(
+        weth.address,
+        usdc.address,
+        weth.address,
+        createTokenAmount(shortAmount),
+        createTokenAmount(shortStrike),
+        scaledUnderlyingPrice,
+        optionExpiry,
+        wethDecimals,
+        isPut,
+      )
 
+      console.log(collateralNeeded.toString())
+      const userVaultBefore = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
+      const amountToWithdraw = new BigNumber(userVaultBefore[0].collateralAmounts[0]).minus(collateralNeeded)
+      console.log(amountToWithdraw.toString())
+      console.log(userVaultBefore[0].collateralAmounts[0].toString())
       await controllerProxy.sync(accountOwner1, vaultCounter, { from: accountOwner1 })
 
       const userVault = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)

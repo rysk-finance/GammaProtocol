@@ -44,7 +44,7 @@ const expectedRequiredMargin = (
     b = Math.max(1 - strikePrice / (underlyingPrice / spotShockValue), 0)
     marginRequired = (upperBoundValue * a + b) * shortAmount
   } else {
-    a = Math.min(strikePrice, strikePrice * spotShockValue)
+    a = Math.min(underlyingPrice, strikePrice * spotShockValue)
     b = Math.max(underlyingPrice - strikePrice * spotShockValue, 0)
     marginRequired = (upperBoundValue * a + b) * shortAmount
   }
@@ -636,7 +636,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
       console.log(requiredMargin.dividedBy(10 ** usdcDecimals).toNumber(), expectedRequiredNakedMargin.toString())
       assert.equal(
         requiredMargin.dividedBy(10 ** usdcDecimals).toNumber(),
-        expectedRequiredNakedMargin,
+        Math.round(expectedRequiredNakedMargin),
         'Required naked margin for put mismatch',
       )
     })
@@ -898,7 +898,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
       )
 
       assert.isAtMost(
-        calcRelativeDiff(new BigNumber('12.59'), new BigNumber(expectedRequiredNakedMargin)).toNumber(),
+        calcRelativeDiff(new BigNumber('8.39'), new BigNumber(expectedRequiredNakedMargin)).toNumber(),
         errorDelta,
         'big error delta',
       )
