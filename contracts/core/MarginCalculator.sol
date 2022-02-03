@@ -792,6 +792,9 @@ contract MarginCalculator is Ownable {
                 ),
                 ZERO
             );
+        } else if (optionType == OptionType.NAKED_PUT) {
+            a = FPI.min(fps.shortStrike.div(fps.shortUnderlyingPrice), spotShockValue);
+            b = FPI.max((fps.shortStrike.div(fps.shortUnderlyingPrice)).sub(spotShockValue), ZERO);
         } else {
             a = FPI.min(fps.shortUnderlyingPrice, (fps.shortStrike.mul(spotShockValue)));
             b = FPI.max(fps.shortUnderlyingPrice.sub(fps.shortStrike.mul(spotShockValue)), ZERO);
@@ -988,6 +991,8 @@ contract MarginCalculator is Ownable {
 
                 if (optionType == OptionType.PUT) {
                     startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO);
+                } else if (optionType == OptionType.NAKED_PUT) {
+                    startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO).div(_spotPrice);
                 } else if (optionType == OptionType.COVERED_CALL) {
                     startingPrice = FPI.max(_cashValue.sub(fixedOracleDeviation.mul(_spotPrice)), ZERO).div(_spotPrice);
                 } else {
@@ -1287,6 +1292,7 @@ contract MarginCalculator is Ownable {
     enum OptionType {
         PUT,
         NAKED_CALL,
+        NAKED_PUT,
         COVERED_CALL
     }
 
@@ -1309,7 +1315,9 @@ contract MarginCalculator is Ownable {
         address collateral,
         address underlying
     ) internal pure returns (OptionType) {
-        if (_isPut) {
+        if (_isPut && collateral == underlying) {
+            return OptionType.NAKED_PUT;
+        } else if (_isPut) {
             return OptionType.PUT;
         } else if (!_isPut && collateral == underlying) {
             return OptionType.COVERED_CALL;
