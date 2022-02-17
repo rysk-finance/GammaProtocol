@@ -781,6 +781,7 @@ contract MarginCalculator is Ownable {
         if (optionType == OptionType.PUT) {
             a = FPI.min(fps.shortStrike, spotShockValue.mul(fps.shortUnderlyingPrice));
             b = FPI.max(fps.shortStrike.sub(spotShockValue.mul(fps.shortUnderlyingPrice)), ZERO);
+            return optionUpperBoundValue.mul(a).add(b).mul(fps.shortAmount);
         } else if (optionType == OptionType.COVERED_CALL) {
             a = FPI.min(
                 FPI.fromScaledUint(1e27, SCALING_FACTOR),
@@ -792,14 +793,24 @@ contract MarginCalculator is Ownable {
                 ),
                 ZERO
             );
+            return optionUpperBoundValue.mul(a).add(b).mul(fps.shortAmount);
         } else if (optionType == OptionType.NAKED_PUT) {
             a = FPI.min(fps.shortStrike.div(fps.shortUnderlyingPrice), spotShockValue);
             b = FPI.max((fps.shortStrike.div(fps.shortUnderlyingPrice)).sub(spotShockValue), ZERO);
+            return (
+                (FPI.fromScaledUint(1e27, SCALING_FACTOR).add(spotShockValue))
+                    .mul(optionUpperBoundValue.mul(a).add(b))
+                    .mul(fps.shortAmount)
+            );
         } else {
             a = FPI.min(fps.shortUnderlyingPrice, (fps.shortStrike.mul(spotShockValue)));
             b = FPI.max(fps.shortUnderlyingPrice.sub(fps.shortStrike.mul(spotShockValue)), ZERO);
+            return (
+                (FPI.fromScaledUint(1e27, SCALING_FACTOR).add(spotShockValue))
+                    .mul(optionUpperBoundValue.mul(a).add(b))
+                    .mul(fps.shortAmount)
+            );
         }
-        return optionUpperBoundValue.mul(a).add(b).mul(fps.shortAmount);
     }
 
     /**

@@ -38,7 +38,7 @@ const expectedRequiredMargin = (
   if (isPut && collateralAsset == underlyingAsset) {
     a = Math.min(strikePrice/underlyingPrice, spotShockValue)
     b = Math.max((strikePrice/underlyingPrice) - spotShockValue, 0)
-    marginRequired = (upperBoundValue * a + b) * shortAmount
+    marginRequired = ((1 + spotShockValue) * (upperBoundValue * a + b)) * shortAmount
   } else if (isPut && collateralAsset != underlyingAsset) {
     a = Math.min(strikePrice, spotShockValue * underlyingPrice)
     b = Math.max(strikePrice - spotShockValue * underlyingPrice, 0)
@@ -50,7 +50,7 @@ const expectedRequiredMargin = (
   } else {
     a = Math.min(underlyingPrice, strikePrice * spotShockValue)
     b = Math.max(underlyingPrice - strikePrice * spotShockValue, 0)
-    marginRequired = (upperBoundValue * a + b) * shortAmount
+    marginRequired = ((1 + spotShockValue) * (upperBoundValue * a + b)) * shortAmount
   }
 
   return marginRequired
@@ -478,7 +478,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
           isPut,
         ),
       )
-
+      
       assert.equal(
         requiredMargin.dividedBy(10 ** usdcDecimals).toNumber(),
         expectedRequiredNakedMargin,
@@ -969,9 +969,8 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         usdc.address,
         weth.address,
       )
-
       assert.isAtMost(
-        calcRelativeDiff(new BigNumber('8.39'), new BigNumber(expectedRequiredNakedMargin)).toNumber(),
+        calcRelativeDiff(new BigNumber('14.6825'), new BigNumber(expectedRequiredNakedMargin)).toNumber(),
         errorDelta,
         'big error delta',
       )
@@ -994,10 +993,10 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
       const vault = createVault(shortOtoken.address, undefined, usdc.address, scaleNum(1), undefined, collateralAmount)
 
       const getExcessCollateralResult = await calculator.getExcessCollateral(vault, vaultType)
-
-      assert.equal(
-        getExcessCollateralResult[0].toString(),
-        new BigNumber(collateralAmount).minus(expectedRequiredNakedMargin * 10 ** usdcDecimals).toString(),
+      assert.approximately(
+        getExcessCollateralResult[0].toNumber(),
+        new BigNumber(collateralAmount).minus(expectedRequiredNakedMargin * 10 ** usdcDecimals).toNumber(),
+        errorDelta,
         'Excess collateral value mismatch',
       )
       assert.equal(getExcessCollateralResult[1], true, 'isValid vault result mismatch')
