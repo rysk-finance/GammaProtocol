@@ -100,7 +100,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
     oracle = await MockOracle.new()
     await addressBook.setOracle(oracle.address)
     // setup calculator
-    calculator = await MarginCalculator.new(oracle.address, { from: owner })
+    calculator = await MarginCalculator.new(oracle.address, addressBook.address, { from: owner })
   })
 
   describe('Collateral dust', async () => {
@@ -380,7 +380,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
 
     before(async () => {
       // setup new calculator
-      calculator = await MarginCalculator.new(oracle.address, { from: owner })
+      calculator = await MarginCalculator.new(oracle.address, addressBook.address, { from: owner })
 
       // set product spot shock value
       await calculator.setSpotShock(weth.address, usdc.address, usdc.address, true, productSpotShockValue)

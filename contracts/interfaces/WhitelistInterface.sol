@@ -40,6 +40,8 @@ interface WhitelistInterface {
 
     function blacklistCollateral(address _collateral) external;
 
+    function whitelistVaultType0Collateral(address _collateral, bool _isPut) external;
+
     function whitelistOtoken(address _otoken) external;
 
     function blacklistOtoken(address _otoken) external;

@@ -102,7 +102,7 @@ contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, 
     // setup mock Oracle module
     oracle = await MockOracle.new(addressBook.address)
     // setup calculator
-    calculator = await MarginCalculator.new(oracle.address)
+    calculator = await MarginCalculator.new(oracle.address, addressBook.address)
     // setup whitelist module
     whitelist = await Whitelist.new(addressBook.address)
     // setup otoken
@@ -111,8 +111,10 @@ contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, 
     otokenFactory = await OTokenFactory.new(addressBook.address)
 
     // config whitelist module
-    await whitelist.whitelistCollateral(usdc.address)
     await whitelist.whitelistCollateral(weth.address)
+    await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistVaultType0Collateral(weth.address, false)
+    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, isPut)
 
     // config addressbook
@@ -368,7 +370,7 @@ contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, 
         (await time.latest()).toString(),
         'User vault latest update timestamp mismatch',
       )
-      
+
       const liquidateArgs = [
         {
           actionType: ActionType.Liquidate,
@@ -423,7 +425,8 @@ contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, 
 
       const liquidatorCollateralBalanceBefore = new BigNumber(await usdc.balanceOf(liquidator))
       const vaultBeforeLiquidation = (
-        await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter.toString()))[0]
+        await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter.toString())
+      )[0]
       await controllerProxy.operate(liquidateArgs, { from: liquidator })
 
       const liquidatorCollateralBalanceAfter = new BigNumber(await usdc.balanceOf(liquidator))
@@ -434,10 +437,7 @@ contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, 
       const vaultCollatAmountAft = new BigNumber(vaultAfterLiquidation.collateralAmounts[0])
       assert.equal(vaultAfterLiquidation.shortAmounts[0].toString(), '0', 'Vault was not fully liquidated')
       assert.isAtMost(
-        calcRelativeDiff(
-          vaultCollatAmountAft.plus(isLiquidatable[1]),
-          vaultCollatAmountBef,
-        )
+        calcRelativeDiff(vaultCollatAmountAft.plus(isLiquidatable[1]), vaultCollatAmountBef)
           .dividedBy(10 ** usdcDecimals)
           .toNumber(),
         errorDelta,

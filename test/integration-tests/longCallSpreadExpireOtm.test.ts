@@ -89,11 +89,13 @@ contract('Long Call Spread Option expires Otm flow', ([accountOwner1, nakedBuyer
     // setup mock Oracle module
     oracle = await MockOracle.new(addressBook.address)
     // setup calculator
-    calculator = await MarginCalculator.new(oracle.address)
+    calculator = await MarginCalculator.new(oracle.address, addressBook.address)
     // setup whitelist module
     whitelist = await Whitelist.new(addressBook.address)
     await whitelist.whitelistCollateral(weth.address)
     await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistVaultType0Collateral(weth.address, false)
+    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
     await whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, true)
     await whitelist.whitelistProduct(weth.address, usdc.address, weth.address, false)
     // setup otoken

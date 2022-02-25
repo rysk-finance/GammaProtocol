@@ -73,7 +73,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
     oracle = await MockOracle.new()
     await addressBook.setOracle(oracle.address)
     // setup calculator
-    calculator = await MarginCalculator.new(oracle.address, { from: owner })
+    calculator = await MarginCalculator.new(oracle.address, addressBook.address, { from: owner })
     // set collateral dust
     await calculator.setCollateralDust(weth.address, wethDust, { from: owner })
     await calculator.setCollateralDust(usdc.address, usdcDust, { from: owner })

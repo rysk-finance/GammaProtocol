@@ -80,7 +80,7 @@ contract(
       // deploy Oracle module
       oracle = await MockOracle.new(addressBook.address, { from: owner })
       // calculator deployment
-      calculator = await MarginCalculator.new(oracle.address)
+      calculator = await MarginCalculator.new(oracle.address, addressBook.address)
       // margin pool deployment
       marginPool = await MarginPool.new(addressBook.address)
       // whitelist module
@@ -1102,6 +1102,7 @@ contract(
         it('should deposit a whitelisted collateral asset from account owner', async () => {
           // whitelist usdc
           await whitelist.whitelistCollateral(usdc.address)
+          await whitelist.whitelistVaultType0Collateral(usdc.address, true)
           const vaultCounter = new BigNumber(await controllerProxy.getAccountVaultCounter(accountOwner1))
           assert.isAbove(vaultCounter.toNumber(), 0, 'Account owner have no vault')
 
@@ -1364,6 +1365,7 @@ contract(
           const collateralToDeposit = createTokenAmount(10, wethDecimals)
           //whitelist weth to use in this test
           await whitelist.whitelistCollateral(weth.address)
+          await whitelist.whitelistVaultType0Collateral(weth.address, false)
           await weth.mint(accountOwner1, collateralToDeposit)
 
           const vaultCounter = new BigNumber(await controllerProxy.getAccountVaultCounter(accountOwner1))
@@ -1782,7 +1784,7 @@ contract(
           )
           // whitelist short otoken to be used in the protocol
           await whitelist.whitelistOtoken(_shortOtoken.address, { from: owner })
-  
+
           const vaultCounter = new BigNumber(await controllerProxy.getAccountVaultCounter(accountOwner1))
           assert.isAbove(vaultCounter.toNumber(), 0, 'Account owner have no vault')
 
@@ -3051,6 +3053,7 @@ contract(
         const expiry = new BigNumber(await time.latest()).plus(new BigNumber(60 * 60)).toNumber()
 
         await whitelist.whitelistCollateral(weth2.address)
+        await whitelist.whitelistVaultType0Collateral(weth2.address, false)
         const call: MockOtokenInstance = await MockOtoken.new()
         await call.init(
           addressBook.address,
@@ -4762,7 +4765,7 @@ contract(
       it('should refresh configuratiom', async () => {
         // update modules
         const oracle = await MockOracle.new(addressBook.address, { from: owner })
-        const calculator = await MarginCalculator.new(addressBook.address, { from: owner })
+        const calculator = await MarginCalculator.new(oracle.address, addressBook.address, { from: owner })
         const marginPool = await MarginPool.new(addressBook.address, { from: owner })
         const whitelist = await MockWhitelistModule.new({ from: owner })
 

@@ -102,7 +102,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
     // deploy Oracle module
     oracle = await MockOracle.new(addressBook.address, { from: owner })
     // calculator deployment
-    calculator = await MarginCalculator.new(oracle.address)
+    calculator = await MarginCalculator.new(oracle.address, addressBook.address)
     // margin pool deployment
     marginPool = await MarginPool.new(addressBook.address)
     // whitelist module
@@ -142,8 +142,10 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
 
     // set calculator configs
     // whitelist collateral
-    await whitelist.whitelistCollateral(usdc.address)
     await whitelist.whitelistCollateral(weth.address)
+    await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistVaultType0Collateral(weth.address, false)
+    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
     // set product spot shock value
     await calculator.setSpotShock(weth.address, usdc.address, usdc.address, true, productSpotShockValue)
     await calculator.setSpotShock(weth.address, usdc.address, weth.address, false, productSpotShockValue)
@@ -1227,5 +1229,4 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       )
     })
   })
-
 })
