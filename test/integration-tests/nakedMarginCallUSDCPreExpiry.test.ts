@@ -83,7 +83,7 @@ contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, 
   const shortStrike = 2000
   const isPut = false
   const shortAmount = 1
-  const errorDelta = 0.25
+  const errorDelta = 0.5
 
   before('set up contracts', async () => {
     // setup usdc and weth

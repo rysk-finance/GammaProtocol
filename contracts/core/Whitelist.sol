@@ -16,6 +16,8 @@ contract Whitelist is Ownable {
     mapping(bytes32 => bool) internal whitelistedProduct;
     /// @dev mapping to track whitelisted collateral
     mapping(address => bool) internal whitelistedCollateral;
+    /// @dev mapping to mapping to track whitelisted collateral for calls or puts
+    mapping(bool => mapping(address => bool)) internal vaultType0WhitelistedCollateral;
     /// @dev mapping to track whitelisted oTokens
     mapping(address => bool) internal whitelistedOtoken;
     /// @dev mapping to track whitelisted callee addresses for the call action
@@ -49,6 +51,8 @@ contract Whitelist is Ownable {
     );
     /// @notice emits an event when a collateral address is whitelisted by the owner address
     event CollateralWhitelisted(address indexed collateral);
+    /// @notice emits an event when a collateral address for vault type 0 is whitelisted by the owner address
+    event VaultType0CollateralWhitelisted(address indexed collateral);
     /// @notice emits an event when a collateral address is blacklist by the owner address
     event CollateralBlacklisted(address indexed collateral);
     /// @notice emits an event when an oToken is whitelisted by the OtokenFactory module
@@ -102,6 +106,16 @@ contract Whitelist is Ownable {
     }
 
     /**
+     * @notice check if a collateral asset is whitelisted for vault type 0
+     * @param _collateral asset that is held as collateral against short/written options
+     * @param _isPut bool for whether the collateral is to be checked for suitability on a call or put
+     * @return boolean, True if the collateral is whitelisted for vault type 0
+     */
+    function isVaultType0WhitelistedCollateral(address _collateral, bool _isPut) external view returns (bool) {
+        return vaultType0WhitelistedCollateral[_isPut][_collateral];
+    }
+
+    /**
      * @notice check if an oToken is whitelisted
      * @param _otoken oToken address
      * @return boolean, True if the oToken is whitelisted
@@ -135,10 +149,6 @@ contract Whitelist is Ownable {
         bool _isPut
     ) external onlyOwner {
         require(whitelistedCollateral[_collateral], "Whitelist: Collateral is not whitelisted");
-        // require(
-        //     (_isPut && (_strike == _collateral)) || (!_isPut && (_collateral == _underlying)),
-        //     "Whitelist: Only allow fully collateralized products"
-        // );
 
         bytes32 productHash = keccak256(abi.encode(_underlying, _strike, _collateral, _isPut));
 
@@ -178,6 +188,18 @@ contract Whitelist is Ownable {
         whitelistedCollateral[_collateral] = true;
 
         emit CollateralWhitelisted(_collateral);
+    }
+
+    /**
+     * @notice allows the owner to whitelist a collateral address for vault type 0
+     * @dev can only be called from the owner address. This function is used to whitelist any asset other than Otoken as collateral.
+     * @param _collateral collateral asset address
+     * @param _isPut bool for whether the collateral is suitable for puts or calls
+     */
+    function whitelistVaultType0Collateral(address _collateral, bool _isPut) external onlyOwner {
+        vaultType0WhitelistedCollateral[_isPut][_collateral] = true;
+
+        emit VaultType0CollateralWhitelisted(_collateral);
     }
 
     /**
