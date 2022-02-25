@@ -8,6 +8,8 @@ import {SafeMath} from "../packages/oz/SafeMath.sol";
 import {Ownable} from "../packages/oz/Ownable.sol";
 import {OtokenInterface} from "../interfaces/OtokenInterface.sol";
 import {OracleInterface} from "../interfaces/OracleInterface.sol";
+import {AddressBookInterface} from "../interfaces/AddressBookInterface.sol";
+import {WhitelistInterface} from "../interfaces/WhitelistInterface.sol";
 import {ERC20Interface} from "../interfaces/ERC20Interface.sol";
 import {FixedPointInt256 as FPI} from "../libs/FixedPointInt256.sol";
 import {MarginVault} from "../libs/MarginVault.sol";
@@ -88,6 +90,8 @@ contract MarginCalculator is Ownable {
 
     /// @dev oracle module
     OracleInterface public oracle;
+    /// @dev addressbook module
+    AddressBookInterface public addressBook;
 
     /// @notice emits an event when collateral dust is updated
     event CollateralDustUpdated(address indexed collateral, uint256 dust);
@@ -105,11 +109,13 @@ contract MarginCalculator is Ownable {
     /**
      * @notice constructor
      * @param _oracle oracle module address
+     * @param _addressBook addressbook module address
      */
-    constructor(address _oracle) public {
+    constructor(address _oracle, address _addressBook) public {
         require(_oracle != address(0), "MarginCalculator: invalid oracle address");
 
         oracle = OracleInterface(_oracle);
+        addressBook = AddressBookInterface(_addressBook);
     }
 
     /**
@@ -1146,7 +1152,7 @@ contract MarginCalculator is Ownable {
      * @param _vault the vault to check
      * @param _vaultDetails vault details struct
      */
-    function _checkIsValidVault(MarginVault.Vault memory _vault, VaultDetails memory _vaultDetails) internal pure {
+    function _checkIsValidVault(MarginVault.Vault memory _vault, VaultDetails memory _vaultDetails) internal view {
         // ensure all the arrays in the vault are valid
         require(_vault.shortOtokens.length <= 1, "MarginCalculator: Too many short otokens in the vault");
         require(_vault.longOtokens.length <= 1, "MarginCalculator: Too many long otokens in the vault");
@@ -1212,7 +1218,7 @@ contract MarginCalculator is Ownable {
      */
     function _isMarginableCollateral(MarginVault.Vault memory _vault, VaultDetails memory _vaultDetails)
         internal
-        pure
+        view
         returns (bool)
     {
         bool isMarginable = true;
@@ -1220,14 +1226,13 @@ contract MarginCalculator is Ownable {
         if (!_vaultDetails.hasCollateral) return isMarginable;
         if (_vaultDetails.hasShort) {
             isMarginable = _vaultDetails.shortCollateralAsset == _vault.collateralAssets[0];
-            // make sure that if the vault is fully collateralised that the asset is the underlying asset for calls
-            // and the strike asset for puts
+            // make sure that if the vault is fully collateralised that the collateral asset is acceptable
             if (_vaultDetails.vaultType == 0) {
-                if (_vaultDetails.isShortPut) {
-                    isMarginable = _vault.collateralAssets[0];
-                } else {
-                    isMarginable = _vault.collateralAssets[0];
-                }
+                WhitelistInterface whitelist = WhitelistInterface(addressBook.getWhitelist());
+                isMarginable = whitelist.isVaultType0WhitelistedCollateral(
+                    _vault.collateralAssets[0],
+                    _vaultDetails.isShortPut
+                );
             }
         } else if (_vaultDetails.hasLong) {
             isMarginable = _vaultDetails.longCollateralAsset == _vault.collateralAssets[0];

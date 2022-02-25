@@ -8,7 +8,7 @@ import {MarginCalculator} from "../core/MarginCalculator.sol";
 import {FixedPointInt256} from "../libs/FixedPointInt256.sol";
 
 contract CalculatorTester is MarginCalculator {
-    constructor(address _addressBook) public MarginCalculator(_addressBook) {}
+    constructor(address _oracle, address _addressBook) public MarginCalculator(_oracle, _addressBook) {}
 
     function getExpiredCashValue(
         address _underlying,
