@@ -4,6 +4,7 @@ import {
   MockAddressBookInstance,
   MockOracleInstance,
   MockOtokenInstance,
+  MockWhitelistModuleInstance,
 } from '../../build/types/truffle-types'
 import {
   createScaledNumber as scaleNum,
@@ -21,6 +22,7 @@ const MockOracle = artifacts.require('MockOracle.sol')
 const MockOtoken = artifacts.require('MockOtoken.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
 const MarginCalculator = artifacts.require('CalculatorTester.sol')
+const MockWhitelistModule = artifacts.require('MockWhitelistModule.sol')
 
 contract('MarginCalculator: liquidation', ([owner, random]) => {
   let expiry: number
@@ -28,7 +30,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
   let calculator: CalculatorTesterInstance
   let addressBook: MockAddressBookInstance
   let oracle: MockOracleInstance
-
+  let whitelist: MockWhitelistModuleInstance
   let usdc: MockERC20Instance
   let dai: MockERC20Instance
   let weth: MockERC20Instance
@@ -84,6 +86,12 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
     await calculator.setUpperBoundValues(weth.address, usdc.address, usdc.address, true, timeToExpiry, expiryToValue, {
       from: owner,
     })
+    whitelist = await MockWhitelistModule.new(addressBook.address, {from: owner})
+    await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistCollateral(weth.address)
+    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
+    await whitelist.whitelistVaultType0Collateral(weth.address, false)
+    await addressBook.setWhitelist(whitelist.address)
   })
 
   describe('check if vault is liquidatable', () => {
@@ -381,7 +389,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
         usdc.address,
         weth.address,
       )
-
+      console.log(liquidationprice.toNumber(), expectedLiquidation)
       assert.equal(liquidationprice.toNumber(), expectedLiquidation, 'liquidation price mismatch')
     })
 

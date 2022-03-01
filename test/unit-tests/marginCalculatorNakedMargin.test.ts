@@ -4,6 +4,7 @@ import {
   MockAddressBookInstance,
   MockOracleInstance,
   MockOtokenInstance,
+  MockWhitelistModuleInstance,
 } from '../../build/types/truffle-types'
 import {
   createScaledNumber as scaleNum,
@@ -21,6 +22,7 @@ const MockOracle = artifacts.require('MockOracle.sol')
 const MockOtoken = artifacts.require('MockOtoken.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
 const MarginCalculator = artifacts.require('CalculatorTester.sol')
+const MockWhitelistModule = artifacts.require('MockWhitelistModule.sol')
 const ZERO_ADDR = '0x0000000000000000000000000000000000000000'
 
 const expectedRequiredMargin = (
@@ -72,6 +74,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
 
   let calculator: CalculatorTesterInstance
   let addressBook: MockAddressBookInstance
+  let whitelist: MockWhitelistModuleInstance
   let oracle: MockOracleInstance
 
   let usdc: MockERC20Instance
@@ -101,6 +104,12 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
     await addressBook.setOracle(oracle.address)
     // setup calculator
     calculator = await MarginCalculator.new(oracle.address, addressBook.address, { from: owner })
+    whitelist = await MockWhitelistModule.new(addressBook.address, {from: owner})
+    await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistCollateral(weth.address)
+    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
+    await whitelist.whitelistVaultType0Collateral(weth.address, false)
+    await addressBook.setWhitelist(whitelist.address)
   })
 
   describe('Collateral dust', async () => {

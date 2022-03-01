@@ -353,7 +353,7 @@ contract MarginCalculator is Ownable {
     ) external view returns (uint256) {
         bytes32 productHash = _getProductHash(_underlying, _strike, _collateral, _isPut);
         ShortScaledDetails memory ssd = makeShortScaledDetails(_shortAmount, _strikePrice, _underlyingPrice);
-        OptionType opType = getOptionType(_isPut, _collateral, _underlying);
+        OptionType opType = getOptionType(_isPut, _collateral);
         // return required margin, scaled by collateral asset decimals, explicitly rounded up
         return
             FPI.toScaledUint(
@@ -467,12 +467,12 @@ contract MarginCalculator is Ownable {
             _vault.collateralAmounts[0],
             vaultDetails.collateralDecimals
         );
-
+        OptionType opType = getOptionType(vaultDetails.isShortPut, vaultDetails.shortCollateralAsset);
         FPI.FixedPointInt memory collateralRequired = _getNakedMarginRequired(
             productHash,
             shortDetails,
             vaultDetails.shortExpiryTimestamp,
-            getOptionType(vaultDetails.isShortPut, vaultDetails.shortCollateralAsset, vaultDetails.shortUnderlyingAsset)
+            opType
         );
 
         // if collateral required <= collateral in the vault, the vault is not liquidatable
@@ -485,11 +485,7 @@ contract MarginCalculator is Ownable {
             shortDetails.shortUnderlyingPrice,
             vaultDetails.isShortPut
         );
-        OptionType opType = getOptionType(
-            vaultDetails.isShortPut,
-            vaultDetails.shortCollateralAsset,
-            vaultDetails.shortUnderlyingAsset
-        );
+
         // get the amount of collateral per 1 repaid otoken
         uint256 debtPrice = _getDebtPrice(
             depositedCollateral,
@@ -667,11 +663,7 @@ contract MarginCalculator is Ownable {
                     _vaultDetails.shortCollateralAsset,
                     _vaultDetails.isShortPut
                 );
-                OptionType opType = getOptionType(
-                    otokenDetails.isPut,
-                    _vaultDetails.shortCollateralAsset,
-                    _vaultDetails.shortUnderlyingAsset
-                );
+                OptionType opType = getOptionType(otokenDetails.isPut, _vaultDetails.shortCollateralAsset);
                 // return amount of collateral in vault and needed collateral amount for margin
                 return (
                     collateralAmount,
@@ -1335,19 +1327,20 @@ contract MarginCalculator is Ownable {
      * @notice get the type of option that is being created based on flavor and collateral
      * @param _isPut option type, true for put and false for call option
      * @param collateral the asset used as vault collateral
-     * @param underlying the asset used as the reference asset of the option
      */
-    function getOptionType(
-        bool _isPut,
-        address collateral,
-        address underlying
-    ) internal pure returns (OptionType) {
-        if (_isPut && collateral == underlying) {
-            return OptionType.NAKED_PUT;
-        } else if (_isPut) {
+    function getOptionType(bool _isPut, address collateral) internal view returns (OptionType) {
+        WhitelistInterface whitelist = WhitelistInterface(addressBook.getWhitelist());
+        require(whitelist.isWhitelistedCollateral(collateral), "!whitelisted collateral");
+        // if it is a put and the collateral is whitelisted for vault type 0 then it is a normal usd put
+        // else if it is a call and the collateral is whitelisted for vault type 0 then it is a normal eth call
+        // otherwise if it is a put and the collateral is not whitelisted for vault type 0s then it is a eth backed put
+        // otherwise if it is a call and the collateral is not whitelisted for vault type 0s then it is a usdc backed call
+        if (_isPut && whitelist.isVaultType0WhitelistedCollateral(collateral, _isPut)) {
             return OptionType.PUT;
-        } else if (!_isPut && collateral == underlying) {
+        } else if (!_isPut && whitelist.isVaultType0WhitelistedCollateral(collateral, _isPut)) {
             return OptionType.COVERED_CALL;
+        } else if (_isPut) {
+            return OptionType.NAKED_PUT;
         } else {
             return OptionType.NAKED_CALL;
         }
