@@ -113,8 +113,9 @@ contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, 
     // config whitelist module
     await whitelist.whitelistCollateral(weth.address)
     await whitelist.whitelistCollateral(usdc.address)
-    await whitelist.whitelistVaultType0Collateral(weth.address, false)
-    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
+    await whitelist.whitelistNakedCollateral(usdc.address, weth.address, false)
     whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, isPut)
 
     // config addressbook

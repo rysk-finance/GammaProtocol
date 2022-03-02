@@ -86,11 +86,12 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
     await calculator.setUpperBoundValues(weth.address, usdc.address, usdc.address, true, timeToExpiry, expiryToValue, {
       from: owner,
     })
-    whitelist = await MockWhitelistModule.new(addressBook.address, {from: owner})
+    whitelist = await MockWhitelistModule.new(addressBook.address, { from: owner })
     await whitelist.whitelistCollateral(usdc.address)
     await whitelist.whitelistCollateral(weth.address)
-    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
-    await whitelist.whitelistVaultType0Collateral(weth.address, false)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistNakedCollateral(usdc.address, weth.address, false)
     await addressBook.setWhitelist(whitelist.address)
   })
 

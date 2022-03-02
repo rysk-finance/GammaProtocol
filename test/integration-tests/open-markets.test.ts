@@ -117,8 +117,8 @@ contract('OTokenFactory + Otoken: Cloning of real otoken instances.', ([owner, u
     before('Whitelist product from admin', async () => {
       await whitelist.whitelistCollateral(usdc.address, { from: owner })
       await whitelist.whitelistCollateral(dai.address, { from: owner })
-      await whitelist.whitelistVaultType0Collateral(dai.address, isPut, { from: owner })
-      await whitelist.whitelistVaultType0Collateral(usdc.address, isPut, { from: owner })
+      await whitelist.whitelistCoveredCollateral(dai.address, weth.address, isPut, { from: owner })
+      await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, isPut, { from: owner })
       await whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, isPut, { from: owner })
       await whitelist.whitelistProduct(weth.address, dai.address, dai.address, isPut, { from: owner })
     })

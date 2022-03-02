@@ -353,7 +353,7 @@ contract MarginCalculator is Ownable {
     ) external view returns (uint256) {
         bytes32 productHash = _getProductHash(_underlying, _strike, _collateral, _isPut);
         ShortScaledDetails memory ssd = makeShortScaledDetails(_shortAmount, _strikePrice, _underlyingPrice);
-        OptionType opType = getOptionType(_isPut, _collateral);
+        OptionType opType = getOptionType(_isPut, _collateral, _underlying);
         // return required margin, scaled by collateral asset decimals, explicitly rounded up
         return
             FPI.toScaledUint(
@@ -467,7 +467,11 @@ contract MarginCalculator is Ownable {
             _vault.collateralAmounts[0],
             vaultDetails.collateralDecimals
         );
-        OptionType opType = getOptionType(vaultDetails.isShortPut, vaultDetails.shortCollateralAsset);
+        OptionType opType = getOptionType(
+            vaultDetails.isShortPut,
+            vaultDetails.shortCollateralAsset,
+            vaultDetails.shortUnderlyingAsset
+        );
         FPI.FixedPointInt memory collateralRequired = _getNakedMarginRequired(
             productHash,
             shortDetails,
@@ -663,7 +667,11 @@ contract MarginCalculator is Ownable {
                     _vaultDetails.shortCollateralAsset,
                     _vaultDetails.isShortPut
                 );
-                OptionType opType = getOptionType(otokenDetails.isPut, _vaultDetails.shortCollateralAsset);
+                OptionType opType = getOptionType(
+                    otokenDetails.isPut,
+                    _vaultDetails.shortCollateralAsset,
+                    _vaultDetails.shortUnderlyingAsset
+                );
                 // return amount of collateral in vault and needed collateral amount for margin
                 return (
                     collateralAmount,
@@ -1221,8 +1229,9 @@ contract MarginCalculator is Ownable {
             // make sure that if the vault is fully collateralised that the collateral asset is acceptable
             if (_vaultDetails.vaultType == 0) {
                 WhitelistInterface whitelist = WhitelistInterface(addressBook.getWhitelist());
-                isMarginable = whitelist.isVaultType0WhitelistedCollateral(
+                isMarginable = whitelist.isCoveredWhitelistedCollateral(
                     _vault.collateralAssets[0],
+                    _vaultDetails.shortUnderlyingAsset,
                     _vaultDetails.isShortPut
                 );
             }
@@ -1327,22 +1336,26 @@ contract MarginCalculator is Ownable {
      * @notice get the type of option that is being created based on flavor and collateral
      * @param _isPut option type, true for put and false for call option
      * @param collateral the asset used as vault collateral
+     * @param underlying the asset used as the option reference asset
      */
-    function getOptionType(bool _isPut, address collateral) internal view returns (OptionType) {
+    function getOptionType(
+        bool _isPut,
+        address collateral,
+        address underlying
+    ) internal view returns (OptionType) {
         WhitelistInterface whitelist = WhitelistInterface(addressBook.getWhitelist());
-        require(whitelist.isWhitelistedCollateral(collateral), "!whitelisted collateral");
-        // if it is a put and the collateral is whitelisted for vault type 0 then it is a normal usd put
-        // else if it is a call and the collateral is whitelisted for vault type 0 then it is a normal eth call
-        // otherwise if it is a put and the collateral is not whitelisted for vault type 0s then it is a eth backed put
-        // otherwise if it is a call and the collateral is not whitelisted for vault type 0s then it is a usdc backed call
-        if (_isPut && whitelist.isVaultType0WhitelistedCollateral(collateral, _isPut)) {
+        bool covered = whitelist.isCoveredWhitelistedCollateral(collateral, underlying, _isPut);
+        bool naked = whitelist.isNakedWhitelistedCollateral(collateral, underlying, _isPut);
+        if (_isPut && covered) {
             return OptionType.PUT;
-        } else if (!_isPut && whitelist.isVaultType0WhitelistedCollateral(collateral, _isPut)) {
+        } else if (!_isPut && covered) {
             return OptionType.COVERED_CALL;
-        } else if (_isPut) {
+        } else if (_isPut && naked) {
             return OptionType.NAKED_PUT;
-        } else {
+        } else if (!_isPut && naked) {
             return OptionType.NAKED_CALL;
+        } else {
+            revert("invalid option type");
         }
     }
 }

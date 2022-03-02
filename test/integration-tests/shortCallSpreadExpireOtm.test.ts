@@ -94,8 +94,8 @@ contract('Short Call Spread Option expires Otm flow', ([accountOwner1, nakedBuye
     whitelist = await Whitelist.new(addressBook.address)
     await whitelist.whitelistCollateral(weth.address)
     await whitelist.whitelistCollateral(usdc.address)
-    await whitelist.whitelistVaultType0Collateral(weth.address, false)
-    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, weth.address, false)
     // setup otoken

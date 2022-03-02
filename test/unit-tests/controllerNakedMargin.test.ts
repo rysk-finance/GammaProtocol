@@ -144,8 +144,9 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
     // whitelist collateral
     await whitelist.whitelistCollateral(weth.address)
     await whitelist.whitelistCollateral(usdc.address)
-    await whitelist.whitelistVaultType0Collateral(weth.address, false)
-    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
+    await whitelist.whitelistNakedCollateral(usdc.address, weth.address, false)
     // set product spot shock value
     await calculator.setSpotShock(weth.address, usdc.address, usdc.address, true, productSpotShockValue)
     await calculator.setSpotShock(weth.address, usdc.address, weth.address, false, productSpotShockValue)

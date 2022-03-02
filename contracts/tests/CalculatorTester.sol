@@ -55,7 +55,7 @@ contract CalculatorTester is MarginCalculator {
         FixedPointInt256.FixedPointInt memory vaultDebt = FixedPointInt256.fromScaledUint(_vaultDebt, BASE);
         FixedPointInt256.FixedPointInt memory cv = FixedPointInt256.fromScaledUint(_cv, BASE);
         FixedPointInt256.FixedPointInt memory spotPrice = FixedPointInt256.fromScaledUint(_spotPrice, BASE);
-        OptionType opType = getOptionType(_isPut, collateral);
+        OptionType opType = getOptionType(_isPut, collateral, underlying);
         return
             _getDebtPrice(vaultCollateral, vaultDebt, cv, spotPrice, _auctionStartingTime, _collateralDecimals, opType);
     }
