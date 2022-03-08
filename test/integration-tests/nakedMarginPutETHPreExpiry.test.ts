@@ -46,7 +46,7 @@ enum ActionType {
   Liquidate,
 }
 
-contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1, liquidator]) => {
+contract('Naked margin: put ETH position pre expiry', ([owner, accountOwner1, buyer1, liquidator]) => {
   const usdcDecimals = 6
   const wethDecimals = 18
   const vaultType = web3.eth.abi.encodeParameter('uint256', 1)
@@ -103,7 +103,7 @@ contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1
     // setup mock Oracle module
     oracle = await MockOracle.new(addressBook.address)
     // setup calculator
-    calculator = await MarginCalculator.new(oracle.address)
+    calculator = await MarginCalculator.new(oracle.address, addressBook.address)
     // setup whitelist module
     whitelist = await Whitelist.new(addressBook.address)
     // setup otoken
@@ -112,8 +112,11 @@ contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1
     otokenFactory = await OTokenFactory.new(addressBook.address)
 
     // config whitelist module
-    await whitelist.whitelistCollateral(usdc.address)
     await whitelist.whitelistCollateral(weth.address)
+    await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
+    await whitelist.whitelistNakedCollateral(weth.address, weth.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, weth.address, isPut)
     // config addressbook
     await addressBook.setOracle(oracle.address)
@@ -188,7 +191,7 @@ contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1
         wethDecimals,
         isPut,
       )
-      console.log(collateralToDeposit.toString());
+      console.log(collateralToDeposit.toString())
       const mintArgs = [
         {
           actionType: ActionType.OpenVault,

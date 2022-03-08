@@ -103,7 +103,7 @@ contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1
     // setup mock Oracle module
     oracle = await MockOracle.new(addressBook.address)
     // setup calculator
-    calculator = await MarginCalculator.new(oracle.address)
+    calculator = await MarginCalculator.new(oracle.address, addressBook.address)
     // setup whitelist module
     whitelist = await Whitelist.new(addressBook.address)
     // setup otoken
@@ -112,8 +112,10 @@ contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1
     otokenFactory = await OTokenFactory.new(addressBook.address)
 
     // config whitelist module
-    await whitelist.whitelistCollateral(usdc.address)
     await whitelist.whitelistCollateral(weth.address)
+    await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, isPut)
 
     // config addressbook

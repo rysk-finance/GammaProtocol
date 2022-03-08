@@ -103,7 +103,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
     // setup mock Oracle module
     oracle = await MockOracle.new(addressBook.address)
     // setup calculator
-    calculator = await MarginCalculator.new(oracle.address)
+    calculator = await MarginCalculator.new(oracle.address, addressBook.address)
     // setup whitelist module
     whitelist = await Whitelist.new(addressBook.address)
     // setup otoken
@@ -112,8 +112,10 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
     otokenFactory = await OTokenFactory.new(addressBook.address)
 
     // config whitelist module
-    await whitelist.whitelistCollateral(usdc.address)
     await whitelist.whitelistCollateral(weth.address)
+    await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, weth.address, isPut)
 
     // config addressbook
@@ -681,7 +683,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
           .dividedBy(10 ** wethDecimals)
           .toNumber(),
         errorDelta,
-        'Pool balance after openining position mismatch',
+        'Pool balance after opening position mismatch',
       )
       assert.equal(
         liquidatorVaultAfter[0].collateralAmounts[0].toString(),
