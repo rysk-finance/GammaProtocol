@@ -92,11 +92,13 @@ contract('Yield Farming: Naked Put Option closed before expiry flow', ([admin, a
     // setup mock Oracle module
     oracle = await Oracle.new(addressBook.address)
     // setup calculator
-    calculator = await MarginCalculator.new(oracle.address)
+    calculator = await MarginCalculator.new(oracle.address, addressBook.address)
     // setup whitelist module
     whitelist = await Whitelist.new(addressBook.address)
-    await whitelist.whitelistCollateral(usdc.address)
     await whitelist.whitelistCollateral(weth.address)
+    await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistVaultType0Collateral(weth.address, false)
+    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, weth.address, false)
     // setup otoken

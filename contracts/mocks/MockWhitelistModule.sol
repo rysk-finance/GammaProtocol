@@ -6,6 +6,7 @@ contract MockWhitelistModule {
     mapping(bytes32 => bool) private _isWhitelistedProduct;
     mapping(address => bool) private whitelistedCollateral;
     mapping(address => bool) private whitelistedCallee;
+    mapping(bool => mapping(address => bool)) private vaultType0WhitelistedCollateral;
 
     function whitelistProduct(
         address _underlying,
@@ -18,6 +19,10 @@ contract MockWhitelistModule {
         _isWhitelistedProduct[id] = true;
     }
 
+    function whitelistVaultType0Collateral(address _collateral, bool _isPut) external {
+        vaultType0WhitelistedCollateral[_isPut][_collateral] = true;
+    }
+
     function isWhitelistedProduct(
         address _underlying,
         address _strike,
@@ -26,6 +31,10 @@ contract MockWhitelistModule {
     ) external view returns (bool isValid) {
         bytes32 id = keccak256(abi.encodePacked(_underlying, _strike, _collateral, _isPut));
         return _isWhitelistedProduct[id];
+    }
+
+    function isVaultType0WhitelistedCollateral(address _collateral, bool _isPut) external view returns (bool) {
+        return vaultType0WhitelistedCollateral[_isPut][_collateral];
     }
 
     function whitelistOtoken(address _otoken) external {

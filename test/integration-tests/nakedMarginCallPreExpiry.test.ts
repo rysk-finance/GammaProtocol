@@ -103,7 +103,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
     // setup mock Oracle module
     oracle = await MockOracle.new(addressBook.address)
     // setup calculator
-    calculator = await MarginCalculator.new(oracle.address)
+    calculator = await MarginCalculator.new(oracle.address, addressBook.address)
     // setup whitelist module
     whitelist = await Whitelist.new(addressBook.address)
     // setup otoken
@@ -112,8 +112,10 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
     otokenFactory = await OTokenFactory.new(addressBook.address)
 
     // config whitelist module
-    await whitelist.whitelistCollateral(usdc.address)
     await whitelist.whitelistCollateral(weth.address)
+    await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistVaultType0Collateral(weth.address, false)
+    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, weth.address, isPut)
 
     // config addressbook
@@ -140,8 +142,8 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
       from: owner,
     })
     // mint usdc to user
-    await weth.mint(accountOwner1, createTokenAmount(10000, wethDecimals))
-    await weth.mint(liquidator, createTokenAmount(10000, wethDecimals))
+    await weth.mint(accountOwner1, createTokenAmount(100, wethDecimals))
+    await weth.mint(liquidator, createTokenAmount(100, wethDecimals))
   })
 
   describe('open position - update price far OTM - update price to go underwater - update price to go overcollateral - update price to go underwater & fully liquidate', () => {
@@ -191,7 +193,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
         wethDecimals,
         isPut,
       )
-
+      console.log(collateralToDeposit.toString())
       const mintArgs = [
         {
           actionType: ActionType.OpenVault,
@@ -279,8 +281,12 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
         wethDecimals,
         isPut,
       )
+
+      console.log(collateralNeeded.toString())
       const userVaultBefore = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
       const amountToWithdraw = new BigNumber(userVaultBefore[0].collateralAmounts[0]).minus(collateralNeeded)
+      console.log(amountToWithdraw.toString())
+      console.log(userVaultBefore[0].collateralAmounts[0].toString())
       const withdrawArgs = [
         {
           actionType: ActionType.WithdrawCollateral,
@@ -329,7 +335,23 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
       const underlyingPrice = 1400
       scaledUnderlyingPrice = scaleBigNum(underlyingPrice, 8)
       await oracle.setRealTimePrice(weth.address, scaledUnderlyingPrice)
+      const collateralNeeded = await calculator.getNakedMarginRequired(
+        weth.address,
+        usdc.address,
+        weth.address,
+        createTokenAmount(shortAmount),
+        createTokenAmount(shortStrike),
+        scaledUnderlyingPrice,
+        optionExpiry,
+        wethDecimals,
+        isPut,
+      )
 
+      console.log(collateralNeeded.toString())
+      const userVaultBefore = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
+      const amountToWithdraw = new BigNumber(userVaultBefore[0].collateralAmounts[0]).minus(collateralNeeded)
+      console.log(amountToWithdraw.toString())
+      console.log(userVaultBefore[0].collateralAmounts[0].toString())
       await controllerProxy.sync(accountOwner1, vaultCounter, { from: accountOwner1 })
 
       const userVault = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
@@ -474,7 +496,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
         wethDecimals,
         isPut,
       )
-
+      console.log()
       const mintArgs = [
         {
           actionType: ActionType.OpenVault,

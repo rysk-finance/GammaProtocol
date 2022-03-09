@@ -4,6 +4,7 @@ import {
   MockAddressBookInstance,
   MockOracleInstance,
   MockOtokenInstance,
+  WhitelistInstance,
 } from '../../build/types/truffle-types'
 import { createVault, createScaledNumber as scaleNum, createTokenAmount } from '../utils'
 import { assert } from 'chai'
@@ -14,6 +15,7 @@ const MockOracle = artifacts.require('MockOracle.sol')
 const MockOtoken = artifacts.require('MockOtoken.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
 const MarginCalculator = artifacts.require('CalculatorTester.sol')
+const Whitelist = artifacts.require('Whitelist.sol')
 const ZERO_ADDR = '0x0000000000000000000000000000000000000000'
 contract('MarginCalculator', () => {
   let expiry: number
@@ -21,6 +23,7 @@ contract('MarginCalculator', () => {
   let calculator: CalculatorTesterInstance
   let addressBook: MockAddressBookInstance
   let oracle: MockOracleInstance
+  let whitelist: WhitelistInstance
   // eth puts
   let eth300Put: MockOtokenInstance
   let eth250Put: MockOtokenInstance
@@ -66,7 +69,7 @@ contract('MarginCalculator', () => {
     oracle = await MockOracle.new()
     await addressBook.setOracle(oracle.address)
     // setup calculator
-    calculator = await MarginCalculator.new(oracle.address)
+    calculator = await MarginCalculator.new(oracle.address, addressBook.address)
     // setup usdc and weth
     usdc = await MockERC20.new('USDC', 'USDC', usdcDecimals)
     dai = await MockERC20.new('DAI', 'DAI', daiDecimals)
@@ -77,6 +80,19 @@ contract('MarginCalculator', () => {
     rusd = await MockERC20.new('rUSD', 'rUSD', rtokenDecimals)
     reth = await MockERC20.new('rETH', 'rETH', rtokenDecimals)
     tusd = await MockERC20.new('tUSD', 'tUSD', ttokenDecimals)
+    whitelist = await Whitelist.new(addressBook.address)
+    // whitelist the vault type 0 collaterals
+    // whitelist call collateral
+    await whitelist.whitelistVaultType0Collateral(weth.address, false)
+    await whitelist.whitelistVaultType0Collateral(ceth.address, false)
+    await whitelist.whitelistVaultType0Collateral(reth.address, false)
+    //whitelist put collateral
+    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
+    await whitelist.whitelistVaultType0Collateral(dai.address, true)
+    await whitelist.whitelistVaultType0Collateral(cusdc.address, true)
+    await whitelist.whitelistVaultType0Collateral(rusd.address, true)
+    await whitelist.whitelistVaultType0Collateral(tusd.address, true)
+    await addressBook.setWhitelist(whitelist.address)
     // setup put tokens
     eth300Put = await MockOtoken.new()
     eth250Put = await MockOtoken.new()
@@ -119,7 +135,7 @@ contract('MarginCalculator', () => {
 
   describe('Deployment test', () => {
     it('should revert deploying Calculator with addressbook address equal to zero', async () => {
-      await expectRevert(MarginCalculator.new(ZERO_ADDR), 'MarginCalculator: invalid oracle address')
+      await expectRevert(MarginCalculator.new(ZERO_ADDR, ZERO_ADDR), 'MarginCalculator: invalid oracle address')
     })
   })
 
