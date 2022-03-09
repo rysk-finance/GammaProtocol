@@ -743,7 +743,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
         require(now < otoken.expiryTimestamp(), "C18");
 
-        vaults[_args.owner][_args.vaultId].addLong(_args.asset, _args.amount, _args.index);
+        vaults[_args.owner][_args.vaultId].addLong(_args.asset, _args.amount);
 
         pool.transferToPool(_args.asset, _args.from, _args.amount);
 
@@ -766,7 +766,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
         require(now < otoken.expiryTimestamp(), "C19");
 
-        vaults[_args.owner][_args.vaultId].removeLong(_args.asset, _args.amount, _args.index);
+        vaults[_args.owner][_args.vaultId].removeLong(_args.asset, _args.amount);
 
         pool.transferToUser(_args.asset, _args.to, _args.amount);
 
@@ -797,7 +797,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             require(nakedPoolBalance[_args.asset] <= nakedCap[_args.asset], "C37");
         }
 
-        vaults[_args.owner][_args.vaultId].addCollateral(_args.asset, _args.amount, _args.index);
+        vaults[_args.owner][_args.vaultId].addCollateral(_args.asset, _args.amount);
 
         pool.transferToPool(_args.asset, _args.from, _args.amount);
 
@@ -828,7 +828,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             nakedPoolBalance[_args.asset] = nakedPoolBalance[_args.asset].sub(_args.amount);
         }
 
-        vaults[_args.owner][_args.vaultId].removeCollateral(_args.asset, _args.amount, _args.index);
+        vaults[_args.owner][_args.vaultId].removeCollateral(_args.asset, _args.amount);
 
         pool.transferToUser(_args.asset, _args.to, _args.amount);
 
@@ -852,7 +852,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
         require(now < otoken.expiryTimestamp(), "C24");
 
-        vaults[_args.owner][_args.vaultId].addShort(_args.otoken, _args.amount, _args.index);
+        vaults[_args.owner][_args.vaultId].addShort(_args.otoken, _args.amount);
 
         otoken.mintOtoken(_args.to, _args.amount);
 
@@ -880,7 +880,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         require(now < otoken.expiryTimestamp(), "C26");
 
         // remove otoken from vault
-        vaults[_args.owner][_args.vaultId].removeShort(_args.otoken, _args.amount, _args.index);
+        vaults[_args.owner][_args.vaultId].removeShort(_args.otoken, _args.amount);
 
         // burn otoken
         otoken.burnOtoken(_args.from, _args.amount);
@@ -1006,7 +1006,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         OtokenInterface(vault.shortOtokens[0]).burnOtoken(msg.sender, _args.amount);
 
         // decrease amount of collateral in liquidated vault, index of collateral to decrease is hardcoded at 0
-        vaults[_args.owner][_args.vaultId].removeCollateral(vault.collateralAssets[0], collateralToSell, 0);
+        vaults[_args.owner][_args.vaultId].removeCollateral(vault.collateralAssets[0], collateralToSell);
 
         // decrease amount of short otoken in liquidated vault, index of short otoken to decrease is hardcoded at 0
         vaults[_args.owner][_args.vaultId].removeShort(vault.shortOtokens[0], _args.amount, 0);

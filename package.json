@@ -72,11 +72,7 @@
     "ci:test:unit": "CI=true truffle test ./test/unit-tests/*.ts",
     "ci:test:integration": "CI=true truffle test ./test/integration-tests/*.ts"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
+
   "lint-staged": {
     "**/*.sol": [
       "npm run lint:sol:prettier:fix",

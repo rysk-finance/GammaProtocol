@@ -1062,7 +1062,7 @@ contract MarginCalculator is Ownable {
 
         // get vault long otoken if available
         if (vaultDetails.hasLong) {
-            OtokenInterface long = OtokenInterface(_vault.longOtokens[0]);
+            OtokenInterface long = OtokenInterface(_vault.longOtokens);
             (
                 vaultDetails.longCollateralAsset,
                 vaultDetails.longUnderlyingAsset,
@@ -1076,7 +1076,7 @@ contract MarginCalculator is Ownable {
 
         // get vault short otoken if available
         if (vaultDetails.hasShort) {
-            OtokenInterface short = OtokenInterface(_vault.shortOtokens[0]);
+            OtokenInterface short = OtokenInterface(_vault.shortOtokens);
             (
                 vaultDetails.shortCollateralAsset,
                 vaultDetails.shortUnderlyingAsset,
@@ -1091,7 +1091,7 @@ contract MarginCalculator is Ownable {
         }
 
         if (vaultDetails.hasCollateral) {
-            vaultDetails.collateralDecimals = uint256(ERC20Interface(_vault.collateralAssets[0]).decimals());
+            vaultDetails.collateralDecimals = uint256(ERC20Interface(_vault.collateralAssets).decimals());
         }
 
         return vaultDetails;
@@ -1117,8 +1117,8 @@ contract MarginCalculator is Ownable {
      * @dev check if asset array contain a token address
      * @return True if the array is not empty
      */
-    function _isNotEmpty(address[] memory _assets) internal pure returns (bool) {
-        return _assets.length > 0 && _assets[0] != address(0);
+    function _isNotEmpty(address _assets) internal pure returns (bool) {
+        return _assets != address(0);
     }
 
     /**
@@ -1132,11 +1132,6 @@ contract MarginCalculator is Ownable {
      * @param _vaultDetails vault details struct
      */
     function _checkIsValidVault(MarginVault.Vault memory _vault, VaultDetails memory _vaultDetails) internal pure {
-        // ensure all the arrays in the vault are valid
-        require(_vault.shortOtokens.length <= 1, "MarginCalculator: Too many short otokens in the vault");
-        require(_vault.longOtokens.length <= 1, "MarginCalculator: Too many long otokens in the vault");
-        require(_vault.collateralAssets.length <= 1, "MarginCalculator: Too many collateral assets in the vault");
-
         require(
             _vault.shortOtokens.length == _vault.shortAmounts.length,
             "MarginCalculator: Short asset and amount mismatch"
@@ -1181,7 +1176,7 @@ contract MarginCalculator is Ownable {
         if (!_vaultDetails.hasLong || !_vaultDetails.hasShort) return true;
 
         return
-            _vault.longOtokens[0] != _vault.shortOtokens[0] &&
+            _vault.longOtokens != _vault.shortOtokens &&
             _vaultDetails.longUnderlyingAsset == _vaultDetails.shortUnderlyingAsset &&
             _vaultDetails.longStrikeAsset == _vaultDetails.shortStrikeAsset &&
             _vaultDetails.longCollateralAsset == _vaultDetails.shortCollateralAsset &&
@@ -1205,9 +1200,9 @@ contract MarginCalculator is Ownable {
         if (!_vaultDetails.hasCollateral) return isMarginable;
 
         if (_vaultDetails.hasShort) {
-            isMarginable = _vaultDetails.shortCollateralAsset == _vault.collateralAssets[0];
+            isMarginable = _vaultDetails.shortCollateralAsset == _vault.collateralAssets;
         } else if (_vaultDetails.hasLong) {
-            isMarginable = _vaultDetails.longCollateralAsset == _vault.collateralAssets[0];
+            isMarginable = _vaultDetails.longCollateralAsset == _vault.collateralAssets;
         }
 
         return isMarginable;
