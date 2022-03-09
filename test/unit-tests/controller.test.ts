@@ -471,12 +471,12 @@ contract(
           )
           assert.equal(vaultAfter.longOtokens.length, 1, 'Vault long otoken array length mismatch')
           assert.equal(
-            vaultAfter.longOtokens[0],
+            vaultAfter.longOtokens,
             longOtoken.address,
             'Long otoken address deposited into vault mismatch',
           )
           assert.equal(
-            new BigNumber(vaultAfter.longAmounts[0]).toString(),
+            new BigNumber(vaultAfter.longAmounts).toString(),
             longToDeposit,
             'Long otoken amount deposited into vault mismatch',
           )
@@ -526,12 +526,12 @@ contract(
           )
           assert.equal(vaultAfter.longOtokens.length, 1, 'Vault long otoken array length mismatch')
           assert.equal(
-            vaultAfter.longOtokens[0],
+            vaultAfter.longOtokens,
             longOtoken.address,
             'Long otoken address deposited into vault mismatch',
           )
           assert.equal(
-            new BigNumber(vaultAfter.longAmounts[0]).minus(new BigNumber(vaultBefore.longAmounts[0])).toString(),
+            new BigNumber(vaultAfter.longAmounts).minus(new BigNumber(vaultBefore.longAmounts)).toString(),
             longToDeposit.toString(),
             'Long otoken amount deposited into vault mismatch',
           )
@@ -587,12 +587,12 @@ contract(
           )
           assert.equal(vaultAfter.longOtokens.length, 1, 'Vault long otoken array length mismatch')
           assert.equal(
-            vaultAfter.longOtokens[0],
+            vaultAfter.longOtokens,
             longOtoken.address,
             'Long otoken address deposited into vault mismatch',
           )
           assert.equal(
-            new BigNumber(vaultAfter.longAmounts[0]).minus(new BigNumber(vaultBefore.longAmounts[0])).toString(),
+            new BigNumber(vaultAfter.longAmounts).minus(new BigNumber(vaultBefore.longAmounts)).toString(),
             longToDeposit.multipliedBy(2).toString(),
             'Long otoken amount deposited into vault mismatch',
           )
@@ -776,7 +776,7 @@ contract(
           assert.isAbove(vaultCounter.toNumber(), 0, 'Account owner have no vault')
 
           const vaultBefore = await controllerProxy.getVault(accountOwner1, vaultCounter)
-          const longToWithdraw = new BigNumber(vaultBefore.longAmounts[0]).plus(1)
+          const longToWithdraw = new BigNumber(vaultBefore.longAmounts).plus(1)
           const actionArgs = [
             {
               actionType: ActionType.WithdrawLongOption,
@@ -855,7 +855,7 @@ contract(
           )
           assert.equal(vaultAfter.longOtokens.length, 1, 'Vault long otoken array length mismatch')
           assert.equal(
-            new BigNumber(vaultBefore.longAmounts[0]).minus(new BigNumber(vaultAfter.longAmounts[0])).toString(),
+            new BigNumber(vaultBefore.longAmounts).minus(new BigNumber(vaultAfter.longAmounts)).toString(),
             longToWithdraw.toString(),
             'Long otoken amount in vault after withdraw mismatch',
           )
@@ -906,7 +906,7 @@ contract(
           )
           assert.equal(vaultAfter.longOtokens.length, 1, 'Vault long otoken array length mismatch')
           assert.equal(
-            new BigNumber(vaultBefore.longAmounts[0]).minus(new BigNumber(vaultAfter.longAmounts[0])).toString(),
+            new BigNumber(vaultBefore.longAmounts).minus(new BigNumber(vaultAfter.longAmounts)).toString(),
             longToWithdraw.toString(),
             'Long otoken amount in vault after withdraw mismatch',
           )
@@ -961,7 +961,7 @@ contract(
           )
           assert.equal(vaultAfter.longOtokens.length, 1, 'Vault long otoken array length mismatch')
           assert.equal(
-            new BigNumber(vaultBefore.longAmounts[0]).minus(new BigNumber(vaultAfter.longAmounts[0])).toString(),
+            new BigNumber(vaultBefore.longAmounts).minus(new BigNumber(vaultAfter.longAmounts)).toString(),
             longToWithdraw.multipliedBy(2).toString(),
             'Long otoken amount in vault after withdraw mismatch',
           )
@@ -973,7 +973,7 @@ contract(
 
           const vaultBefore = await controllerProxy.getVault(accountOwner1, vaultCounter)
 
-          const longToWithdraw = new BigNumber(vaultBefore.longAmounts[0])
+          const longToWithdraw = new BigNumber(vaultBefore.longAmounts)
           const actionArgs = [
             {
               actionType: ActionType.WithdrawLongOption,
@@ -1006,9 +1006,9 @@ contract(
             'Receiver long otoken balance mismatch',
           )
           assert.equal(vaultAfter.longOtokens.length, 1, 'Vault long otoken array length mismatch')
-          assert.equal(vaultAfter.longOtokens[0], ZERO_ADDR, 'Vault long otoken address after clearing mismatch')
+          assert.equal(vaultAfter.longOtokens, ZERO_ADDR, 'Vault long otoken address after clearing mismatch')
           assert.equal(
-            new BigNumber(vaultBefore.longAmounts[0]).minus(new BigNumber(vaultAfter.longAmounts[0])).toString(),
+            new BigNumber(vaultBefore.longAmounts).minus(new BigNumber(vaultAfter.longAmounts)).toString(),
             longToWithdraw.toString(),
             'Long otoken amount in vault after withdraw mismatch',
           )
@@ -1054,12 +1054,12 @@ contract(
             const vaultAfter = await controllerProxy.getVault(accountOwner1, vaultId)
             assert.equal(vaultAfter.longOtokens.length, 1, 'Vault long otoken array length mismatch')
             assert.equal(
-              vaultAfter.longOtokens[0],
+              vaultAfter.longOtokens,
               expiredLongOtoken.address,
               'Long otoken address deposited into vault mismatch',
             )
             assert.equal(
-              new BigNumber(vaultAfter.longAmounts[0]).toString(),
+              new BigNumber(vaultAfter.longAmounts).toString(),
               longToDeposit.toString(),
               'Long otoken amount deposited into vault mismatch',
             )
@@ -1071,7 +1071,7 @@ contract(
 
             const vaultId = new BigNumber('1')
             const vault = await controllerProxy.getVault(accountOwner1, vaultId)
-            const longToWithdraw = new BigNumber(vault.longAmounts[0])
+            const longToWithdraw = new BigNumber(vault.longAmounts)
             const actionArgs = [
               {
                 actionType: ActionType.WithdrawLongOption,
@@ -1142,12 +1142,12 @@ contract(
           )
           assert.equal(vaultAfter.collateralAssets.length, 1, 'Vault collateral assets array length mismatch')
           assert.equal(
-            vaultAfter.collateralAssets[0],
+            vaultAfter.collateralAssets,
             usdc.address,
             'Collateral asset address deposited into vault mismatch',
           )
           assert.equal(
-            new BigNumber(vaultAfter.collateralAmounts[0]).toString(),
+            new BigNumber(vaultAfter.collateralAmounts).toString(),
             collateralToDeposit.toString(),
             'Collateral asset amount deposited into vault mismatch',
           )
@@ -1194,13 +1194,13 @@ contract(
           )
           assert.equal(vaultAfter.collateralAssets.length, 1, 'Vault collateral assets array length mismatch')
           assert.equal(
-            vaultAfter.collateralAssets[0],
+            vaultAfter.collateralAssets,
             usdc.address,
             'Collateral asset address deposited into vault mismatch',
           )
           assert.equal(
-            new BigNumber(vaultAfter.collateralAmounts[0])
-              .minus(new BigNumber(vaultBefore.collateralAmounts[0]))
+            new BigNumber(vaultAfter.collateralAmounts)
+              .minus(new BigNumber(vaultBefore.collateralAmounts))
               .toString(),
             collateralToDeposit.toString(),
             'Long otoken amount deposited into vault mismatch',
@@ -1320,13 +1320,13 @@ contract(
           )
           assert.equal(vaultAfter.collateralAmounts.length, 1, 'Vault collateral asset array length mismatch')
           assert.equal(
-            vaultAfter.collateralAssets[0],
+            vaultAfter.collateralAssets,
             usdc.address,
             'Collateral asset address deposited into vault mismatch',
           )
           assert.equal(
-            new BigNumber(vaultAfter.collateralAmounts[0])
-              .minus(new BigNumber(vaultBefore.collateralAmounts[0]))
+            new BigNumber(vaultAfter.collateralAmounts)
+              .minus(new BigNumber(vaultBefore.collateralAmounts))
               .toString(),
             collateralToDeposit.multipliedBy(2).toString(),
             'Collateral asset amount deposited into vault mismatch',
@@ -1438,7 +1438,7 @@ contract(
           assert.isAbove(vaultCounter.toNumber(), 0, 'Account owner have no vault')
 
           const vaultBefore = await controllerProxy.getVault(accountOwner1, vaultCounter)
-          const collateralToWithdraw = new BigNumber(vaultBefore.collateralAmounts[0]).plus(1)
+          const collateralToWithdraw = new BigNumber(vaultBefore.collateralAmounts).plus(1)
           const actionArgs = [
             {
               actionType: ActionType.WithdrawCollateral,
@@ -1497,8 +1497,8 @@ contract(
           )
           assert.equal(vaultAfter.collateralAssets.length, 1, 'Vault collateral asset array length mismatch')
           assert.equal(
-            new BigNumber(vaultBefore.collateralAmounts[0])
-              .minus(new BigNumber(vaultAfter.collateralAmounts[0]))
+            new BigNumber(vaultBefore.collateralAmounts)
+              .minus(new BigNumber(vaultAfter.collateralAmounts))
               .toString(),
             collateralToWithdraw.toString(),
             'Collateral asset amount in vault after withdraw mismatch',
@@ -1550,8 +1550,8 @@ contract(
           )
           assert.equal(vaultAfter.collateralAssets.length, 1, 'Vault collateral asset array length mismatch')
           assert.equal(
-            new BigNumber(vaultBefore.collateralAmounts[0])
-              .minus(new BigNumber(vaultAfter.collateralAmounts[0]))
+            new BigNumber(vaultBefore.collateralAmounts)
+              .minus(new BigNumber(vaultAfter.collateralAmounts))
               .toString(),
             collateralToWithdraw.toString(),
             'Collateral asset amount in vault after withdraw mismatch',
@@ -1607,8 +1607,8 @@ contract(
           )
           assert.equal(vaultAfter.collateralAssets.length, 1, 'Vault long otoken array length mismatch')
           assert.equal(
-            new BigNumber(vaultBefore.collateralAmounts[0])
-              .minus(new BigNumber(vaultAfter.collateralAmounts[0]))
+            new BigNumber(vaultBefore.collateralAmounts)
+              .minus(new BigNumber(vaultAfter.collateralAmounts))
               .toString(),
             collateralToWithdraw.multipliedBy(2).toString(),
             'Collateral asset amount in vault after withdraw mismatch',
@@ -1621,7 +1621,7 @@ contract(
 
           const vaultBefore = await controllerProxy.getVault(accountOwner1, vaultCounter)
 
-          const collateralToWithdraw = new BigNumber(vaultBefore.collateralAmounts[0])
+          const collateralToWithdraw = new BigNumber(vaultBefore.collateralAmounts)
           const actionArgs = [
             {
               actionType: ActionType.WithdrawCollateral,
@@ -1655,13 +1655,13 @@ contract(
           )
           assert.equal(vaultAfter.collateralAssets.length, 1, 'Vault collateral asset array length mismatch')
           assert.equal(
-            vaultAfter.collateralAssets[0],
+            vaultAfter.collateralAssets,
             ZERO_ADDR,
             'Vault collater asset address after clearing mismatch',
           )
           assert.equal(
-            new BigNumber(vaultBefore.collateralAmounts[0])
-              .minus(new BigNumber(vaultAfter.collateralAmounts[0]))
+            new BigNumber(vaultBefore.collateralAmounts)
+              .minus(new BigNumber(vaultAfter.collateralAmounts))
               .toString(),
             collateralToWithdraw.toString(),
             'Collateral asset amount in vault after withdraw mismatch',
@@ -1950,12 +1950,12 @@ contract(
           assert.equal(vaultAfter.collateralAssets.length, 1, 'Vault collateral asset array length mismatch')
           assert.equal(vaultAfter.shortOtokens.length, 1, 'Vault short otoken array length mismatch')
           assert.equal(
-            vaultAfter.collateralAssets[0],
+            vaultAfter.collateralAssets,
             usdc.address,
             'Collateral asset address deposited into vault mismatch',
           )
           assert.equal(
-            vaultAfter.shortOtokens[0],
+            vaultAfter.shortOtokens,
             shortOtoken.address,
             'Short otoken address deposited into vault mismatch',
           )
@@ -1965,14 +1965,14 @@ contract(
             'Short otoken amount minted mismatch',
           )
           assert.equal(
-            new BigNumber(vaultAfter.collateralAmounts[0])
-              .minus(new BigNumber(vaultBefore.collateralAmounts[0]))
+            new BigNumber(vaultAfter.collateralAmounts)
+              .minus(new BigNumber(vaultBefore.collateralAmounts))
               .toString(),
             collateralToDeposit.toString(),
             'Collateral asset amount deposited into vault mismatch',
           )
           assert.equal(
-            new BigNumber(vaultAfter.shortAmounts[0]).toString(),
+            new BigNumber(vaultAfter.shortAmounts).toString(),
             amountToMint.toString(),
             'Short otoken amount minted into vault mismatch',
           )
@@ -2033,12 +2033,12 @@ contract(
           assert.equal(vaultAfter.collateralAssets.length, 1, 'Vault collateral asset array length mismatch')
           assert.equal(vaultAfter.shortOtokens.length, 1, 'Vault short otoken array length mismatch')
           assert.equal(
-            vaultAfter.collateralAssets[0],
+            vaultAfter.collateralAssets,
             usdc.address,
             'Collateral asset address deposited into vault mismatch',
           )
           assert.equal(
-            vaultAfter.shortOtokens[0],
+            vaultAfter.shortOtokens,
             shortOtoken.address,
             'Short otoken address deposited into vault mismatch',
           )
@@ -2048,14 +2048,14 @@ contract(
             'Short otoken amount minted mismatch',
           )
           assert.equal(
-            new BigNumber(vaultAfter.collateralAmounts[0])
-              .minus(new BigNumber(vaultBefore.collateralAmounts[0]))
+            new BigNumber(vaultAfter.collateralAmounts)
+              .minus(new BigNumber(vaultBefore.collateralAmounts))
               .toString(),
             collateralToDeposit.toString(),
             'Collateral asset amount deposited into vault mismatch',
           )
           assert.equal(
-            new BigNumber(vaultAfter.shortAmounts[0]).minus(new BigNumber(vaultBefore.shortAmounts[0])).toString(),
+            new BigNumber(vaultAfter.shortAmounts).minus(new BigNumber(vaultBefore.shortAmounts)).toString(),
             amountToMint.toString(),
             'Short otoken amount minted into vault mismatch',
           )
@@ -2067,7 +2067,7 @@ contract(
 
           const vaultBefore = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
 
-          const [netValue, isExcess] = await calculator.getExcessCollateral(vaultBefore[0], vaultBefore[1])
+          const [netValue, isExcess] = await calculator.getExcessCollateral(vaultBefore, vaultBefore[1])
 
           const proceed = await controllerProxy.getProceed(accountOwner1, vaultCounter)
           assert.equal(netValue.toString(), proceed.toString())
@@ -2075,7 +2075,7 @@ contract(
           assert.equal(netValue.toString(), '0', 'Position net value mistmatch')
           assert.equal(isExcess, true, 'Position collateral excess mismatch')
 
-          const collateralToWithdraw = new BigNumber(vaultBefore[0].collateralAmounts[0])
+          const collateralToWithdraw = new BigNumber(vaultBefore.collateralAmounts)
           const actionArgs = [
             {
               actionType: ActionType.WithdrawCollateral,
@@ -2117,7 +2117,7 @@ contract(
           const marginPoolBalanceBefore = new BigNumber(await usdc.balanceOf(marginPool.address))
           const withdrawerBalanceBefore = new BigNumber(await usdc.balanceOf(accountOwner1))
 
-          const [netValue, isExcess] = await calculator.getExcessCollateral(vaultBefore[0], vaultBefore[1])
+          const [netValue, isExcess] = await calculator.getExcessCollateral(vaultBefore, vaultBefore[1])
 
           const proceed = await controllerProxy.getProceed(accountOwner1, vaultCounter)
           assert.equal(netValue.toString(), proceed.toString())
@@ -2156,8 +2156,8 @@ contract(
           )
           assert.equal(vaultAfter.collateralAssets.length, 1, 'Vault collateral asset array length mismatch')
           assert.equal(
-            new BigNumber(vaultBefore[0].collateralAmounts[0])
-              .minus(new BigNumber(vaultAfter.collateralAmounts[0]))
+            new BigNumber(vaultBefore.collateralAmounts)
+              .minus(new BigNumber(vaultAfter.collateralAmounts))
               .toString(),
             excessCollateralToDeposit.toString(),
             'Collateral asset amount in vault after withdraw mismatch',
@@ -2478,12 +2478,12 @@ contract(
           )
           assert.equal(vaultAfter.shortOtokens.length, 1, 'Vault short otoken array length mismatch')
           assert.equal(
-            vaultAfter.shortOtokens[0],
+            vaultAfter.shortOtokens,
             shortOtoken.address,
             'Vault short otoken address after burning mismatch',
           )
           assert.equal(
-            new BigNumber(vaultBefore.shortAmounts[0]).minus(new BigNumber(vaultAfter.shortAmounts[0])).toString(),
+            new BigNumber(vaultBefore.shortAmounts).minus(new BigNumber(vaultAfter.shortAmounts)).toString(),
             shortOtokenToBurn.toString(),
             'Short otoken amount in vault after burn mismatch',
           )
@@ -2499,7 +2499,7 @@ contract(
 
           const vaultBefore = await controllerProxy.getVault(accountOwner1, vaultCounter)
 
-          const shortOtokenToBurn = new BigNumber(vaultBefore.shortAmounts[0])
+          const shortOtokenToBurn = new BigNumber(vaultBefore.shortAmounts)
           const actionArgs = [
             {
               actionType: ActionType.BurnShortOption,
@@ -2525,9 +2525,9 @@ contract(
             'Short otoken burned amount mismatch',
           )
           assert.equal(vaultAfter.shortOtokens.length, 1, 'Vault short otoken array length mismatch')
-          assert.equal(vaultAfter.shortOtokens[0], ZERO_ADDR, 'Vault short otoken address after clearing mismatch')
+          assert.equal(vaultAfter.shortOtokens, ZERO_ADDR, 'Vault short otoken address after clearing mismatch')
           assert.equal(
-            new BigNumber(vaultBefore.shortAmounts[0]).minus(new BigNumber(vaultAfter.shortAmounts[0])).toString(),
+            new BigNumber(vaultBefore.shortAmounts).minus(new BigNumber(vaultAfter.shortAmounts)).toString(),
             shortOtokenToBurn.toString(),
             'Short otoken amount in vault after burn mismatch',
           )
@@ -2574,7 +2574,7 @@ contract(
           const senderShortBalanceAfter = new BigNumber(await shortOtoken.balanceOf(accountOwner1))
           const vaultAfter = await controllerProxy.getVault(accountOwner1, vaultCounter)
           assert.equal(vaultAfter.shortOtokens.length, 1, 'Vault short otoken array length mismatch')
-          assert.equal(vaultAfter.shortOtokens[0], ZERO_ADDR)
+          assert.equal(vaultAfter.shortOtokens, ZERO_ADDR)
           assert.equal(
             senderShortBalanceBefore.toString(),
             senderShortBalanceAfter.toString(),

@@ -450,7 +450,7 @@ contract MarginCalculator is Ownable {
 
         // another struct to store some useful short otoken details, to avoid stack to deep error
         ShortScaledDetails memory shortDetails = ShortScaledDetails({
-            shortAmount: FPI.fromScaledUint(_vault.shortAmounts[0], BASE),
+            shortAmount: FPI.fromScaledUint(_vault.shortAmounts, BASE),
             shortStrike: FPI.fromScaledUint(vaultDetails.shortStrikePrice, BASE),
             shortUnderlyingPrice: FPI.fromScaledUint(price, BASE)
         });
@@ -464,7 +464,7 @@ contract MarginCalculator is Ownable {
 
         // convert vault collateral to a fixed point (1e27) from collateral decimals
         FPI.FixedPointInt memory depositedCollateral = FPI.fromScaledUint(
-            _vault.collateralAmounts[0],
+            _vault.collateralAmounts,
             vaultDetails.collateralDecimals
         );
 
@@ -540,7 +540,7 @@ contract MarginCalculator is Ownable {
 
         // if the vault contains no oTokens, return the amount of collateral
         if (!vaultDetails.hasShort && !vaultDetails.hasLong) {
-            uint256 amount = vaultDetails.hasCollateral ? _vault.collateralAmounts[0] : 0;
+            uint256 amount = vaultDetails.hasCollateral ? _vault.collateralAmounts : 0;
             return (amount, true);
         }
 
@@ -615,13 +615,13 @@ contract MarginCalculator is Ownable {
         returns (FPI.FixedPointInt memory, FPI.FixedPointInt memory)
     {
         FPI.FixedPointInt memory shortAmount = _vaultDetails.hasShort
-            ? FPI.fromScaledUint(_vault.shortAmounts[0], BASE)
+            ? FPI.fromScaledUint(_vault.shortAmounts, BASE)
             : ZERO;
         FPI.FixedPointInt memory longAmount = _vaultDetails.hasLong
-            ? FPI.fromScaledUint(_vault.longAmounts[0], BASE)
+            ? FPI.fromScaledUint(_vault.longAmounts, BASE)
             : ZERO;
         FPI.FixedPointInt memory collateralAmount = _vaultDetails.hasCollateral
-            ? FPI.fromScaledUint(_vault.collateralAmounts[0], _vaultDetails.collateralDecimals)
+            ? FPI.fromScaledUint(_vault.collateralAmounts, _vaultDetails.collateralDecimals)
             : ZERO;
         FPI.FixedPointInt memory shortStrike = _vaultDetails.hasShort
             ? FPI.fromScaledUint(_vaultDetails.shortStrikePrice, BASE)
@@ -1152,17 +1152,20 @@ contract MarginCalculator is Ownable {
      * @param _vault the vault to check
      * @param _vaultDetails vault details struct
      */
-    function _checkIsValidVault(MarginVault.Vault memory _vault, VaultDetails memory _vaultDetails) internal pure {
+    function _checkIsValidVault(MarginVault.Vault memory _vault, VaultDetails memory _vaultDetails) internal view {
         require(
-            _vault.shortOtokens.length == _vault.shortAmounts.length,
+            (_vault.shortOtokens == address(0) && _vault.shortAmounts == 0) || 
+            (_vault.shortOtokens != address(0) && _vault.shortAmounts != 0),
             "MarginCalculator: Short asset and amount mismatch"
         );
         require(
-            _vault.longOtokens.length == _vault.longAmounts.length,
+            (_vault.longOtokens == address(0) && _vault.longAmounts == 0) || 
+            (_vault.longOtokens != address(0) && _vault.longAmounts != 0),
             "MarginCalculator: Long asset and amount mismatch"
         );
         require(
-            _vault.collateralAssets.length == _vault.collateralAmounts.length,
+            (_vault.collateralAssets == address(0) && _vault.collateralAmounts == 0) || 
+            (_vault.collateralAssets != address(0) && _vault.collateralAmounts != 0),
             "MarginCalculator: Collateral asset and amount mismatch"
         );
 
@@ -1220,12 +1223,12 @@ contract MarginCalculator is Ownable {
 
         if (!_vaultDetails.hasCollateral) return isMarginable;
         if (_vaultDetails.hasShort) {
-            isMarginable = _vaultDetails.shortCollateralAsset == _vault.collateralAssets[0];
+            isMarginable = _vaultDetails.shortCollateralAsset == _vault.collateralAssets;
             // make sure that if the vault is fully collateralised that the collateral asset is acceptable
             if (_vaultDetails.vaultType == 0) {
                 WhitelistInterface whitelist = WhitelistInterface(addressBook.getWhitelist());
                 isMarginable = whitelist.isVaultType0WhitelistedCollateral(
-                    _vault.collateralAssets[0],
+                    _vault.collateralAssets,
                     _vaultDetails.isShortPut
                 );
             }

@@ -6,6 +6,7 @@ pragma solidity =0.6.10;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "../packages/oz/SafeMath.sol";
+import {SafeMath128} from "../packages/oz/SafeMath128.sol";
 
 /**
  * MarginVault Error Codes
@@ -28,6 +29,7 @@ import {SafeMath} from "../packages/oz/SafeMath.sol";
  */
 library MarginVault {
     using SafeMath for uint256;
+    using SafeMath128 for uint128;
 
     // vault is a struct of 6 arrays that describe a position a user has, a user can have multiple vaults.
     struct Vault {
@@ -57,31 +59,17 @@ library MarginVault {
     function addShort(
         Vault storage _vault,
         address _shortOtoken,
-        uint128 _amount,
+        uint256 _amount
     ) external {
         require(_amount > 0, "V1");
         if (_vault.shortOtokens == address(0) && _vault.shortAmounts == 0) {
             _vault.shortOtokens = _shortOtoken;
-            _vault.shortAmounts = _amount;
+            _vault.shortAmounts = uint128(_amount);
         } else {
             require(_vault.shortOtokens == _shortOtoken, "V3");
-            _vault.shortAmounts = _vault.shortAmounts.add(amount);
+            _vault.shortAmounts = _vault.shortAmounts.add(uint128(_amount));
         }
-        // OLD CODE
-        // included index as an array
-        // valid indexes in any array are between 0 and array.length - 1.
-        // if adding an amount to an preexisting short oToken, check that _index is in the range of 0->length-1
-        // if ((_index == _vault.shortOtokens.length) && (_index == _vault.shortAmounts.length)) {
-        //     _vault.shortOtokens.push(_shortOtoken);
-        //     _vault.shortAmounts.push(_amount);
-        // } else {
-        //     require((_index < _vault.shortOtokens.length) && (_index < _vault.shortAmounts.length), "V2");
-        //     address existingShort = _vault.shortOtokens[_index];
-        //     require((existingShort == _shortOtoken) || (existingShort == address(0)), "V3");
 
-        //     _vault.shortAmounts[_index] = _vault.shortAmounts[_index].add(_amount);
-        //     _vault.shortOtokens[_index] = _shortOtoken;
-        // }
     }
 
     /**
@@ -93,11 +81,11 @@ library MarginVault {
     function removeShort(
         Vault storage _vault,
         address _shortOtoken,
-        uint128 _amount
+        uint256 _amount
     ) external {
         require(_vault.shortOtokens == _shortOtoken, "V3");
 
-        uint256 newShortAmount = _vault.shortAmounts.sub(_amount);
+        uint128 newShortAmount = _vault.shortAmounts.sub(uint128(_amount));
 
         if (newShortAmount == 0) {
             delete _vault.shortOtokens;
@@ -119,24 +107,12 @@ library MarginVault {
         require(_amount > 0, "V4");
         if (_vault.longOtokens == address(0) && _vault.longAmounts == 0) {
             _vault.longOtokens = _longOtoken;
-            _vault.longAmounts = _amount;
+            _vault.longAmounts = uint128(_amount);
         } else {
             require(_vault.longOtokens == _longOtoken, "V3");
-            _vault.longAmounts = _vault.longAmounts.add(amount);
+            _vault.longAmounts = _vault.longAmounts.add(uint128(_amount));
         }
-        // valid indexes in any array are between 0 and array.length - 1.
-        // if adding an amount to an preexisting short oToken, check that _index is in the range of 0->length-1
-        // if ((_index == _vault.longOtokens.length) && (_index == _vault.longAmounts.length)) {
-        //     _vault.longOtokens.push(_longOtoken);
-        //     _vault.longAmounts.push(_amount);
-        // } else {
-        //     require((_index < _vault.longOtokens.length) && (_index < _vault.longAmounts.length), "V5");
-        //     address existingLong = _vault.longOtokens[_index];
-        //     require((existingLong == _longOtoken) || (existingLong == address(0)), "V6");
 
-        //     _vault.longAmounts[_index] = _vault.longAmounts[_index].add(_amount);
-        //     _vault.longOtokens[_index] = _longOtoken;
-        // }
     }
 
     /**
@@ -152,7 +128,7 @@ library MarginVault {
     ) external {
         require(_vault.longOtokens == _longOtoken, "V6");
 
-        uint256 newLongAmount = _vault.longAmounts.sub(_amount);
+        uint128 newLongAmount = _vault.longAmounts.sub(uint128(_amount));
 
         if (newLongAmount == 0) {
             delete _vault.longOtokens;
@@ -174,24 +150,11 @@ library MarginVault {
         require(_amount > 0, "V7");
         if (_vault.collateralAssets == address(0) && _vault.collateralAmounts == 0) {
             _vault.collateralAssets = _collateralAsset;
-            _vault.collateralAmounts = _amount;
+            _vault.collateralAmounts = uint128(_amount);
         } else {
             require(_vault.collateralAssets == _collateralAsset, "V3");
-            _vault.collateralAssets = _vault.collateralAssets.add(amount);
+            _vault.collateralAmounts = _vault.collateralAmounts.add(uint128(_amount));
         }
-        // valid indexes in any array are between 0 and array.length - 1.
-        // if adding an amount to an preexisting short oToken, check that _index is in the range of 0->length-1
-        // if ((_index == _vault.collateralAssets.length) && (_index == _vault.collateralAmounts.length)) {
-        //     _vault.collateralAssets.push(_collateralAsset);
-        //     _vault.collateralAmounts.push(_amount);
-        // } else {
-        //     require((_index < _vault.collateralAssets.length) && (_index < _vault.collateralAmounts.length), "V8");
-        //     address existingCollateral = _vault.collateralAssets[_index];
-        //     require((existingCollateral == _collateralAsset) || (existingCollateral == address(0)), "V9");
-
-        //     _vault.collateralAmounts[_index] = _vault.collateralAmounts[_index].add(_amount);
-        //     _vault.collateralAssets[_index] = _collateralAsset;
-        // }
     }
 
     /**
@@ -207,7 +170,7 @@ library MarginVault {
     ) external {
         require(_vault.collateralAssets == _collateralAsset, "V9");
 
-        uint256 newCollateralAmount = _vault.collateralAmounts.sub(_amount);
+        uint128 newCollateralAmount = _vault.collateralAmounts.sub(uint128(_amount));
 
         if (newCollateralAmount == 0) {
             delete _vault.collateralAssets;

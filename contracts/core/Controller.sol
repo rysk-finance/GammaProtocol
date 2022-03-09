@@ -9,6 +9,7 @@ import {OwnableUpgradeSafe} from "../packages/oz/upgradeability/OwnableUpgradeSa
 import {ReentrancyGuardUpgradeSafe} from "../packages/oz/upgradeability/ReentrancyGuardUpgradeSafe.sol";
 import {Initializable} from "../packages/oz/upgradeability/Initializable.sol";
 import {SafeMath} from "../packages/oz/SafeMath.sol";
+import {SafeMath128} from "../packages/oz/SafeMath128.sol";
 import {MarginVault} from "../libs/MarginVault.sol";
 import {Actions} from "../libs/Actions.sol";
 import {AddressBookInterface} from "../interfaces/AddressBookInterface.sol";
@@ -68,6 +69,7 @@ import {CalleeInterface} from "../interfaces/CalleeInterface.sol";
 contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe {
     using MarginVault for MarginVault.Vault;
     using SafeMath for uint256;
+    using SafeMath for uint128;
 
     AddressBookInterface public addressbook;
     WhitelistInterface public whitelist;
@@ -819,7 +821,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         (MarginVault.Vault memory vault, uint256 typeVault, ) = getVaultWithDetails(_args.owner, _args.vaultId);
 
         if (_isNotEmpty(vault.shortOtokens)) {
-            OtokenInterface otoken = OtokenInterface(vault.shortOtokens[0]);
+            OtokenInterface otoken = OtokenInterface(vault.shortOtokens);
 
             require(now < otoken.expiryTimestamp(), "C22");
         }
@@ -938,12 +940,12 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
             require(hasShort || hasLong, "C30");
 
-            otoken = hasShort ? OtokenInterface(vault.shortOtokens[0]) : OtokenInterface(vault.longOtokens[0]);
+            otoken = hasShort ? OtokenInterface(vault.shortOtokens) : OtokenInterface(vault.longOtokens);
 
             if (hasLong) {
-                OtokenInterface longOtoken = OtokenInterface(vault.longOtokens[0]);
+                OtokenInterface longOtoken = OtokenInterface(vault.longOtokens);
 
-                longOtoken.burnOtoken(address(pool), vault.longAmounts[0]);
+                longOtoken.burnOtoken(address(pool), vault.longAmounts);
             }
         }
 
@@ -997,24 +999,24 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
         // if vault is partially liquidated (amount of short otoken is still greater than zero)
         // make sure remaining collateral amount is greater than dust amount
-        if (vault.shortAmounts[0].sub(_args.amount) > 0) {
-            require(vault.collateralAmounts[0].sub(collateralToSell) >= collateralDust, "C34");
+        if (vault.shortAmounts.sub(_args.amount) > 0) {
+            require(vault.collateralAmounts.sub(collateralToSell) >= collateralDust, "C34");
         }
 
         // burn short otoken from liquidator address, index of short otoken hardcoded at 0
         // this should always work, if vault have no short otoken, it will not reach this step
-        OtokenInterface(vault.shortOtokens[0]).burnOtoken(msg.sender, _args.amount);
+        OtokenInterface(vault.shortOtokens).burnOtoken(msg.sender, _args.amount);
 
         // decrease amount of collateral in liquidated vault, index of collateral to decrease is hardcoded at 0
-        vaults[_args.owner][_args.vaultId].removeCollateral(vault.collateralAssets[0], collateralToSell);
+        vaults[_args.owner][_args.vaultId].removeCollateral(vault.collateralAssets, uint128(collateralToSell));
 
         // decrease amount of short otoken in liquidated vault, index of short otoken to decrease is hardcoded at 0
-        vaults[_args.owner][_args.vaultId].removeShort(vault.shortOtokens[0], _args.amount, 0);
+        vaults[_args.owner][_args.vaultId].removeShort(vault.shortOtokens, _args.amount);
 
         // decrease internal naked margin collateral amount
-        nakedPoolBalance[vault.collateralAssets[0]] = nakedPoolBalance[vault.collateralAssets[0]].sub(collateralToSell);
+        nakedPoolBalance[vault.collateralAssets] = nakedPoolBalance[vault.collateralAssets].sub(collateralToSell);
 
-        pool.transferToUser(vault.collateralAssets[0], _args.receiver, collateralToSell);
+        pool.transferToUser(vault.collateralAssets, _args.receiver, collateralToSell);
 
         emit VaultLiquidated(
             msg.sender,
@@ -1049,8 +1051,8 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         return ((_vaultId > 0) && (_vaultId <= accountVaultCounter[_accountOwner]));
     }
 
-    function _isNotEmpty(address[] memory _array) internal pure returns (bool) {
-        return (_array.length > 0) && (_array[0] != address(0));
+    function _isNotEmpty(address _assets) internal pure returns (bool) {
+        return _assets != address(0);
     }
 
     /**

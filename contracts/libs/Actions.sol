@@ -62,7 +62,7 @@ library Actions {
         // index of the vault that is to be modified (if any)
         uint256 vaultId;
         // amount of asset that is to be transfered
-        uint256 amount;
+        uint128 amount;
         // each vault can hold multiple short / long / collateral assets but we are restricting the scope to only 1 of each in this version
         // in future versions this would be the index of the short / long / collateral asset that needs to be modified
         uint256 index;
@@ -83,7 +83,7 @@ library Actions {
         // in future versions this would be the index of the short / long / collateral asset that needs to be modified
         uint256 index;
         // amount of oTokens that is to be minted
-        uint256 amount;
+        uint128 amount;
     }
 
     struct BurnArgs {
@@ -99,7 +99,7 @@ library Actions {
         // in future versions this would be the index of the short / long / collateral asset that needs to be modified
         uint256 index;
         // amount of oTokens that is to be burned
-        uint256 amount;
+        uint128 amount;
     }
 
     struct OpenVaultArgs {
@@ -124,7 +124,7 @@ library Actions {
         // in future versions this would be the index of the short / long / collateral asset that needs to be modified
         uint256 index;
         // amount of asset that is to be deposited
-        uint256 amount;
+        uint128 amount;
     }
 
     struct RedeemArgs {
@@ -133,7 +133,7 @@ library Actions {
         // oToken that is to be redeemed
         address otoken;
         // amount of oTokens that is to be redeemed
-        uint256 amount;
+        uint128 amount;
     }
 
     struct WithdrawArgs {
@@ -149,7 +149,7 @@ library Actions {
         // in future versions this would be the index of the short / long / collateral asset that needs to be modified
         uint256 index;
         // amount of asset that is to be withdrawn
-        uint256 amount;
+        uint128 amount;
     }
 
     struct SettleVaultArgs {
@@ -169,7 +169,7 @@ library Actions {
         // vault id to liquidate
         uint256 vaultId;
         // amount of debt(otoken) to repay
-        uint256 amount;
+        uint128 amount;
         // chainlink round id
         uint256 roundId;
     }

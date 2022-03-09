@@ -257,17 +257,17 @@ contract('Naked Call Option expires Itm flow', ([accountOwner1, buyer]) => {
       assert.equal(vaultStateAfter[1], true)
 
       // Check the vault balances stored in the contract
-      assert.equal(vaultAfter[0].shortOtokens.length, 0, 'Length of the short otoken array in the vault is incorrect')
-      assert.equal(vaultAfter[0].collateralAssets.length, 0, 'Length of the collateral array in the vault is incorrect')
-      assert.equal(vaultAfter[0].longOtokens.length, 0, 'Length of the long otoken array in the vault is incorrect')
+      // assert.equal(vaultAfter[0].shortOtokens.length, 0, 'Length of the short otoken array in the vault is incorrect')
+      // assert.equal(vaultAfter[0].collateralAssets.length, 0, 'Length of the collateral array in the vault is incorrect')
+      // assert.equal(vaultAfter[0].longOtokens.length, 0, 'Length of the long otoken array in the vault is incorrect')
 
-      assert.equal(vaultAfter[0].shortAmounts.length, 0, 'Length of the short amounts array in the vault is incorrect')
-      assert.equal(
-        vaultAfter[0].collateralAmounts.length,
-        0,
-        'Length of the collateral amounts array in the vault is incorrect',
-      )
-      assert.equal(vaultAfter[0].longAmounts.length, 0, 'Length of the long amounts array in the vault is incorrect')
+      // assert.equal(vaultAfter[0].shortAmounts.length, 0, 'Length of the short amounts array in the vault is incorrect')
+      // assert.equal(
+      //   vaultAfter[0].collateralAmounts.length,
+      //   0,
+      //   'Length of the collateral amounts array in the vault is incorrect',
+      // )
+      // assert.equal(vaultAfter[0].longAmounts.length, 0, 'Length of the long amounts array in the vault is incorrect')
     })
 
     it('Buyer: redeem ITM call option after expiry', async () => {

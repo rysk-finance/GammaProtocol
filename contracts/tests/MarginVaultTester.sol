@@ -20,7 +20,7 @@ contract MarginVaultTester {
         uint256 _amount,
         uint256 _index
     ) external {
-        vault[msg.sender][_vaultIndex].addShort(_shortOtoken, _amount, _index);
+        vault[msg.sender][_vaultIndex].addShort(_shortOtoken, _amount);
     }
 
     function testRemoveShort(
@@ -29,7 +29,7 @@ contract MarginVaultTester {
         uint256 _amount,
         uint256 _index
     ) external {
-        vault[msg.sender][_vaultIndex].removeShort(_shortOtoken, _amount, _index);
+        vault[msg.sender][_vaultIndex].removeShort(_shortOtoken, _amount);
     }
 
     function testAddLong(
@@ -38,7 +38,7 @@ contract MarginVaultTester {
         uint256 _amount,
         uint256 _index
     ) external {
-        vault[msg.sender][_vaultIndex].addLong(_longOtoken, _amount, _index);
+        vault[msg.sender][_vaultIndex].addLong(_longOtoken, _amount);
     }
 
     function testRemoveLong(
@@ -47,7 +47,7 @@ contract MarginVaultTester {
         uint256 _amount,
         uint256 _index
     ) external {
-        vault[msg.sender][_vaultIndex].removeLong(_longOtoken, _amount, _index);
+        vault[msg.sender][_vaultIndex].removeLong(_longOtoken, _amount);
     }
 
     function testAddCollateral(
@@ -56,7 +56,7 @@ contract MarginVaultTester {
         uint256 _amount,
         uint256 _index
     ) external {
-        vault[msg.sender][_vaultIndex].addCollateral(_collateralAsset, _amount, _index);
+        vault[msg.sender][_vaultIndex].addCollateral(_collateralAsset, _amount);
     }
 
     function testRemoveCollateral(
@@ -65,6 +65,6 @@ contract MarginVaultTester {
         uint256 _amount,
         uint256 _index
     ) external {
-        vault[msg.sender][_vaultIndex].removeCollateral(_collateralAsset, _amount, _index);
+        vault[msg.sender][_vaultIndex].removeCollateral(_collateralAsset, _amount);
     }
 }
