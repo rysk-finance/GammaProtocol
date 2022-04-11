@@ -357,7 +357,7 @@ contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1
 
       await expectRevert(
         controllerProxy.operate(liquidateArgs, { from: liquidator }),
-        'MarginCalculator: auction timestamp should be post vault latest update',
+        'C33',
       )
 
       await shortOtoken.transfer(accountOwner1, createTokenAmount(shortAmount), { from: liquidator })
@@ -378,7 +378,7 @@ contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1
       // advance time
       await time.increase(600)
 
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
 
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')
@@ -575,7 +575,7 @@ contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1
 
       await usdc.approve(marginPool.address, collateralToDeposit.toString(), { from: liquidator })
 
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
 
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')

@@ -361,7 +361,7 @@ contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, 
       const amountToWithdraw = new BigNumber(userVaultBefore[0].collateralAmounts[0]).minus(collateralNeeded)
       console.log(amountToWithdraw.toString())
       console.log(userVaultBefore[0].collateralAmounts[0].toString())
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
       console.log(isLiquidatable[0], isLiquidatable[1].toString(), isLiquidatable[2].toString())
       await controllerProxy.sync(accountOwner1, vaultCounter, { from: accountOwner1 })
       const userVault = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
@@ -385,7 +385,7 @@ contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, 
       ]
       await expectRevert(
         controllerProxy.operate(liquidateArgs, { from: liquidator }),
-        'MarginCalculator: auction timestamp should be post vault latest update',
+        'C33',
       )
 
       await shortOtoken.transfer(accountOwner1, createTokenAmount(shortAmount), { from: liquidator })
@@ -406,7 +406,7 @@ contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, 
       // advance time
       await time.increase(1500)
 
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
 
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')
@@ -598,7 +598,7 @@ contract('Naked margin: call USDC position pre expiry', ([owner, accountOwner1, 
 
       await usdc.approve(marginPool.address, collateralToDeposit.toString(), { from: liquidator })
 
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
 
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')

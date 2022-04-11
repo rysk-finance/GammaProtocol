@@ -121,7 +121,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
       const vaultType = '0'
 
       await expectRevert(
-        calculator.isLiquidatable(vault, vaultType, randomVaultLatestUpdate, randomRoundId),
+        calculator.isLiquidatable(vault, vaultType),
         'MarginCalculator: invalid vault type to liquidate',
       )
     })
@@ -132,8 +132,8 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
       const randomRoundId = '1'
 
       await expectRevert(
-        calculator.isLiquidatable(vault, vaultType, randomVaultLatestUpdate, randomRoundId),
-        'MarginCalculator: auction timestamp should be post vault latest update',
+        calculator.isLiquidatable(vault, vaultType),
+        'C33',
       )
     })
 
@@ -142,7 +142,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
       const randomVaultLatestUpdate = '0'
       const randomRoundId = '1'
 
-      const isLiquidatable = await calculator.isLiquidatable(vault, vaultType, randomVaultLatestUpdate, randomRoundId)
+      const isLiquidatable = await calculator.isLiquidatable(vault, vaultType)
 
       assert.equal(isLiquidatable[0], false, 'isLiquidatable boolean value mismatch')
       assert.equal(new BigNumber(isLiquidatable[1]).toString(), '0', 'debt price value mismatch')
@@ -158,7 +158,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
       const randomRoundId = '1'
 
       await expectRevert(
-        calculator.isLiquidatable(vault, vaultType, randomVaultLatestUpdate, randomRoundId),
+        calculator.isLiquidatable(vault, vaultType),
         'MarginCalculator: can not liquidate expired position',
       )
     })
@@ -195,7 +195,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
         requiredMargin.toString(),
       )
       const randomVaultLatestUpdate = '0'
-      const isLiquidatable = await calculator.isLiquidatable(vault, vaultType, randomVaultLatestUpdate, roundId)
+      const isLiquidatable = await calculator.isLiquidatable(vault, vaultType)
 
       assert.equal(isLiquidatable[0], false, 'isLiquidatable boolean value mismatch')
       assert.equal(new BigNumber(isLiquidatable[1]).toString(), '0', 'debt price value mismatch')
@@ -233,7 +233,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
         requiredMargin.minus(5).toString(),
       )
       const randomVaultLatestUpdate = '0'
-      const isLiquidatable = await calculator.isLiquidatable(vault, vaultType, randomVaultLatestUpdate, roundId)
+      const isLiquidatable = await calculator.isLiquidatable(vault, vaultType)
 
       const currentBlockTime = (await time.latest()).toNumber()
       const vaultCollateral = requiredMargin
@@ -299,7 +299,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
         requiredMargin.minus(5).toString(),
       )
       const randomVaultLatestUpdate = '0'
-      const isLiquidatable = await calculator.isLiquidatable(vault, vaultType, randomVaultLatestUpdate, roundId)
+      const isLiquidatable = await calculator.isLiquidatable(vault, vaultType)
 
       const currentBlockTime = (await time.latest()).toNumber()
       const vaultCollateral = requiredMargin
