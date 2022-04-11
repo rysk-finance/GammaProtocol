@@ -190,7 +190,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         address indexed receiver,
         address indexed vaultOwner,
         uint256 auctionPrice,
-        uint256 auctionStartingRound,
         uint256 collateralPayout,
         uint256 debtAmount,
         uint256 vaultId
@@ -498,14 +497,9 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @notice check if a vault is liquidatable in a specific round id
      * @param _owner vault owner address
      * @param _vaultId vault id to check
-     * @param _roundId chainlink round id to check vault status at
      * @return isUnderCollat, true if vault is undercollateralized, the price of 1 repaid otoken and the otoken collateral dust amount
      */
-    function isLiquidatable(
-        address _owner,
-        uint256 _vaultId,
-        uint256 _roundId
-    )
+    function isLiquidatable(address _owner, uint256 _vaultId)
         external
         view
         returns (
@@ -514,7 +508,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             uint256
         )
     {
-        (, bool isUnderCollat, uint256 price, uint256 dust) = _isLiquidatable(_owner, _vaultId, _roundId);
+        (, bool isUnderCollat, uint256 price, uint256 dust) = _isLiquidatable(_owner, _vaultId);
         return (isUnderCollat, price, dust);
     }
 
@@ -986,8 +980,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         // collateralDust is the minimum amount of collateral that can be left in the vault when a partial liquidation occurs
         (MarginVault.Vault memory vault, bool isUnderCollat, uint256 price, uint256 collateralDust) = _isLiquidatable(
             _args.owner,
-            _args.vaultId,
-            _args.roundId
+            _args.vaultId
         );
 
         require(isUnderCollat, "C33");
@@ -1021,7 +1014,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             _args.receiver,
             _args.owner,
             price,
-            _args.roundId,
             collateralToSell,
             _args.amount,
             _args.vaultId
@@ -1066,14 +1058,9 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @notice check if a vault is liquidatable in a specific round id
      * @param _owner vault owner address
      * @param _vaultId vault id to check
-     * @param _roundId chainlink round id to check vault status at
      * @return vault struct, isLiquidatable, true if vault is undercollateralized, the price of 1 repaid otoken and the otoken collateral dust amount
      */
-    function _isLiquidatable(
-        address _owner,
-        uint256 _vaultId,
-        uint256 _roundId
-    )
+    function _isLiquidatable(address _owner, uint256 _vaultId)
         internal
         view
         returns (
@@ -1087,12 +1074,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             _owner,
             _vaultId
         );
-        (bool isUnderCollat, uint256 price, uint256 collateralDust) = calculator.isLiquidatable(
-            vault,
-            typeVault,
-            latestUpdateTimestamp,
-            _roundId
-        );
+        (bool isUnderCollat, uint256 price, uint256 collateralDust) = calculator.isLiquidatable(vault, typeVault);
 
         return (vault, isUnderCollat, price, collateralDust);
     }
