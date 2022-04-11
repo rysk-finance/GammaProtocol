@@ -114,8 +114,8 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
     // config whitelist module
     await whitelist.whitelistCollateral(weth.address)
     await whitelist.whitelistCollateral(usdc.address)
-    await whitelist.whitelistVaultType0Collateral(weth.address, false)
-    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, weth.address, isPut)
 
     // config addressbook
@@ -683,7 +683,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
           .dividedBy(10 ** wethDecimals)
           .toNumber(),
         errorDelta,
-        'Pool balance after openining position mismatch',
+        'Pool balance after opening position mismatch',
       )
       assert.equal(
         liquidatorVaultAfter[0].collateralAmounts[0].toString(),

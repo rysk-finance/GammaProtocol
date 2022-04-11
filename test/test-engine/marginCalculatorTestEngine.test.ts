@@ -4,7 +4,7 @@ import {
   MockAddressBookInstance,
   MockOracleInstance,
   MockOtokenInstance,
-  MockWhitelistModuleInstance
+  MockWhitelistModuleInstance,
 } from '../../build/types/truffle-types'
 import { createVault, createTokenAmount } from '../utils'
 import { testCaseGenerator, Tests, Test, testToString, callMarginRequiredBeforeExpiry } from './testCaseGenerator'
@@ -48,8 +48,8 @@ contract('MarginCalculator Test Engine', () => {
     // setup usdc and weth
     usdc = await MockERC20.new('USDC', 'USDC', usdcDecimals)
     weth = await MockERC20.new('WETH', 'WETH', wethDecimals)
-    await whitelist.whitelistVaultType0Collateral(weth.address, false)
-    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
   })
 
   describe('Excess Margin Test', () => {
