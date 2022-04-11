@@ -83,15 +83,16 @@ contract('MarginCalculator', () => {
     whitelist = await Whitelist.new(addressBook.address)
     // whitelist the vault type 0 collaterals
     // whitelist call collateral
-    await whitelist.whitelistVaultType0Collateral(weth.address, false)
-    await whitelist.whitelistVaultType0Collateral(ceth.address, false)
-    await whitelist.whitelistVaultType0Collateral(reth.address, false)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(ceth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(reth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(reth.address, reth.address, false)
     //whitelist put collateral
-    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
-    await whitelist.whitelistVaultType0Collateral(dai.address, true)
-    await whitelist.whitelistVaultType0Collateral(cusdc.address, true)
-    await whitelist.whitelistVaultType0Collateral(rusd.address, true)
-    await whitelist.whitelistVaultType0Collateral(tusd.address, true)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
+    await whitelist.whitelistCoveredCollateral(dai.address, weth.address, true)
+    await whitelist.whitelistCoveredCollateral(cusdc.address, weth.address, true)
+    await whitelist.whitelistCoveredCollateral(rusd.address, weth.address, true)
+    await whitelist.whitelistCoveredCollateral(tusd.address, weth.address, true)
     await addressBook.setWhitelist(whitelist.address)
     // setup put tokens
     eth300Put = await MockOtoken.new()
@@ -960,8 +961,8 @@ contract('MarginCalculator', () => {
 
       let call: MockOtokenInstance
 
-      before('create put with rETH', async () => {
-        // create put with rUSD as collateral + underlying
+      before('create call with rETH', async () => {
+        // create call with rETH as collateral + underlying
         call = await MockOtoken.new()
         await call.init(addressBook.address, reth.address, usdc.address, reth.address, scaleNum(300), expiry, false)
       })

@@ -4,6 +4,7 @@ import {
   MockAddressBookInstance,
   MockOracleInstance,
   MockOtokenInstance,
+  MockWhitelistModuleInstance,
 } from '../../build/types/truffle-types'
 import {
   createScaledNumber as scaleNum,
@@ -21,6 +22,7 @@ const MockOracle = artifacts.require('MockOracle.sol')
 const MockOtoken = artifacts.require('MockOtoken.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
 const MarginCalculator = artifacts.require('CalculatorTester.sol')
+const MockWhitelistModule = artifacts.require('MockWhitelistModule.sol')
 const ZERO_ADDR = '0x0000000000000000000000000000000000000000'
 
 const expectedRequiredMargin = (
@@ -36,9 +38,9 @@ const expectedRequiredMargin = (
   let a, b, marginRequired
 
   if (isPut && collateralAsset == underlyingAsset) {
-    a = Math.min(strikePrice/underlyingPrice, spotShockValue)
-    b = Math.max((strikePrice/underlyingPrice) - spotShockValue, 0)
-    marginRequired = ((1 + spotShockValue) * (upperBoundValue * a + b)) * shortAmount
+    a = Math.min(strikePrice / underlyingPrice, spotShockValue)
+    b = Math.max(strikePrice / underlyingPrice - spotShockValue, 0)
+    marginRequired = (1 + spotShockValue) * (upperBoundValue * a + b) * shortAmount
   } else if (isPut && collateralAsset != underlyingAsset) {
     a = Math.min(strikePrice, spotShockValue * underlyingPrice)
     b = Math.max(strikePrice - spotShockValue * underlyingPrice, 0)
@@ -50,7 +52,7 @@ const expectedRequiredMargin = (
   } else {
     a = Math.min(underlyingPrice, strikePrice * spotShockValue)
     b = Math.max(underlyingPrice - strikePrice * spotShockValue, 0)
-    marginRequired = ((1 + spotShockValue) * (upperBoundValue * a + b)) * shortAmount
+    marginRequired = (1 + spotShockValue) * (upperBoundValue * a + b) * shortAmount
   }
 
   return marginRequired
@@ -72,6 +74,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
 
   let calculator: CalculatorTesterInstance
   let addressBook: MockAddressBookInstance
+  let whitelist: MockWhitelistModuleInstance
   let oracle: MockOracleInstance
 
   let usdc: MockERC20Instance
@@ -101,6 +104,14 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
     await addressBook.setOracle(oracle.address)
     // setup calculator
     calculator = await MarginCalculator.new(oracle.address, addressBook.address, { from: owner })
+    whitelist = await MockWhitelistModule.new(addressBook.address, { from: owner })
+    await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistCollateral(weth.address)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistNakedCollateral(usdc.address, weth.address, false)
+    await whitelist.whitelistNakedCollateral(weth.address, weth.address, true)
+    await addressBook.setWhitelist(whitelist.address)
   })
 
   describe('Collateral dust', async () => {
@@ -478,7 +489,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
           isPut,
         ),
       )
-      
+
       assert.equal(
         requiredMargin.dividedBy(10 ** usdcDecimals).toNumber(),
         expectedRequiredNakedMargin,
@@ -491,7 +502,6 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         'big error delta',
       )
     })
-
 
     it('should return required margin for naked margin vault: 100$ WETH put option ETH collateralised with 150 spot price and 1 week to expiry', async () => {
       const shortAmount = 1
@@ -547,7 +557,6 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         'big error delta',
       )
     })
-
 
     it('should return required margin for naked margin vault: 1 options 2500$ WETH call option with 1800 spot price and 1 week to expiry', async () => {
       // set product shock value
@@ -910,7 +919,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         usdc.address,
         weth.address,
       )
-      
+
       assert.isAtMost(
         calcRelativeDiff(new BigNumber('16.77778677'), new BigNumber(expectedRequiredNakedMargin)).toNumber(),
         errorDelta,

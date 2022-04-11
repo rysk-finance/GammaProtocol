@@ -46,7 +46,7 @@ enum ActionType {
   Liquidate,
 }
 
-contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1, liquidator]) => {
+contract('Naked margin: put ETH position pre expiry', ([owner, accountOwner1, buyer1, liquidator]) => {
   const usdcDecimals = 6
   const wethDecimals = 18
   const vaultType = web3.eth.abi.encodeParameter('uint256', 1)
@@ -114,8 +114,9 @@ contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1
     // config whitelist module
     await whitelist.whitelistCollateral(weth.address)
     await whitelist.whitelistCollateral(usdc.address)
-    await whitelist.whitelistVaultType0Collateral(weth.address, false)
-    await whitelist.whitelistVaultType0Collateral(usdc.address, true)
+    await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
+    await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
+    await whitelist.whitelistNakedCollateral(weth.address, weth.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, weth.address, isPut)
     // config addressbook
     await addressBook.setOracle(oracle.address)
