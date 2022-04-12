@@ -399,7 +399,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       // advance time
       await time.increase(1500)
 
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
 
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')
@@ -615,7 +615,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       // advance time
       await time.increase(600)
 
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
 
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')
@@ -823,7 +823,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       // advance time
       await time.increase(600)
 
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
       console.log(isLiquidatable[1].toString(), isLiquidatable[2].toString())
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')
@@ -876,7 +876,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
         errorDelta,
         'Liquidator collateral balance mismatch after liquidation',
       )
-      const Liquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const Liquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
       console.log(Liquidatable[0], Liquidatable[1].toString(), Liquidatable[2].toString())
     })
 
@@ -892,7 +892,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       // advance time
       await time.increase(600)
 
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
       console.log(isLiquidatable[1].toString(), isLiquidatable[2].toString())
       assert.equal(isLiquidatable[0], false, 'Vault liquidation state mismatch')
 
@@ -1134,7 +1134,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       // advance time
       await time.increase(600)
 
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
 
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')
