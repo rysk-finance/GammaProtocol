@@ -377,7 +377,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
 
       await expectRevert(
         controllerProxy.operate(liquidateArgs, { from: liquidator }),
-        'MarginCalculator: auction timestamp should be post vault latest update',
+        'C33',
       )
 
       await shortOtoken.transfer(accountOwner1, createTokenAmount(shortAmount), { from: liquidator })
@@ -398,7 +398,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
       // advance time
       await time.increase(1500)
 
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
 
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')
@@ -595,7 +595,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
 
       await weth.approve(marginPool.address, collateralToDeposit.toString(), { from: liquidator })
 
-      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString(), roundId)
+      const isLiquidatable = await controllerProxy.isLiquidatable(accountOwner1, vaultCounter.toString())
 
       assert.equal(isLiquidatable[0], true, 'Vault liquidation state mismatch')
       assert.isTrue(new BigNumber(isLiquidatable[1]).isGreaterThan(0), 'Liquidation price is equal to zero')
@@ -736,7 +736,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
 
       const userVaultBefore = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
       const amountToWithdraw = new BigNumber(await controllerProxy.getProceed(accountOwner1, vaultCounter))
-
+      console.log(amountToWithdraw)
       const withdrawArgs = [
         {
           actionType: ActionType.WithdrawCollateral,
@@ -750,23 +750,8 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
         },
       ]
       const userCollateralBefore = new BigNumber(await weth.balanceOf(accountOwner1))
-
-      await controllerProxy.operate(withdrawArgs, { from: accountOwner1 })
-
-      const userVaultAfter = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
-      const userCollateralAfter = new BigNumber(await weth.balanceOf(accountOwner1))
-
-      assert.equal(
-        userCollateralAfter.toString(),
-        userCollateralBefore.plus(amountToWithdraw).toString(),
-        'User collateral after withdraw excess mismatch',
-      )
-      assert.equal(
-        userVaultBefore[0].collateralAmounts[0].toString(),
-        new BigNumber(userVaultAfter[0].collateralAmounts[0]).plus(amountToWithdraw).toString(),
-        'Vault collateral after withdraw excess mismatch',
-      )
-
+      console.log(weth.address, userVaultBefore[0].collateralAssets[0])
+      await expectRevert(controllerProxy.operate(withdrawArgs, { from: accountOwner1 }), "V9")
       const buyerWethBefore = new BigNumber(await weth.balanceOf(buyer1))
       const redeemArgs = [
         {
@@ -784,7 +769,7 @@ contract('Naked margin: call position pre expiry', ([owner, accountOwner1, liqui
       const payout = new BigNumber(await controllerProxy.getPayout(shortOtoken.address, createTokenAmount(shortAmount)))
 
       await controllerProxy.operate(redeemArgs, { from: buyer1 })
-
+      console.log("x")
       assert.equal(buyerWethAfter.minus(buyerWethBefore).toString(), payout.toString(), 'buyer payout amount mismatch')
 
       const settleArgs = [

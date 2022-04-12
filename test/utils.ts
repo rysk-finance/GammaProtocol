@@ -170,33 +170,7 @@ export const expectedLiquidationPrice = (
     return endingPrice.multipliedBy(10 ** collateralDecimals).toNumber()
   }
 
-  let startingPrice
-
-  if (isPut) {
-    startingPrice = BigNumber.max(
-      new BigNumber(cashValue).minus(new BigNumber(spotPrice).multipliedBy(oracleDeviation)),
-      0,
-    )
-  } else if (!isPut && underlyingAsset == collateralAsset) {
-    startingPrice = BigNumber.max(
-      new BigNumber(cashValue).minus(new BigNumber(spotPrice).multipliedBy(oracleDeviation)),
-      0,
-    )
-  } else {
-    startingPrice = BigNumber.max(
-      new BigNumber(cashValue).minus(new BigNumber(spotPrice).multipliedBy(oracleDeviation)),
-      0,
-    ).dividedBy(spotPrice)
-  }
-
-  const price = startingPrice
-    .plus(endingPrice.minus(startingPrice).multipliedBy(auctionElapsedTime).dividedBy(3600))
-    .multipliedBy(10 ** collateralDecimals)
-
-  if (price.isGreaterThan(endingPrice.multipliedBy(10 ** collateralDecimals)))
-    return endingPrice.multipliedBy(10 ** collateralDecimals).toNumber()
-
-  return price.toNumber()
+  return endingPrice.multipliedBy(10 ** collateralDecimals).toNumber()
 }
 
 export const calcRelativeDiff = (expected: BigNumber, actual: BigNumber): BigNumber => {
