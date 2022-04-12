@@ -727,21 +727,7 @@ contract('Naked margin: put position pre expiry', ([owner, accountOwner1, buyer1
       ]
       const userCollateralBefore = new BigNumber(await usdc.balanceOf(accountOwner1))
 
-      await controllerProxy.operate(withdrawArgs, { from: accountOwner1 })
-
-      const userVaultAfter = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter)
-      const userCollateralAfter = new BigNumber(await usdc.balanceOf(accountOwner1))
-
-      assert.equal(
-        userCollateralAfter.toString(),
-        userCollateralBefore.plus(amountToWithdraw).toString(),
-        'User collateral after withdraw excess mismatch',
-      )
-      assert.equal(
-        userVaultBefore[0].collateralAmounts[0].toString(),
-        new BigNumber(userVaultAfter[0].collateralAmounts[0]).plus(amountToWithdraw).toString(),
-        'Vault collateral after withdraw excess mismatch',
-      )
+      await expectRevert(controllerProxy.operate(withdrawArgs, { from: accountOwner1 }), "V9")
 
       const buyerUsdcBefore = new BigNumber(await usdc.balanceOf(buyer1))
       const redeemArgs = [

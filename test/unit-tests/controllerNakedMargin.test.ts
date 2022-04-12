@@ -394,7 +394,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const roundPrice = 130
       const scaledRoundPrice = createTokenAmount(roundPrice)
       const auctionStartingTime = (await time.latest()).toString()
-      await oracle.setChainlinkRoundData(weth.address, roundId, scaledRoundPrice, auctionStartingTime)
+      await oracle.setRealTimePrice(weth.address, scaledRoundPrice)
 
       // advance time
       await time.increase(1500)
@@ -459,7 +459,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       )
     })
 
-    it('should be able to withdraw remaining collateral', async () => {
+    it('should not be able to withdraw remaining collateral', async () => {
       const vaultAfterLiquidation = (await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter))[0]
 
       const withdrawArgs = [
@@ -478,21 +478,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const userCollateralBefore = new BigNumber(await usdc.balanceOf(accountOwner1))
       const nakedMarginPoolBefore = new BigNumber(await controllerProxy.getNakedPoolBalance(usdc.address))
 
-      await controllerProxy.operate(withdrawArgs, { from: accountOwner1 })
-
-      const nakedMarginPoolAfter = new BigNumber(await controllerProxy.getNakedPoolBalance(usdc.address))
-      const userCollateralAfter = new BigNumber(await usdc.balanceOf(accountOwner1))
-
-      assert.equal(
-        nakedMarginPoolAfter.toString(),
-        nakedMarginPoolBefore.minus(new BigNumber(vaultAfterLiquidation.collateralAmounts[0])).toString(),
-        'Naked margin colalteral tracking mismatch',
-      )
-      assert.equal(
-        userCollateralAfter.toString(),
-        userCollateralBefore.plus(vaultAfterLiquidation.collateralAmounts[0]).toString(),
-        'User collateral after withdraw remaining collateral mismatch',
-      )
+      await expectRevert(controllerProxy.operate(withdrawArgs, { from: accountOwner1 }), "V9")
     })
   })
 
@@ -610,7 +596,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const roundPrice = 1150
       const scaledRoundPrice = createTokenAmount(roundPrice)
       const auctionStartingTime = (await time.latest()).toString()
-      await oracle.setChainlinkRoundData(weth.address, roundId, scaledRoundPrice, auctionStartingTime)
+      await oracle.setRealTimePrice(weth.address, scaledRoundPrice)
 
       // advance time
       await time.increase(600)
@@ -675,7 +661,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       )
     })
 
-    it('should be able to withdraw remaining collateral', async () => {
+    it('should not be able to withdraw remaining collateral', async () => {
       const vaultAfterLiquidation = (await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter))[0]
 
       const withdrawArgs = [
@@ -694,21 +680,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const userCollateralBefore = new BigNumber(await weth.balanceOf(accountOwner1))
       const nakedMarginPoolBefore = new BigNumber(await controllerProxy.getNakedPoolBalance(weth.address))
 
-      await controllerProxy.operate(withdrawArgs, { from: accountOwner1 })
-
-      const userCollateralAfter = new BigNumber(await weth.balanceOf(accountOwner1))
-      const nakedMarginPoolAfter = new BigNumber(await controllerProxy.getNakedPoolBalance(weth.address))
-
-      assert.equal(
-        nakedMarginPoolAfter.toString(),
-        nakedMarginPoolBefore.minus(new BigNumber(vaultAfterLiquidation.collateralAmounts[0])).toString(),
-        'Naked margin colalteral tracking mismatch',
-      )
-      assert.equal(
-        userCollateralAfter.toString(),
-        userCollateralBefore.plus(vaultAfterLiquidation.collateralAmounts[0]).toString(),
-        'User collateral after withdraw remaining collateral mismatch',
-      )
+      await expectRevert(controllerProxy.operate(withdrawArgs, { from: accountOwner1 }), "V9")
     })
   })
 
@@ -818,7 +790,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const roundPrice = 130
       const scaledRoundPrice = createTokenAmount(roundPrice)
       const auctionStartingTime = (await time.latest()).toString()
-      await oracle.setChainlinkRoundData(weth.address, roundId, scaledRoundPrice, auctionStartingTime)
+      await oracle.setRealTimePrice(weth.address, scaledRoundPrice)
 
       // advance time
       await time.increase(600)
@@ -884,10 +856,10 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const shortToLiquidate = 1
       // set round id and price
       const roundId = new BigNumber(1)
-      const roundPrice = 130
+      const roundPrice = 150
       const scaledRoundPrice = createTokenAmount(roundPrice)
       const auctionStartingTime = (await time.latest()).toString()
-      await oracle.setChainlinkRoundData(weth.address, roundId, scaledRoundPrice, auctionStartingTime)
+      await oracle.setRealTimePrice(weth.address, scaledRoundPrice)
 
       // advance time
       await time.increase(600)
@@ -923,14 +895,14 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
         usdc.address,
         createTokenAmount(1),
         createTokenAmount(shortStrike),
-        createTokenAmount(130),
+        createTokenAmount(150),
         optionExpiry,
         usdcDecimals,
         isPut,
       )
 
       const amountAbleToWithdraw = new BigNumber(vaultAfterLiquidation.collateralAmounts[0]).minus(requiredVaultMargin)
-
+      console.log(amountAbleToWithdraw)
       const withdrawArgs = [
         {
           actionType: ActionType.WithdrawCollateral,
@@ -945,7 +917,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       ]
 
       const userCollateralBefore = new BigNumber(await usdc.balanceOf(accountOwner1))
-
+      console.log("x")
       await controllerProxy.operate(withdrawArgs, { from: accountOwner1 })
 
       const userCollateralAfter = new BigNumber(await usdc.balanceOf(accountOwner1))
@@ -1129,7 +1101,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const roundPrice = 1150
       const scaledRoundPrice = createTokenAmount(roundPrice)
       const auctionStartingTime = (await time.latest()).toString()
-      await oracle.setChainlinkRoundData(weth.address, roundId, scaledRoundPrice, auctionStartingTime)
+      await oracle.setRealTimePrice(weth.address, scaledRoundPrice)
 
       // advance time
       await time.increase(600)
@@ -1194,7 +1166,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       )
     })
 
-    it('should be able to withdraw remaining collateral', async () => {
+    it('should not be able to withdraw remaining collateral', async () => {
       const vaultAfterLiquidation = (await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter))[0]
 
       const withdrawArgs = [
@@ -1213,21 +1185,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const userCollateralBefore = new BigNumber(await usdc.balanceOf(accountOwner1))
       const nakedMarginPoolBefore = new BigNumber(await controllerProxy.getNakedPoolBalance(usdc.address))
 
-      await controllerProxy.operate(withdrawArgs, { from: accountOwner1 })
-
-      const userCollateralAfter = new BigNumber(await usdc.balanceOf(accountOwner1))
-      const nakedMarginPoolAfter = new BigNumber(await controllerProxy.getNakedPoolBalance(usdc.address))
-
-      assert.equal(
-        nakedMarginPoolAfter.toString(),
-        nakedMarginPoolBefore.minus(new BigNumber(vaultAfterLiquidation.collateralAmounts[0])).toString(),
-        'Naked margin colalteral tracking mismatch',
-      )
-      assert.equal(
-        userCollateralAfter.toString(),
-        userCollateralBefore.plus(vaultAfterLiquidation.collateralAmounts[0]).toString(),
-        'User collateral after withdraw remaining collateral mismatch',
-      )
+      await expectRevert(controllerProxy.operate(withdrawArgs, { from: accountOwner1 }), "V9")
     })
   })
 })

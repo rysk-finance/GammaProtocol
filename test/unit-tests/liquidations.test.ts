@@ -135,17 +135,6 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
       )
     })
 
-    it('should not be able to liquidate vault with an auction start timestamp less than latest vault update timestamp', async () => {
-      const vault = createVault(shortOtoken.address, undefined, undefined, scaleNum(1), undefined, undefined)
-      const randomVaultLatestUpdate = '11111111'
-      const randomRoundId = '1'
-
-      await expectRevert(
-        calculator.isLiquidatable(vault, vaultType),
-        'C33',
-      )
-    })
-
     it('should return not liquidatable with 0 value for dust and price amount when vault have no short Otoken', async () => {
       const vault = createVault(undefined, undefined, undefined, scaleNum(0), undefined, undefined)
       const randomVaultLatestUpdate = '0'
@@ -179,7 +168,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
       const roundId = '11198' // random round id
       const underlyingPrice = 300
       const scaledUnderlyingPrice = scaleBigNum(underlyingPrice, 8)
-      await oracle.setChainlinkRoundData(weth.address, roundId, scaledUnderlyingPrice, (await time.latest()).toNumber())
+      await oracle.setRealTimePrice(weth.address, scaledUnderlyingPrice)
 
       const shortAmount = createTokenAmount(1)
       const requiredMargin = new BigNumber(
@@ -216,7 +205,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
       const roundTimestamp = (await time.latest()).toNumber()
       const underlyingPrice = 100
       const scaledUnderlyingPrice = scaleBigNum(underlyingPrice, 8)
-      await oracle.setChainlinkRoundData(weth.address, roundId, scaledUnderlyingPrice, roundTimestamp)
+      await oracle.setRealTimePrice(weth.address, scaledUnderlyingPrice)
 
       const shortAmount = createTokenAmount(1)
       const requiredMargin = new BigNumber(
@@ -279,7 +268,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
       const roundTimestamp = (await time.latest()).toNumber()
       const underlyingPrice = 100
       const scaledUnderlyingPrice = scaleBigNum(underlyingPrice, 8)
-      await oracle.setChainlinkRoundData(weth.address, roundId, scaledUnderlyingPrice, roundTimestamp)
+      await oracle.setRealTimePrice(weth.address, scaledUnderlyingPrice)
 
       const shortAmount = createTokenAmount(1)
       const requiredMargin = new BigNumber(
@@ -359,7 +348,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
       const scaledVaultCollateral = createTokenAmount(vaultCollateral, usdcDecimals)
       const scaledVaultDebt = createTokenAmount(vaultDebt)
       const isPut = true
-
+      console.log(await whitelist.isCoveredWhitelistedCollateral(usdc.address, weth.address, true))
       const liquidationprice = new BigNumber(
         await calculator.price(
           scaledVaultCollateral,
