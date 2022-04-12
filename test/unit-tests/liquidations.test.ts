@@ -353,14 +353,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
         await calculator.price(
           scaledVaultCollateral,
           scaledVaultDebt,
-          scaledCashValue,
-          scaledSpotPrice,
-          auctionStartingTime,
-          usdcDecimals,
-          isPut,
-          usdc.address,
-          // @ts-ignore
-          weth.address,
+          usdcDecimals
         ),
       )
 
@@ -401,14 +394,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
         await calculator.price(
           scaledVaultCollateral,
           scaledVaultDebt,
-          scaledCashValue,
-          scaledSpotPrice,
-          auctionStartingTime,
-          wethDecimals,
-          isPut,
-          usdc.address,
-          // @ts-ignore
-          weth.address,
+          wethDecimals
         ),
       )
 
@@ -449,14 +435,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
         await calculator.price(
           scaledVaultCollateral,
           scaledVaultDebt,
-          scaledCashValue,
-          scaledSpotPrice,
-          auctionStartingTime,
-          usdcDecimals,
-          isPut,
-          usdc.address,
-          // @ts-ignore
-          weth.address,
+          usdcDecimals
         ),
       )
 

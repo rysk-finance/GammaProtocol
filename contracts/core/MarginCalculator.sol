@@ -468,20 +468,11 @@ contract MarginCalculator is Ownable {
             return (false, 0, 0);
         }
 
-        FPI.FixedPointInt memory cashValue = _getCashValue(
-            shortDetails.shortStrike,
-            shortDetails.shortUnderlyingPrice,
-            vaultDetails.isShortPut
-        );
-
         // get the amount of collateral per 1 repaid otoken
         uint256 debtPrice = _getDebtPrice(
             depositedCollateral,
             shortDetails.shortAmount,
-            cashValue,
-            shortDetails.shortUnderlyingPrice,
-            vaultDetails.collateralDecimals,
-            opType
+            vaultDetails.collateralDecimals
         );
 
         return (true, debtPrice, dust[vaultDetails.shortCollateralAsset]);
@@ -947,18 +938,13 @@ contract MarginCalculator is Ownable {
      * price = vault collateral / vault debt
      * @param _vaultCollateral vault collateral amount
      * @param _vaultDebt vault short amount
-     * @param _cashValue option cash value
-     * @param _spotPrice option underlying asset price (in USDC)
      * @param _collateralDecimals collateral asset decimals
      * @return price of 1 debt otoken in collateral asset scaled by collateral decimals
      */
     function _getDebtPrice(
         FPI.FixedPointInt memory _vaultCollateral,
         FPI.FixedPointInt memory _vaultDebt,
-        FPI.FixedPointInt memory _cashValue,
-        FPI.FixedPointInt memory _spotPrice,
-        uint256 _collateralDecimals,
-        OptionType optionType
+        uint256 _collateralDecimals
     ) internal view returns (uint256) {
         // ending price
         FPI.FixedPointInt memory price = _vaultCollateral.div(_vaultDebt);
