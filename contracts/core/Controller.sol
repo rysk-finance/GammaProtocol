@@ -114,6 +114,9 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     /// @dev mapping to store amount of naked margin vaults in pool
     mapping(address => uint256) internal nakedPoolBalance;
 
+    ///@dev mapping to store liquidation states of a naked margin vault
+    mapping(address => mapping(uint256 => MarginVault.VaultLiquidationDetails)) internal vaultLiquidationDetails;
+
     /// @notice emits an event when an account operator is updated for a specific account owner
     event AccountOperatorUpdated(address indexed accountOwner, address indexed operator, bool isSet);
     /// @notice emits an event when a new vault is opened
@@ -448,6 +451,16 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     }
 
     /**
+     * @notice clear a vaults liquidation details
+     * @param _owner account owner of the vault
+     * @param _vaultId vaultId to return balances for
+     */
+    function clearVaultLiquidationDetails(address _owner, uint256 _vaultId) external {
+        require(_owner == msg.sender);
+        delete vaultLiquidationDetails[_owner][_vaultId];
+    }
+
+    /**
      * @notice check if a specific address is an operator for an owner account
      * @param _owner account owner address
      * @param _operator account operator address
@@ -491,6 +504,27 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         if (!isExcess) return 0;
 
         return netValue;
+    }
+
+    /**
+     * @notice return a vault's past liquidation details
+     * @param _owner account owner of the vault
+     * @param _vaultId vaultId to return balances for
+     * @return series address liquidated
+     * @return amount of shorts liquidated
+     * @return amount of collateral transferred for liquidation
+     */
+    function getVaultLiquidationDetails(address _owner, uint256 _vaultId)
+        external
+        view
+        returns (
+            address,
+            uint256,
+            uint256
+        )
+    {
+        MarginVault.VaultLiquidationDetails memory vault = vaultLiquidationDetails[_owner][_vaultId];
+        return (vault.series, vault.shortAmount, vault.collateralAmount);
     }
 
     /**
@@ -997,7 +1031,18 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         // burn short otoken from liquidator address, index of short otoken hardcoded at 0
         // this should always work, if vault have no short otoken, it will not reach this step
         OtokenInterface(vault.shortOtokens[0]).burnOtoken(msg.sender, _args.amount);
-
+        // increment the vault liquidation details to store the fact that this vault was liquidated
+        MarginVault.VaultLiquidationDetails storage vaultLiqDetails = vaultLiquidationDetails[_args.owner][
+            _args.vaultId
+        ];
+        if (vaultLiqDetails.series == vault.shortOtokens[0]) {
+            vaultLiqDetails.shortAmount += _args.amount;
+            vaultLiqDetails.collateralAmount += collateralToSell;
+        } else {
+            vaultLiqDetails.series = vault.shortOtokens[0];
+            vaultLiqDetails.shortAmount = _args.amount;
+            vaultLiqDetails.collateralAmount = collateralToSell;
+        }
         // decrease amount of collateral in liquidated vault, index of collateral to decrease is hardcoded at 0
         vaults[_args.owner][_args.vaultId].removeCollateral(vault.collateralAssets[0], collateralToSell, 0);
 
