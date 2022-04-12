@@ -51,8 +51,8 @@ library MarginVault {
     // a given liquidation
     struct VaultLiquidationDetails {
         address series;
-        uint256 shortAmount;
-        uint256 collateralAmount;
+        uint128 shortAmount;
+        uint128 collateralAmount;
     }
 
     /**

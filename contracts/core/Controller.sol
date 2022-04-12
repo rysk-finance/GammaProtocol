@@ -452,12 +452,10 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
     /**
      * @notice clear a vaults liquidation details
-     * @param _owner account owner of the vault
      * @param _vaultId vaultId to return balances for
      */
-    function clearVaultLiquidationDetails(address _owner, uint256 _vaultId) external {
-        require(_owner == msg.sender);
-        delete vaultLiquidationDetails[_owner][_vaultId];
+    function clearVaultLiquidationDetails(uint256 _vaultId) external {
+        delete vaultLiquidationDetails[msg.sender][_vaultId];
     }
 
     /**
@@ -1036,12 +1034,12 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             _args.vaultId
         ];
         if (vaultLiqDetails.series == vault.shortOtokens[0]) {
-            vaultLiqDetails.shortAmount += _args.amount;
-            vaultLiqDetails.collateralAmount += collateralToSell;
+            vaultLiqDetails.shortAmount += uint128(_args.amount);
+            vaultLiqDetails.collateralAmount += uint128(collateralToSell);
         } else {
             vaultLiqDetails.series = vault.shortOtokens[0];
-            vaultLiqDetails.shortAmount = _args.amount;
-            vaultLiqDetails.collateralAmount = collateralToSell;
+            vaultLiqDetails.shortAmount = uint128(_args.amount);
+            vaultLiqDetails.collateralAmount = uint128(collateralToSell);
         }
         // decrease amount of collateral in liquidated vault, index of collateral to decrease is hardcoded at 0
         vaults[_args.owner][_args.vaultId].removeCollateral(vault.collateralAssets[0], collateralToSell, 0);
