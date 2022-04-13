@@ -1138,7 +1138,22 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
         await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter.toString())
       )[0]
       const nakedMarginPoolAfter = new BigNumber(await controllerProxy.getNakedPoolBalance(usdc.address))
-
+      const liquidationDetails = await controllerProxy.getVaultLiquidationDetails(accountOwner1, vaultCounter.toString())
+      assert.equal(
+        liquidationDetails[0],
+        shortOtoken.address,
+        'series address is incorrect'
+      )
+      assert.equal(
+        new BigNumber(liquidationDetails[1]).toString(),
+        new BigNumber(createTokenAmount(shortAmount)).toString(),
+        'short amount is incorrect'
+      )      
+      assert.equal(
+        new BigNumber(liquidationDetails[2]).toString(),
+        new BigNumber(vaultBeforeLiquidation.collateralAmounts[0]).toString(),
+        'collateral amount is incorrect'
+      )      
       assert.equal(
         nakedMarginPoolAfter.toString(),
         nakedMarginPoolBefore
@@ -1165,7 +1180,41 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
         'Liquidator collateral balance mismatch after liquidation',
       )
     })
-
+    it('should clear liquidation details', async () => {
+      const liquidationDetailsBefore = await controllerProxy.getVaultLiquidationDetails(accountOwner1, vaultCounter.toString())
+      await controllerProxy.clearVaultLiquidationDetails(vaultCounter.toString(), {"from": accountOwner1})
+      const liquidationDetailsAfter = await controllerProxy.getVaultLiquidationDetails(accountOwner1, vaultCounter.toString())
+      assert.equal(
+        liquidationDetailsAfter[0],
+        ZERO_ADDR,
+        'series address is incorrect'
+      )
+      assert.equal(
+        new BigNumber(liquidationDetailsAfter[1]).toString(),
+        new BigNumber(0).toString(),
+        'short amount is incorrect'
+      )      
+      assert.equal(
+        new BigNumber(liquidationDetailsAfter[2]).toString(),
+        new BigNumber(0).toString(),
+        'collateral amount is incorrect'
+      )
+      assert.notEqual(
+        liquidationDetailsAfter[0],
+        liquidationDetailsBefore[0],
+        'series address is incorrect'
+      )
+      assert.notEqual(
+        new BigNumber(liquidationDetailsAfter[1]).toString(),
+        new BigNumber(liquidationDetailsBefore[1]).toString(),
+        'short amount is incorrect'
+      )      
+      assert.notEqual(
+        new BigNumber(liquidationDetailsAfter[2]).toString(),
+        new BigNumber(liquidationDetailsBefore[2]).toString(),
+        'collateral amount is incorrect'
+      )
+    })
     it('should not be able to withdraw remaining collateral', async () => {
       const vaultAfterLiquidation = (await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter))[0]
 
