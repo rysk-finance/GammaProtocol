@@ -18,7 +18,7 @@ import {
   calcRelativeDiff,
 } from '../utils'
 
-const { expectRevert, time } = require('@openzeppelin/test-helpers')
+const { expectRevert, expectEvent, time } = require('@openzeppelin/test-helpers')
 
 const CallTester = artifacts.require('CallTester.sol')
 const MockERC20 = artifacts.require('MockERC20.sol')
@@ -1114,7 +1114,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const vaultBeforeLiquidation = (
         await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter.toString())
       )[0]
-
+      const vaultDetails = await controllerProxy.getVault(accountOwner1, vaultCounter.toString())
       const liquidateArgs = [
         {
           actionType: ActionType.Liquidate,
@@ -1130,9 +1130,14 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
 
       const liquidatorCollateralBalanceBefore = new BigNumber(await usdc.balanceOf(liquidator))
       const nakedMarginPoolBefore = new BigNumber(await controllerProxy.getNakedPoolBalance(usdc.address))
-
-      await controllerProxy.operate(liquidateArgs, { from: liquidator })
-
+      expectEvent(await controllerProxy.operate(liquidateArgs, { from: liquidator }), 'VaultLiquidated', {
+        liquidator: liquidator,
+        receiver: liquidator,
+        vaultOwner: accountOwner1,
+        auctionPrice: isLiquidatable[1],
+        vaultId: vaultCounter.toString(),
+        series: vaultDetails.shortOtokens[0]
+      })
       const liquidatorCollateralBalanceAfter = new BigNumber(await usdc.balanceOf(liquidator))
       const vaultAfterLiquidation = (
         await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter.toString())

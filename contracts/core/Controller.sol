@@ -190,12 +190,13 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     /// @notice emits an event when a vault is liquidated
     event VaultLiquidated(
         address indexed liquidator,
-        address indexed receiver,
+        address receiver,
         address indexed vaultOwner,
         uint256 auctionPrice,
         uint256 collateralPayout,
         uint256 debtAmount,
-        uint256 vaultId
+        uint256 vaultId,
+        address indexed series
     );
     /// @notice emits an event when a call action is executed
     event CallExecuted(address indexed from, address indexed to, bytes data);
@@ -1033,9 +1034,12 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         MarginVault.VaultLiquidationDetails storage vaultLiqDetails = vaultLiquidationDetails[_args.owner][
             _args.vaultId
         ];
+        address series = vault.shortOtokens[0];
         if (vaultLiqDetails.series == vault.shortOtokens[0]) {
-            vaultLiqDetails.shortAmount += uint128(_args.amount);
-            vaultLiqDetails.collateralAmount += uint128(collateralToSell);
+            vaultLiqDetails.shortAmount = uint128(uint256(vaultLiqDetails.shortAmount).add(_args.amount));
+            vaultLiqDetails.collateralAmount += uint128(
+                uint256(vaultLiqDetails.collateralAmount).add(collateralToSell)
+            );
         } else {
             vaultLiqDetails.series = vault.shortOtokens[0];
             vaultLiqDetails.shortAmount = uint128(_args.amount);
@@ -1059,7 +1063,8 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             price,
             collateralToSell,
             _args.amount,
-            _args.vaultId
+            _args.vaultId,
+            series
         );
     }
 
