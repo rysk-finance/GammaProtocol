@@ -1,27 +1,19 @@
 import {ethers} from "hardhat";
 
 import { BigNumber, BigNumberish, utils } from "ethers"
-import {Oracle} from "../types/Oracle"
+import {MockERC20} from "../types/MockERC20"
 
-const lockingPeriod = 60 * 10
-const disputePeriod = 60 * 20
-const chainlinkOracle = "0x5f0423B1a6935dc5596e7A24d98532b67A0AeFd8"
-const bot = "0x282f13b62b4341801210657e3aa4ee1df69f4083"
-const weth = "0xE32513090f05ED2eE5F3c5819C9Cce6d020Fefe7"
 
+const usdc = "0x3C6c9B6b41B9E0d82FeD45d9502edFFD5eD3D737"
 async function main() {
     
     const [deployer] = await ethers.getSigners();
     console.log("deployer: " + await deployer.getAddress())
-    const oracle = await ethers.getContractAt("Oracle", "0xe4d64aed5e76bCcE2C255f3c819f4C3817D42f19") as Oracle
-    // deploy pricer
-    const pricer = await(await ethers.getContractFactory("ChainLinkPricer")).deploy(bot, weth, chainlinkOracle, oracle.address)
-    console.log("pricer: " + pricer.address)
-    await oracle.setAssetPricer(weth, pricer.address)
-    await oracle.setLockingPeriod(pricer.address, lockingPeriod)
-    await oracle.setDisputePeriod(pricer.address, disputePeriod)
-
-	console.log("execution complete")
+    const usdcContract = await ethers.getContractAt("MockERC20", usdc) as MockERC20
+    await usdcContract.mint(await deployer.getAddress(), BigNumber.from("100000000000000000000000000"))
+	await usdcContract.mint("0xAD5B468F6Fb897461E388396877fD5E3c5114539", BigNumber.from("1000000000000000"))
+    await usdcContract.mint("0xF8F8E45A1f470E92D2B714EBf58b266AabBeD45D", BigNumber.from("1000000000000000"))
+    console.log("execution complete")
 }
 main()
     .then(() => process.exit())
