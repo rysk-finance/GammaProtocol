@@ -40,7 +40,7 @@ const expectedRequiredMargin = (
   if (isPut && collateralAsset == underlyingAsset) {
     a = Math.min(strikePrice / underlyingPrice, spotShockValue)
     b = Math.max(strikePrice / underlyingPrice - spotShockValue, 0)
-    marginRequired = (1 + spotShockValue) * (upperBoundValue * a + b) * shortAmount
+    marginRequired = (upperBoundValue * a + b) * shortAmount
   } else if (isPut && collateralAsset != underlyingAsset) {
     a = Math.min(strikePrice, spotShockValue * underlyingPrice)
     b = Math.max(strikePrice - spotShockValue * underlyingPrice, 0)
@@ -52,7 +52,7 @@ const expectedRequiredMargin = (
   } else {
     a = Math.min(underlyingPrice, strikePrice * spotShockValue)
     b = Math.max(underlyingPrice - strikePrice * spotShockValue, 0)
-    marginRequired = (1 + spotShockValue) * (upperBoundValue * a + b) * shortAmount
+    marginRequired = (upperBoundValue * a + b) * shortAmount
   }
 
   return marginRequired

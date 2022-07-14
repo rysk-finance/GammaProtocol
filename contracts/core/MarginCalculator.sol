@@ -808,19 +808,11 @@ contract MarginCalculator is Ownable {
         } else if (optionType == OptionType.NAKED_PUT) {
             a = FPI.min(ssd.shortStrike.div(ssd.shortUnderlyingPrice), spotShockValue);
             b = FPI.max((ssd.shortStrike.div(ssd.shortUnderlyingPrice)).sub(spotShockValue), ZERO);
-            return (
-                (FPI.fromScaledUint(1e27, SCALING_FACTOR).add(spotShockValue))
-                    .mul(optionUpperBoundValue.mul(a).add(b))
-                    .mul(ssd.shortAmount)
-            );
+            return (optionUpperBoundValue.mul(a).add(b)).mul(ssd.shortAmount);
         } else {
             a = FPI.min(ssd.shortUnderlyingPrice, (ssd.shortStrike.mul(spotShockValue)));
             b = FPI.max(ssd.shortUnderlyingPrice.sub(ssd.shortStrike.mul(spotShockValue)), ZERO);
-            return (
-                (FPI.fromScaledUint(1e27, SCALING_FACTOR).add(spotShockValue))
-                    .mul(optionUpperBoundValue.mul(a).add(b))
-                    .mul(ssd.shortAmount)
-            );
+            return (optionUpperBoundValue.mul(a).add(b)).mul(ssd.shortAmount);
         }
     }
 
