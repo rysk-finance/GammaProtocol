@@ -979,7 +979,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         weth.address,
       )
       assert.isAtMost(
-        calcRelativeDiff(new BigNumber('14.6825'), new BigNumber(expectedRequiredNakedMargin)).toNumber(),
+        calcRelativeDiff(new BigNumber('8.39'), new BigNumber(expectedRequiredNakedMargin)).toNumber(),
         errorDelta,
         'big error delta',
       )
