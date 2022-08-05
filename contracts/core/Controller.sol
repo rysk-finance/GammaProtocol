@@ -1116,10 +1116,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             uint256
         )
     {
-        (MarginVault.Vault memory vault, uint256 typeVault, uint256 latestUpdateTimestamp) = getVaultWithDetails(
-            _owner,
-            _vaultId
-        );
+        (MarginVault.Vault memory vault, uint256 typeVault, ) = getVaultWithDetails(_owner, _vaultId);
         (bool isUnderCollat, uint256 price, uint256 collateralDust) = calculator.isLiquidatable(vault, typeVault);
 
         return (vault, isUnderCollat, price, collateralDust);
