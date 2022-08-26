@@ -16,10 +16,10 @@ import {WhitelistInterface} from "../interfaces/WhitelistInterface.sol";
  */
 contract OtokenFactory is OtokenSpawner {
     using SafeMath for uint256;
-    /// @notice Opyn AddressBook contract that records the address of the Whitelist module and the Otoken impl address. */
+    /// @notice Opyn AddressBook contract that records the address of the Whitelist module and the Otoken impl address.
     address public addressBook;
 
-    /// @notice array of all created otokens */
+    /// @notice array of all created otokens
     address[] public otokens;
 
     /// @dev mapping from parameters hash to its deployed address

@@ -1037,9 +1037,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         address series = vault.shortOtokens[0];
         if (vaultLiqDetails.series == vault.shortOtokens[0]) {
             vaultLiqDetails.shortAmount = uint128(uint256(vaultLiqDetails.shortAmount).add(_args.amount));
-            vaultLiqDetails.collateralAmount = uint128(
-                uint256(vaultLiqDetails.collateralAmount).add(collateralToSell)
-            );
+            vaultLiqDetails.collateralAmount = uint128(uint256(vaultLiqDetails.collateralAmount).add(collateralToSell));
         } else {
             vaultLiqDetails.series = vault.shortOtokens[0];
             vaultLiqDetails.shortAmount = uint128(_args.amount);
@@ -1118,10 +1116,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             uint256
         )
     {
-        (MarginVault.Vault memory vault, uint256 typeVault, uint256 latestUpdateTimestamp) = getVaultWithDetails(
-            _owner,
-            _vaultId
-        );
+        (MarginVault.Vault memory vault, uint256 typeVault, ) = getVaultWithDetails(_owner, _vaultId);
         (bool isUnderCollat, uint256 price, uint256 collateralDust) = calculator.isLiquidatable(vault, typeVault);
 
         return (vault, isUnderCollat, price, collateralDust);

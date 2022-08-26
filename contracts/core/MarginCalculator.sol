@@ -88,6 +88,12 @@ contract MarginCalculator is Ownable {
     /// @dev mapping to store shock value for spot price of a given product (1e27)
     mapping(bytes32 => uint256) internal spotShock;
 
+    /// @dev multiplier on debt price for liquidations
+    uint256 public liquidationMultiplier = 10_000;
+
+    /// @dev max_bps
+    uint256 private constant MAX_BPS = 10_000;
+
     /// @dev oracle module
     OracleInterface public oracle;
     /// @dev addressbook module
@@ -105,6 +111,8 @@ contract MarginCalculator is Ownable {
     event SpotShockUpdated(bytes32 indexed product, uint256 spotShock);
     /// @notice emits an event when oracle deviation value is updated
     event OracleDeviationUpdated(uint256 oracleDeviation);
+    /// @notice emits an event when the liquidation multiplier is updated
+    event LiquidationMultiplierUpdated(uint256 liquidationMultiplier);
 
     /**
      * @notice constructor
@@ -130,6 +138,22 @@ contract MarginCalculator is Ownable {
         dust[_collateral] = _dust;
 
         emit CollateralDustUpdated(_collateral, _dust);
+    }
+
+    /**
+     * @notice set the liquidation multiplier
+     * @dev can only be called by owner
+     * @param _liquidationMultiplier the multiplier to apply to liquidations
+     */
+    function setLiquidationMultiplier(uint256 _liquidationMultiplier) external onlyOwner {
+        require(
+            _liquidationMultiplier <= MAX_BPS,
+            "MarginCalculator: liquidator multiplier should be less than MAX_BPS"
+        );
+
+        liquidationMultiplier = _liquidationMultiplier;
+
+        emit LiquidationMultiplierUpdated(_liquidationMultiplier);
     }
 
     /**
@@ -784,19 +808,11 @@ contract MarginCalculator is Ownable {
         } else if (optionType == OptionType.NAKED_PUT) {
             a = FPI.min(ssd.shortStrike.div(ssd.shortUnderlyingPrice), spotShockValue);
             b = FPI.max((ssd.shortStrike.div(ssd.shortUnderlyingPrice)).sub(spotShockValue), ZERO);
-            return (
-                (FPI.fromScaledUint(1e27, SCALING_FACTOR).add(spotShockValue))
-                    .mul(optionUpperBoundValue.mul(a).add(b))
-                    .mul(ssd.shortAmount)
-            );
+            return (optionUpperBoundValue.mul(a).add(b)).mul(ssd.shortAmount);
         } else {
             a = FPI.min(ssd.shortUnderlyingPrice, (ssd.shortStrike.mul(spotShockValue)));
             b = FPI.max(ssd.shortUnderlyingPrice.sub(ssd.shortStrike.mul(spotShockValue)), ZERO);
-            return (
-                (FPI.fromScaledUint(1e27, SCALING_FACTOR).add(spotShockValue))
-                    .mul(optionUpperBoundValue.mul(a).add(b))
-                    .mul(ssd.shortAmount)
-            );
+            return (optionUpperBoundValue.mul(a).add(b)).mul(ssd.shortAmount);
         }
     }
 
@@ -947,8 +963,8 @@ contract MarginCalculator is Ownable {
         uint256 _collateralDecimals
     ) internal view returns (uint256) {
         // ending price
-        FPI.FixedPointInt memory price = _vaultCollateral.div(_vaultDebt);
-        return price.toScaledUint(_collateralDecimals, true);
+        FPI.FixedPointInt memory price = (_vaultCollateral.div(_vaultDebt));
+        return price.toScaledUint(_collateralDecimals, true).mul(liquidationMultiplier).div(MAX_BPS);
     }
 
     /**
