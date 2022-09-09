@@ -1,4 +1,4 @@
-import { ethers } from 'hardhat'
+import hre, { ethers } from 'hardhat'
 import { createScaledNumber as scaleNum } from '../test/utils'
 import { BigNumber, BigNumberish, utils } from 'ethers'
 import { Oracle } from '../types/Oracle'
@@ -18,6 +18,19 @@ async function main() {
     await ethers.getContractFactory('ChainLinkPricer')
   ).deploy(bot, weth, chainlinkOracle, oracle.address)
   console.log('pricer: ' + pricer.address)
+
+  try {
+    await hre.run('verify:verify', {
+      address: pricer.address,
+      constructorArguments: [bot, weth, chainlinkOracle, oracle.address],
+    })
+    console.log('pricer verified')
+  } catch (err: any) {
+    if (err.message.includes('Reason: Already Verified')) {
+      console.log('pricer contract already verified')
+    }
+  }
+
   await oracle.setAssetPricer(weth, pricer.address)
   await oracle.setLockingPeriod(pricer.address, lockingPeriod)
   await oracle.setDisputePeriod(pricer.address, disputePeriod)
