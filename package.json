@@ -92,7 +92,7 @@
     "solc-0.6.10": "npm:solc@0.6.10",
     "solidity-docgen": "^0.5.6",
     "yargs": "^13.2.4",
-    "typechain": "^6.1.0"
+    "typechain": "^1.0.5"
   },
   "devDependencies": {
     "@0x/protocol-utils": "^1.4.0",

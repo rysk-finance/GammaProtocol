@@ -30,6 +30,9 @@ const ropsten = process.env.ROPSTEN || new ethers.providers.InfuraProvider('rops
 
 const rinkeby = process.env.RINKEBY || new ethers.providers.InfuraProvider('rinkeby').connection.url
 
+const arbitrumRinkeby =
+  process.env.ARBITRUM_RINKEBY || new ethers.providers.InfuraProvider('arbitrum-rinkeby').connection.url
+
 module.exports = {
   typechain: {
     outDir: 'types',
@@ -119,7 +122,7 @@ module.exports = {
       saveDeployments: true,
     },
     arbitrumrinkeby: {
-      url: `https://arb-rinkeby.g.alchemy.com/v2/${process.env.ALCHEMY}`,
+      url: arbitrumRinkeby,
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : accounts,
       chainId: 421611,
       gas: 10000000000,
@@ -129,7 +132,7 @@ module.exports = {
       url: `https://goerli-rollup.arbitrum.io/rpc`,
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : accounts,
       chainId: 421613,
-      gas: 10000000000,
+      gas: 1000000000,
       saveDeployments: true,
     },
   },
