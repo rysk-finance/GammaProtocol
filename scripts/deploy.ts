@@ -19,19 +19,19 @@ const chainlinkOracleAddress = "0x5f0423B1a6935dc5596e7A24d98532b67A0AeFd8"
 // const wethAddress = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
 // const chainlinkOracleAddress = "0x639fe6ab55c921f74e7fac1ee960c0b6293ba612"
 
-const productSpotShockValue = scaleNum(0.7, 27)
+const productSpotShockValue = utils.parseUnits("0.7", 27)
 // array of time to expiry
 const day = 60 * 60 * 24
 const timeToExpiry = [day * 7, day * 14, day * 28, day * 42, day * 56, day * 70, day * 84]
 // array of upper bound value correspond to time to expiry
 const expiryToValue = [
-	scaleNum(0.1946, 27),
-	scaleNum(0.2738, 27),
-	scaleNum(0.3818, 27),
-	scaleNum(0.4600, 27),
-	scaleNum(0.522, 27),
-	scaleNum(0.5735, 27),
-	scaleNum(0.6171, 27)
+	utils.parseUnits("0.1946", 27),
+	utils.parseUnits("0.2738", 27),
+	utils.parseUnits("0.3818", 27),
+	utils.parseUnits("0.4600", 27),
+	utils.parseUnits("0.5220", 27),
+	utils.parseUnits("0.5735", 27),
+	utils.parseUnits("0.6171", 27)
 ]
 
 async function main() {
@@ -54,6 +54,7 @@ async function main() {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("addressbook contract already verified")
 		}
+		console.log(err)
 	}
 
     // // deploy OtokenFactory & set address
@@ -70,6 +71,7 @@ async function main() {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("otokenFactory contract already verified")
 		}
+		console.log(err)
 	}
 
     await addressbook.setOtokenFactory(otokenFactory.address)
@@ -88,6 +90,7 @@ async function main() {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("otoken contract already verified")
 		}
+		console.log(err)
 	}
 
     await addressbook.setOtokenImpl(otoken.address)
@@ -106,6 +109,7 @@ async function main() {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("whitelist contract already verified")
 		}
+		console.log(err)
 	}
 	
 	await addressbook.setWhitelist(whitelist.address)
@@ -195,7 +199,7 @@ async function main() {
 
 	await addressbook.setController(controller.address)
 	const controllerProxy = await ethers.getContractAt("Controller", (await addressbook.getController())) as Controller
-	console.log(controllerProxy.address)
+	console.log("controllerProxy: " + controllerProxy.address)
 
 	try {
 		await hre.run("verify:verify", {
@@ -207,6 +211,7 @@ async function main() {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("controllerProxy contract already verified")
 		}
+		console.log(err)
 	}
 
     await controllerProxy.initialize(addressbook.address, await deployer.getAddress())

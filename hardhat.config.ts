@@ -120,7 +120,7 @@ module.exports = {
 		},
 		arbitrumrinkeby: {
 			url: `https://arb-rinkeby.g.alchemy.com/v2/${process.env.ALCHEMY}`,
-			accounts,
+			accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : accounts,
 			chainId: 421611,
 			gas: 10000000000,
 			saveDeployments: true

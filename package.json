@@ -91,8 +91,8 @@
     "solc": "0.6.10",
     "solc-0.6.10": "npm:solc@0.6.10",
     "solidity-docgen": "^0.5.6",
-    "yargs": "^13.2.4",
-    "typechain": "^6.1.0"
+    "typechain": "^1.0.5",
+    "yargs": "^13.2.4"
   },
   "devDependencies": {
     "@0x/protocol-utils": "^1.4.0",
@@ -102,7 +102,11 @@
     "@nomiclabs/hardhat-waffle": "^2.0.0",
     "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/test-helpers": "^0.5.4",
+    "@typechain/ethers-v5": "^8.0.5",
+    "@typechain/hardhat": "^3.1.0",
     "@types/chai": "4.2.5",
+    "@types/mocha": "^8.2.3",
+    "@types/node": "^14.18.10",
     "@typescript-eslint/eslint-plugin": "^2.9.0",
     "@typescript-eslint/parser": "^2.9.0",
     "bignumber.js": "^9.0.0",
@@ -133,12 +137,8 @@
     "truffle-contract-size": "^2.0.0",
     "truffle-plugin-verify": "^0.5.2",
     "truffle-typings": "^1.0.8",
-    "ts-node": "8.5.4",
+    "ts-node": "8.5.0",
     "typechain-target-truffle": "1.0.2",
-    "@typechain/ethers-v5": "^8.0.5",
-		"@typechain/hardhat": "^3.1.0",
-		"@types/mocha": "^8.2.3",
-		"@types/node": "^14.18.10",
     "typescript": "3.7.2",
     "web3-utils": "1.2.4"
   }
