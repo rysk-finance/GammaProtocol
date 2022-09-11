@@ -1,7 +1,4 @@
-import hre, { ethers } from "hardhat"
-import {
-    createScaledNumber as scaleNum,
-  } from '../test/utils'
+import hre, { ethers, run} from "hardhat"
 import { BigNumber, BigNumberish, utils } from "ethers"
 import {AddressBook} from "../types/AddressBook"
 import {Whitelist} from "../types/Whitelist"
@@ -45,7 +42,7 @@ async function main() {
     console.log("addressbook: " + addressbook.address)
 
 	try {
-		await hre.run("verify:verify", {
+		await run("verify:verify", {
 			address: addressbook.address,
 			constructorArguments: []
 		})
@@ -56,13 +53,12 @@ async function main() {
 		}
 		console.log(err)
 	}
-
     // // deploy OtokenFactory & set address
     const otokenFactory = await(await ethers.getContractFactory("OtokenFactory")).deploy(addressbook.address)
 	console.log("otokenFactory: " + otokenFactory.address)
 
 	try {
-		await hre.run("verify:verify", {
+		await run("verify:verify", {
 			address: otokenFactory.address,
 			constructorArguments: [addressbook.address]
 		})
@@ -81,7 +77,7 @@ async function main() {
 	console.log("otoken: " + otoken.address)
 
 	try {
-		await hre.run("verify:verify", {
+		await run("verify:verify", {
 			address: otoken.address,
 			constructorArguments: []
 		})
@@ -100,7 +96,7 @@ async function main() {
     console.log("whitelist: " + whitelist.address)
 
 	try {
-		await hre.run("verify:verify", {
+		await run("verify:verify", {
 			address: whitelist.address,
 			constructorArguments: [addressbook.address]
 		})
@@ -119,7 +115,7 @@ async function main() {
     console.log("oracle: " + oracle.address)
 
 	try {
-		await hre.run("verify:verify", {
+		await run("verify:verify", {
 			address: oracle.address,
 			constructorArguments: []
 		})
@@ -137,7 +133,7 @@ async function main() {
 	console.log("pool: " + pool.address)
 
 	try {
-		await hre.run("verify:verify", {
+		await run("verify:verify", {
 			address: pool.address,
 			constructorArguments: [addressbook.address]
 		})
@@ -154,7 +150,7 @@ async function main() {
     const calculator = await (await ethers.getContractFactory("MarginCalculator")).deploy(oracle.address, addressbook.address)
     console.log("calculator: " + calculator.address)
 	try {
-		await hre.run("verify:verify", {
+		await run("verify:verify", {
 			address: calculator.address,
 			constructorArguments: [oracle.address, addressbook.address]
 		})
@@ -171,7 +167,7 @@ async function main() {
     const vault = await (await ethers.getContractFactory("MarginVault")).deploy()
 
 	try {
-		await hre.run("verify:verify", {
+		await run("verify:verify", {
 			address: vault.address,
 			constructorArguments: []
 		})
@@ -186,7 +182,7 @@ async function main() {
     console.log("controller: " + controller.address)
 
 	try {
-		await hre.run("verify:verify", {
+		await run("verify:verify", {
 			address: controller.address,
 			constructorArguments: []
 		})
@@ -202,7 +198,7 @@ async function main() {
 	console.log("controllerProxy: " + controllerProxy.address)
 
 	try {
-		await hre.run("verify:verify", {
+		await run("verify:verify", {
 			address: controllerProxy.address,
 			constructorArguments: []
 		})
@@ -316,6 +312,16 @@ async function main() {
 
 	await oracle.setStablePrice(usdc.address, "100000000")
 	console.log("execution complete")
+	console.log("addressbook: " + addressbook.address)
+	console.log("otokenFactory: " + otokenFactory.address)
+	console.log("otoken: " + otoken.address)
+	console.log("whitelist: " + whitelist.address)
+	console.log("oracle: " + oracle.address)
+	console.log("pool: " + pool.address)
+	console.log("calculator: " + calculator.address)
+	console.log("controller: " + controller.address)
+	console.log("controllerProxy: " + controllerProxy.address)
+	
 }
 main()
     .then(() => process.exit())

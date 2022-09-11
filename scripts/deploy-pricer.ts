@@ -1,4 +1,4 @@
-import hre, {ethers} from "hardhat";
+import hre, {ethers, run} from "hardhat";
 import {
     createScaledNumber as scaleNum,
   } from '../test/utils'
@@ -15,13 +15,13 @@ async function main() {
     
     const [deployer] = await ethers.getSigners();
     console.log("deployer: " + await deployer.getAddress())
-    const oracle = await ethers.getContractAt("Oracle", "0xe4d64aed5e76bCcE2C255f3c819f4C3817D42f19") as Oracle
+    const oracle = await ethers.getContractAt("Oracle", "0x584a3Ac2141d95b860a0BA55220D7D5ad41cB44f") as Oracle
     // deploy pricer
     const pricer = await(await ethers.getContractFactory("ChainLinkPricer")).deploy(bot, weth, chainlinkOracle, oracle.address)
     console.log("pricer: " + pricer.address)
 
     try {
-		await hre.run("verify:verify", {
+		await run("verify:verify", {
 			address: pricer.address,
 			constructorArguments: [bot, weth, chainlinkOracle, oracle.address]
 		})
@@ -35,7 +35,7 @@ async function main() {
     await oracle.setAssetPricer(weth, pricer.address)
     await oracle.setLockingPeriod(pricer.address, lockingPeriod)
     await oracle.setDisputePeriod(pricer.address, disputePeriod)
-
+    console.log("pricer: " + pricer.address)
 	console.log("execution complete")
 }
 main()

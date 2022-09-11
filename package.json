@@ -86,25 +86,23 @@
   },
   "dependencies": {
     "@truffle/hdwallet-provider": "^1.6.0",
-    "hardhat": "^2.9.6",
-    "hardhat-ethers": "^1.0.1",
     "solc": "0.6.10",
     "solc-0.6.10": "npm:solc@0.6.10",
     "solidity-docgen": "^0.5.6",
-    "typechain": "^1.0.5",
-    "yargs": "^13.2.4"
+    "yargs": "^13.2.4",
+    "ts-generator": "^0.1.1"
   },
   "devDependencies": {
     "@0x/protocol-utils": "^1.4.0",
     "@codechecks/client": "^0.1.10",
     "@nomiclabs/hardhat-ethers": "^2.0.3",
-    "@nomiclabs/hardhat-etherscan": "^2.1.7",
+    "@nomiclabs/hardhat-etherscan": "^2.1.8",
     "@nomiclabs/hardhat-waffle": "^2.0.0",
     "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/test-helpers": "^0.5.4",
     "@typechain/ethers-v5": "^8.0.5",
     "@typechain/hardhat": "^3.1.0",
-    "@types/chai": "4.2.5",
+    "@types/chai": "^4.3.0",
     "@types/mocha": "^8.2.3",
     "@types/node": "^14.18.10",
     "@typescript-eslint/eslint-plugin": "^2.9.0",
@@ -122,7 +120,9 @@
     "eth-sig-util": "^3.0.0",
     "ethereumjs-util": "^7.0.7",
     "ethereumjs-wallet": "^1.0.1",
-    "ethers": "^5.0.26",
+    "ethers": "^5.0.13",
+    "hardhat": "^2.6.7",
+    "hardhat-deploy": "^0.7.11",
     "husky": "^3.1.0",
     "lint-staged": "^9.5.0",
     "prettier": "2.3.2",
@@ -137,9 +137,10 @@
     "truffle-contract-size": "^2.0.0",
     "truffle-plugin-verify": "^0.5.2",
     "truffle-typings": "^1.0.8",
-    "ts-node": "8.5.0",
+    "ts-node": "^10.1.1",
+    "typechain": "^6.1.0",
     "typechain-target-truffle": "1.0.2",
-    "typescript": "3.7.2",
+    "typescript": "^4.0.2",
     "web3-utils": "1.2.4"
   }
 }

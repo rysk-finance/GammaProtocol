@@ -3,6 +3,8 @@ import "@nomiclabs/hardhat-ethers"
 import "@nomiclabs/hardhat-etherscan"
 import "@nomiclabs/hardhat-waffle"
 import "@typechain/hardhat"
+import "hardhat-deploy"
+
 import * as dotenv from "dotenv"
 
 const ethers = require("ethers")
