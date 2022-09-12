@@ -126,6 +126,13 @@ module.exports = {
 			chainId: 421611,
 			gas: 10000000000,
 			saveDeployments: true
+		},
+		arbitrum: {
+			url: `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY}`,
+			accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : accounts,
+			chainId: 42161,
+			gas: 100000000000000,
+			saveDeployments: true
 		}
 	},
 	etherscan: {

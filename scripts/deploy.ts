@@ -7,13 +7,13 @@ import {MarginCalculator} from "../types/MarginCalculator"
 import {Controller} from "../types/Controller"
 
 // arbitrum rinkeby testnet addresses
-const usdcAddress = "0x33a010E74A354bd784a62cca3A4047C1A84Ceeab"
-const wethAddress = "0xFCfbfcC11d12bCf816415794E5dc1BBcc5304e01"
+// const usdcAddress = "0x33a010E74A354bd784a62cca3A4047C1A84Ceeab"
+// const wethAddress = "0xFCfbfcC11d12bCf816415794E5dc1BBcc5304e01"
 
 
 // arbitrum mainnet addresses
-// const usdcAddress = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
-// const wethAddress = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
+const usdcAddress = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+const wethAddress = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
 const multisig = "0xFBdE2e477Ed031f54ed5Ad52f35eE43CD82cF2A6"
 
 // array of time to expiry
@@ -74,7 +74,7 @@ async function main() {
 		}
 	}
 
-    await addressbook.setOtokenFactory(otokenFactory.address)
+    await addressbook.setOtokenFactory(otokenFactory.address, {gasLimit: BigNumber.from("500000000")})
 
     // // deploy Otoken implementation & set address
     const otoken = await (await ethers.getContractFactory("Otoken")).deploy()
@@ -93,7 +93,7 @@ async function main() {
 		console.log(err)
 	}
 
-    await addressbook.setOtokenImpl(otoken.address)
+    await addressbook.setOtokenImpl(otoken.address, {gasLimit: BigNumber.from("500000000")})
 
     // // deploy Whitelist module & set address
     const whitelist = await (await ethers.getContractFactory("Whitelist")).deploy(addressbook.address)
@@ -113,7 +113,7 @@ async function main() {
 		}
 	}
 	
-	await addressbook.setWhitelist(whitelist.address)
+	await addressbook.setWhitelist(whitelist.address, {gasLimit: BigNumber.from("500000000")})
 
     // // deploy Oracle module & set address
     const oracle = await (await ethers.getContractFactory("Oracle")).deploy()
@@ -133,7 +133,7 @@ async function main() {
 		}
 	}
 
-    await addressbook.setOracle(oracle.address)
+    await addressbook.setOracle(oracle.address, {gasLimit: BigNumber.from("500000000")})
 
     // // deploy MarginPool module & set address
     const pool = await (await ethers.getContractFactory("MarginPool")).deploy(addressbook.address)
@@ -153,7 +153,7 @@ async function main() {
 		}
 	}
 
-	await addressbook.setMarginPool(pool.address)
+	await addressbook.setMarginPool(pool.address, {gasLimit: BigNumber.from("500000000")})
 
     // deploy Calculator module & set address
     const calculator = await (await ethers.getContractFactory("MarginCalculator")).deploy(oracle.address, addressbook.address)
@@ -171,7 +171,7 @@ async function main() {
 			console.log(err)
 		}
 	}
-	await addressbook.setMarginCalculator(calculator.address)
+	await addressbook.setMarginCalculator(calculator.address, {gasLimit: BigNumber.from("500000000")})
 
     // deploy Controller & set address
     // deploy MarginVault library
@@ -208,7 +208,7 @@ async function main() {
 		}
 	}
 
-	await addressbook.setController(controller.address)
+	await addressbook.setController(controller.address, {gasLimit: BigNumber.from("500000000")})
 	const controllerProxy = await ethers.getContractAt("Controller", (await addressbook.getController())) as Controller
 	console.log("controllerProxy: " + controllerProxy.address)
 
@@ -224,16 +224,16 @@ async function main() {
 		}
 		console.log(err)
 	}
-	await controller.initialize(addressbook.address, multisig )
-    await controllerProxy.initialize(addressbook.address, multisig)
-	await controllerProxy.setNakedCap(weth.address, utils.parseEther('5000'))
-	await controllerProxy.setNakedCap(usdc.address, utils.parseUnits("10000000", 6))
-    await controllerProxy.refreshConfiguration()
+	await controller.initialize(addressbook.address, multisig , {gasLimit: BigNumber.from("500000000")})
+    await controllerProxy.initialize(addressbook.address, multisig, {gasLimit: BigNumber.from("500000000")})
+	await controllerProxy.setNakedCap(weth.address, utils.parseEther('5000'), {gasLimit: BigNumber.from("500000000")})
+	await controllerProxy.setNakedCap(usdc.address, utils.parseUnits("10000000", 6), {gasLimit: BigNumber.from("500000000")})
+    await controllerProxy.refreshConfiguration({gasLimit: BigNumber.from("500000000")})
     
     // whitelist stuff
 
-    await whitelist.whitelistCollateral(weth.address)
-	await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistCollateral(weth.address, {gasLimit: BigNumber.from("500000000")})
+	await whitelist.whitelistCollateral(usdc.address, {gasLimit: BigNumber.from("500000000")})
 
     // whitelist products
 	// normal calls
@@ -241,35 +241,35 @@ async function main() {
 		weth.address,
 		usdc.address,
 		weth.address,
-		false
+		false, {gasLimit: BigNumber.from("500000000")}
 	)
 	// normal puts
 	await whitelist.whitelistProduct(
 		weth.address,
 		usdc.address,
 		usdc.address,
-		true
+		true, {gasLimit: BigNumber.from("500000000")}
 	)
 	// usd collateralised calls
 	await whitelist.whitelistProduct(
 		weth.address,
 		usdc.address,
 		usdc.address,
-		false
+		false, {gasLimit: BigNumber.from("500000000")}
 	)
 	// eth collateralised puts
 	await whitelist.whitelistProduct(
 		weth.address,
 		usdc.address,
 		weth.address,
-		true
+		true, {gasLimit: BigNumber.from("500000000")}
 	)
 	// whitelist vault type 0 collateral
-	await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
-	await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
+	await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false, {gasLimit: BigNumber.from("500000000")})
+	await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true, {gasLimit: BigNumber.from("500000000")})
 	// whitelist vault type 1 collateral
-	await whitelist.whitelistNakedCollateral(usdc.address, weth.address, false)
-	await whitelist.whitelistNakedCollateral(weth.address, weth.address, true)
+	await whitelist.whitelistNakedCollateral(usdc.address, weth.address, false, {gasLimit: BigNumber.from("500000000")})
+	await whitelist.whitelistNakedCollateral(weth.address, weth.address, true, {gasLimit: BigNumber.from("500000000")})
 
     // set product spot shock values
 	// usd collateralised calls
@@ -278,7 +278,7 @@ async function main() {
 		usdc.address,
 		usdc.address,
 		false,
-		productSpotShockValue
+		productSpotShockValue, {gasLimit: BigNumber.from("500000000")}
 	)
 	// usd collateralised puts
 	await calculator.setSpotShock(
@@ -286,7 +286,7 @@ async function main() {
 		usdc.address,
 		usdc.address,
 		true,
-		productSpotShockValue
+		productSpotShockValue, {gasLimit: BigNumber.from("500000000")}
 	)
 	// eth collateralised calls
 	await calculator.setSpotShock(
@@ -294,7 +294,7 @@ async function main() {
 		usdc.address,
 		weth.address,
 		false,
-		productSpotShockValue
+		productSpotShockValue, {gasLimit: BigNumber.from("500000000")}
 	)
 	// eth collateralised puts
 	await calculator.setSpotShock(
@@ -302,7 +302,7 @@ async function main() {
 		usdc.address,
 		weth.address,
 		true,
-		productSpotShockValue
+		productSpotShockValue, {gasLimit: BigNumber.from("500000000")}
 	)
 	// set expiry to value values
 	// usd collateralised calls
@@ -312,7 +312,7 @@ async function main() {
 		usdc.address,
 		false,
 		timeToExpiry,
-		expiryToValue
+		expiryToValue, {gasLimit: BigNumber.from("500000000")}
 	)
 	// usd collateralised puts
 	await calculator.setUpperBoundValues(
@@ -321,7 +321,7 @@ async function main() {
 		usdc.address,
 		true,
 		timeToExpiry,
-		expiryToValue
+		expiryToValue, {gasLimit: BigNumber.from("500000000")}
 	)
 	// eth collateralised calls
 	await calculator.setUpperBoundValues(
@@ -330,7 +330,7 @@ async function main() {
 		weth.address,
 		false,
 		timeToExpiry,
-		expiryToValue
+		expiryToValue, {gasLimit: BigNumber.from("500000000")}
 	)
 	// eth collateralised puts
 	await calculator.setUpperBoundValues(
@@ -339,10 +339,10 @@ async function main() {
 		weth.address,
 		true,
 		timeToExpiry,
-		expiryToValue
+		expiryToValue, {gasLimit: BigNumber.from("500000000")}
 	)
-	await oracle.setStablePrice(usdc.address, "100000000")
-	
+	await oracle.setStablePrice(usdc.address, "100000000", {gasLimit: BigNumber.from("500000000")})
+
 	console.log("execution complete")
 	console.log("addressbook: " + addressbook.address)
 	console.log("otokenFactory: " + otokenFactory.address)
@@ -354,6 +354,13 @@ async function main() {
 	console.log("controller: " + controller.address)
 	console.log("controllerProxy: " + controllerProxy.address)
 
+	await addressbook.transferOwnership(multisig, {gasLimit: BigNumber.from("500000000")})
+	await whitelist.transferOwnership(multisig, {gasLimit: BigNumber.from("500000000")})
+	await pool.transferOwnership(multisig, {gasLimit: BigNumber.from("500000000")})
+	await calculator.transferOwnership(multisig, {gasLimit: BigNumber.from("500000000")})
+	await controller.transferOwnership(multisig, {gasLimit: BigNumber.from("500000000")})
+	await controllerProxy.transferOwnership(multisig, {gasLimit: BigNumber.from("500000000")})
+	console.log("ownership transferred")
 }
 main()
     .then(() => process.exit())
