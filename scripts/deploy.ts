@@ -9,14 +9,13 @@ import {Controller} from "../types/Controller"
 // arbitrum rinkeby testnet addresses
 const usdcAddress = "0x33a010E74A354bd784a62cca3A4047C1A84Ceeab"
 const wethAddress = "0xFCfbfcC11d12bCf816415794E5dc1BBcc5304e01"
-const chainlinkOracleAddress = "0x5f0423B1a6935dc5596e7A24d98532b67A0AeFd8"
+
 
 // arbitrum mainnet addresses
 // const usdcAddress = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
 // const wethAddress = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"
-// const chainlinkOracleAddress = "0x639fe6ab55c921f74e7fac1ee960c0b6293ba612"
+const multisig = "0xFBdE2e477Ed031f54ed5Ad52f35eE43CD82cF2A6"
 
-const productSpotShockValue = utils.parseUnits("0.7", 27)
 // array of time to expiry
 const day = 60 * 60 * 24
 const timeToExpiry = [day * 7, day * 14, day * 28, day * 42, day * 56, day * 70, day * 84]
@@ -31,9 +30,12 @@ const expiryToValue = [
 	utils.parseUnits("0.6171", 27)
 ]
 
+const productSpotShockValue = utils.parseUnits("0.7", 27)
+
 async function main() {
     const [deployer] = await ethers.getSigners();
     console.log("deployer: " + await deployer.getAddress())
+
 	const usdc = await ethers.getContractAt("MockERC20", usdcAddress)
 	const weth = await ethers.getContractAt("MockERC20", wethAddress)
 
@@ -50,8 +52,9 @@ async function main() {
 	} catch (err: any) {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("addressbook contract already verified")
+		} else {
+			console.log(err)
 		}
-		console.log(err)
 	}
     // // deploy OtokenFactory & set address
     const otokenFactory = await(await ethers.getContractFactory("OtokenFactory")).deploy(addressbook.address)
@@ -66,8 +69,9 @@ async function main() {
 	} catch (err: any) {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("otokenFactory contract already verified")
+		} else {
+			console.log(err)
 		}
-		console.log(err)
 	}
 
     await addressbook.setOtokenFactory(otokenFactory.address)
@@ -104,8 +108,9 @@ async function main() {
 	} catch (err: any) {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("whitelist contract already verified")
+		} else {
+			console.log(err)
 		}
-		console.log(err)
 	}
 	
 	await addressbook.setWhitelist(whitelist.address)
@@ -123,6 +128,8 @@ async function main() {
 	} catch (err: any) {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("oracle contract already verified")
+		} else {
+			console.log(err)
 		}
 	}
 
@@ -141,6 +148,8 @@ async function main() {
 	} catch (err: any) {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("pool contract already verified")
+		} else {
+			console.log(err)
 		}
 	}
 
@@ -158,6 +167,8 @@ async function main() {
 	} catch (err: any) {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("calculator contract already verified")
+		} else {
+			console.log(err)
 		}
 	}
 	await addressbook.setMarginCalculator(calculator.address)
@@ -175,6 +186,8 @@ async function main() {
 	} catch (err: any) {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("vault contract already verified")
+		} else {
+			console.log(err)
 		}
 	}
 
@@ -190,6 +203,8 @@ async function main() {
 	} catch (err: any) {
 		if (err.message.includes("Reason: Already Verified")) {
 			console.log("controller contract already verified")
+		} else {
+			console.log(err)
 		}
 	}
 
@@ -209,10 +224,10 @@ async function main() {
 		}
 		console.log(err)
 	}
-
-    await controllerProxy.initialize(addressbook.address, await deployer.getAddress())
+	await controller.initialize(addressbook.address, multisig )
+    await controllerProxy.initialize(addressbook.address, multisig)
 	await controllerProxy.setNakedCap(weth.address, utils.parseEther('5000'))
-	await controllerProxy.setNakedCap(usdc.address, utils.parseEther('0.00001'))
+	await controllerProxy.setNakedCap(usdc.address, utils.parseUnits("10000000", 6))
     await controllerProxy.refreshConfiguration()
     
     // whitelist stuff
@@ -281,6 +296,14 @@ async function main() {
 		false,
 		productSpotShockValue
 	)
+	// eth collateralised puts
+	await calculator.setSpotShock(
+		weth.address,
+		usdc.address,
+		weth.address,
+		true,
+		productSpotShockValue
+	)
 	// set expiry to value values
 	// usd collateralised calls
 	await calculator.setUpperBoundValues(
@@ -309,8 +332,17 @@ async function main() {
 		timeToExpiry,
 		expiryToValue
 	)
-
+	// eth collateralised puts
+	await calculator.setUpperBoundValues(
+		weth.address,
+		usdc.address,
+		weth.address,
+		true,
+		timeToExpiry,
+		expiryToValue
+	)
 	await oracle.setStablePrice(usdc.address, "100000000")
+	
 	console.log("execution complete")
 	console.log("addressbook: " + addressbook.address)
 	console.log("otokenFactory: " + otokenFactory.address)
@@ -321,7 +353,7 @@ async function main() {
 	console.log("calculator: " + calculator.address)
 	console.log("controller: " + controller.address)
 	console.log("controllerProxy: " + controllerProxy.address)
-	
+
 }
 main()
     .then(() => process.exit())
