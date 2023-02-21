@@ -18,7 +18,11 @@ interface AddressBookInterface {
 
     function getMarginCalculator() external view returns (address);
 
+    function getMarginRequirements() external view returns (address);
+
     function getLiquidationManager() external view returns (address);
+
+    function getKeeper() external view returns (address);
 
     function getAddress(bytes32 _id) external view returns (address);
 
