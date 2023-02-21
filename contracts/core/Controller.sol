@@ -18,6 +18,7 @@ import {OracleInterface} from "../interfaces/OracleInterface.sol";
 import {WhitelistInterface} from "../interfaces/WhitelistInterface.sol";
 import {MarginPoolInterface} from "../interfaces/MarginPoolInterface.sol";
 import {CalleeInterface} from "../interfaces/CalleeInterface.sol";
+import {MarginRequirementsInterface} from "../interfaces/MarginRequirementsInterface.sol";
 
 /**
  * Controller Error Codes
@@ -58,6 +59,9 @@ import {CalleeInterface} from "../interfaces/CalleeInterface.sol";
  * C35: invalid vault id
  * C36: cap amount should be greater than zero
  * C37: collateral exceed naked margin cap
+ * C38: msg.sender is not the liquidation manager
+ * C39: invalid notional amount
+ * C40: insufficient collateral
  */
 
 /**
@@ -74,6 +78,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     OracleInterface public oracle;
     MarginCalculatorInterface public calculator;
     MarginPoolInterface public pool;
+    MarginRequirementsInterface public marginRequirements;
 
     ///@dev scale used in MarginCalculator
     uint256 internal constant BASE = 8;
@@ -93,6 +98,9 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
     /// @notice True if a call action can only be executed to a whitelisted callee
     bool public callRestricted;
+
+    /// @notice True if a liquidation action can only be executed by the liquidation manager
+    bool public liquidationRestricted;
 
     /// @dev mapping between an owner address and the number of owner address vaults
     mapping(address => uint256) internal accountVaultCounter;
@@ -210,6 +218,8 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     event SystemFullyPaused(bool isPaused);
     /// @notice emits an event when the call action restriction changes
     event CallRestricted(bool isRestricted);
+    /// @notice emits an event when the liquidation action restriction changes
+    event LiquidationRestricted(bool isLiquidationRestricted);
     /// @notice emits an event when a donation transfer executed
     event Donated(address indexed donator, address indexed asset, uint256 amount);
     /// @notice emits an event when naked cap is updated
@@ -275,6 +285,16 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     }
 
     /**
+     * @notice modifier to check if the sender is the liquidation manager address
+     */
+    modifier onlyLiquidationManager() {
+        if (liquidationRestricted) {
+            require(msg.sender == addressbook.getLiquidationManager(), "C38");
+        }
+        _;
+    }
+
+    /**
      * @dev check if the system is not in a partiallyPaused state
      */
     function _isNotPartiallyPaused() internal view {
@@ -313,6 +333,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         _refreshConfigInternal();
 
         callRestricted = true;
+        liquidationRestricted = true;
     }
 
     /**
@@ -389,6 +410,17 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         callRestricted = _isRestricted;
 
         emit CallRestricted(callRestricted);
+    }
+
+    /**
+     * @notice allows the owner to toggle the restriction on the liquidation action and only allow the liquidation manager
+     * @dev can only be called by the owner
+     * @param _isRestricted new liquidation restriction state
+     */
+    function setLiquidationRestriction(bool _isRestricted) external onlyOwner {
+        liquidationRestricted = _isRestricted;
+
+        emit LiquidationRestricted(liquidationRestricted);
     }
 
     /**
@@ -483,10 +515,11 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             address,
             address,
             address,
+            address,
             address
         )
     {
-        return (address(whitelist), address(oracle), address(calculator), address(pool));
+        return (address(whitelist), address(oracle), address(calculator), address(pool), address(marginRequirements));
     }
 
     /**
@@ -692,9 +725,9 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             if (actionType == Actions.ActionType.OpenVault) {
                 _openVault(Actions._parseOpenVaultArgs(action));
             } else if (actionType == Actions.ActionType.DepositLongOption) {
-                _depositLong(Actions._parseDepositArgs(action));
+                //_depositLong(Actions._parseDepositArgs(action));
             } else if (actionType == Actions.ActionType.WithdrawLongOption) {
-                _withdrawLong(Actions._parseWithdrawArgs(action));
+                //_withdrawLong(Actions._parseWithdrawArgs(action));
             } else if (actionType == Actions.ActionType.DepositCollateral) {
                 _depositCollateral(Actions._parseDepositArgs(action));
             } else if (actionType == Actions.ActionType.WithdrawCollateral) {
@@ -750,11 +783,11 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         emit VaultOpened(_args.owner, vaultId, _args.vaultType);
     }
 
-    /**
+    /*
      * @notice deposit a long oToken into a vault
      * @dev only the account owner or operator can deposit a long oToken, cannot be called when system is partiallyPaused or fullyPaused
      * @param _args DepositArgs structure
-     */
+     *
     function _depositLong(Actions.DepositArgs memory _args)
         internal
         notPartiallyPaused
@@ -775,13 +808,13 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         pool.transferToPool(_args.asset, _args.from, _args.amount);
 
         emit LongOtokenDeposited(_args.asset, _args.owner, _args.from, _args.vaultId, _args.amount);
-    }
+    }*/
 
-    /**
+    /*
      * @notice withdraw a long oToken from a vault
      * @dev only the account owner or operator can withdraw a long oToken, cannot be called when system is partiallyPaused or fullyPaused
      * @param _args WithdrawArgs structure
-     */
+     *
     function _withdrawLong(Actions.WithdrawArgs memory _args)
         internal
         notPartiallyPaused
@@ -798,7 +831,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         pool.transferToUser(_args.asset, _args.to, _args.amount);
 
         emit LongOtokenWithdrawed(_args.asset, _args.owner, _args.to, _args.vaultId, _args.amount);
-    }
+    } */
 
     /**
      * @notice deposit a collateral asset into a vault
@@ -852,6 +885,9 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         }
 
         if (typeVault == 1) {
+            //WIP
+            //require(marginRequirements.checkWithdrawCollateral(TBD),"C40");
+
             nakedPoolBalance[_args.asset] = nakedPoolBalance[_args.asset].sub(_args.amount);
         }
 
@@ -878,6 +914,13 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         OtokenInterface otoken = OtokenInterface(_args.otoken);
 
         require(now < otoken.expiryTimestamp(), "C24");
+
+        //WIP
+        //(MarginVault.Vault memory vault, , ) = getVaultWithDetails(_args.owner, _args.vaultId);
+
+        //require(marginRequirements.checkNotionalSize(TBD),"C39");
+
+        //require(marginRequirements.checkMintCollateral(TBD), "C40");
 
         vaults[_args.owner][_args.vaultId].addShort(_args.otoken, _args.amount, _args.index);
 
@@ -987,6 +1030,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         require(isValidVault, "C32");
 
         delete vaults[_args.owner][_args.vaultId];
+        marginRequirements.clearMaintenanceMargin(_args.owner, _args.vaultId);
 
         if (typeVault == 1) {
             nakedPoolBalance[collateral] = nakedPoolBalance[collateral].sub(payout);
@@ -1005,7 +1049,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @dev can liquidate different vaults id in the same operate() call
      * @param _args liquidation action arguments struct
      */
-    function _liquidate(Actions.LiquidateArgs memory _args) internal notPartiallyPaused {
+    function _liquidate(Actions.LiquidateArgs memory _args) internal notPartiallyPaused onlyLiquidationManager {
         require(_checkVaultId(_args.owner, _args.vaultId), "C35");
 
         // check if vault is undercollateralized
@@ -1175,5 +1219,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         oracle = OracleInterface(addressbook.getOracle());
         calculator = MarginCalculatorInterface(addressbook.getMarginCalculator());
         pool = MarginPoolInterface(addressbook.getMarginPool());
+        marginRequirements = MarginRequirementsInterface(addressbook.getMarginRequirements());
     }
 }
