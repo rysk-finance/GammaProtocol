@@ -27,6 +27,12 @@ contract AddressBook is Ownable {
     bytes32 private constant LIQUIDATION_MANAGER = keccak256("LIQUIDATION_MANAGER");
     /// @dev Oracle key
     bytes32 private constant ORACLE = keccak256("ORACLE");
+    /// @dev MarginRequirements key
+    bytes32 private constant MARGIN_REQUIREMENTS = keccak256("MARGIN_REQUIREMENTS");
+    /// @dev Otc wrapper key
+    bytes32 private constant OTC_WRAPPER = keccak256("OTC_WRAPPER");
+    /// @dev Keeper key
+    bytes32 private constant KEEPER = keccak256("KEEPER");
 
     /// @dev mapping between key and address
     mapping(bytes32 => address) private addresses;
@@ -101,6 +107,30 @@ contract AddressBook is Ownable {
     }
 
     /**
+     * @notice return MarginRequirements address
+     * @return MarginRequirements address
+     */
+    function getMarginRequirements() external view returns (address) {
+        return getAddress(MARGIN_REQUIREMENTS);
+    }
+
+    /**
+     * @notice return OTC wrapper address
+     * @return OTC wrapper address
+     */
+    function getOtcWrapper() external view returns (address) {
+        return getAddress(OTC_WRAPPER);
+    }
+
+    /**
+     * @notice return Keeper address
+     * @return Keeper address
+     */
+    function getKeeper() external view returns (address) {
+        return getAddress(KEEPER);
+    }
+
+    /**
      * @notice set Otoken implementation address
      * @dev can only be called by the addressbook owner
      * @param _otokenImpl Otoken implementation address
@@ -170,6 +200,15 @@ contract AddressBook is Ownable {
      */
     function setOracle(address _oracle) external onlyOwner {
         setAddress(ORACLE, _oracle);
+    }
+
+    /**
+     * @notice set MarginRequirements address
+     * @dev can only be called by the addressbook owner
+     * @param _marginRequirements MarginRequirements address
+     */
+    function setMarginRequirements(address _marginRequirements) external onlyOwner {
+        setAddress(MARGIN_REQUIREMENTS, _marginRequirements);
     }
 
     /**
