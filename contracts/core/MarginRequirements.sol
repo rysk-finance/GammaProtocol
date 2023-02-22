@@ -11,6 +11,7 @@ import {OracleInterface} from "../interfaces/OracleInterface.sol";
 import {AddressBookInterface} from "../interfaces/AddressBookInterface.sol";
 import {MarginVault} from "../libs/MarginVault.sol";
 import {SafeMath} from "../packages/oz/SafeMath.sol";
+import {ERC20Interface} from "../interfaces/ERC20Interface.sol";
 
 /**
  * @title MarginRequirements
@@ -23,25 +24,16 @@ contract MarginRequirements is Ownable {
 
     OracleInterface public oracle;
 
-    struct MinMaxNotional {
-        // minimum notional value allowed
-        uint256 min;
-        // maximum notional value allowed
-        uint256 max;
-    }
-
     /// @notice AddressBook module
     address public addressBook;
 
-    ///@dev mapping between an asset address to a struct consisting of uint256 min, uint256 max which will be its notional floor and cap size allowed
-    mapping(address => MinMaxNotional) public minMaxNotional;
     ///@dev mapping between a hash of (underlying asset, collateral asset, isPut) and a mapping of an account to an initial margin value
     mapping(bytes32 => mapping(address => uint256)) public initialMargin;
     ///@dev mapping between an account owner and a mapping of a specific vault id to a maintenance margin value
     mapping(address => mapping(uint256 => uint256)) public maintenanceMargin;
 
     /**
-     * @notice contructor
+     * @notice constructor
      * @param _addressBook AddressBook module
      */
     constructor(address _addressBook) public {
@@ -119,26 +111,6 @@ contract MarginRequirements is Ownable {
     }
 
     /**
-     * @notice sets the floor and cap of a particular asset notional
-     * @dev can only be called by owner
-     * @param _asset address of the asset
-     * @param _min minimum notional value allowed
-     * @param _max maximum notional value allowed
-     */
-    function setMinMaxNotional(
-        address _asset,
-        uint256 _min,
-        uint256 _max
-    ) external onlyOwner {
-        require(_asset != address(0), "MarginRequirements: invalid asset");
-        require(_min > 0, "MarginRequirements: minimum notional cannot be 0");
-        require(_max > 0, "MarginRequirements: maximum notional cannot be 0");
-
-        minMaxNotional[_asset].min = _min;
-        minMaxNotional[_asset].max = _max;
-    }
-
-    /**
      * @notice clears the maintenance margin mapping
      * @dev can only be called by controller
      * @param _account account address
@@ -148,69 +120,74 @@ contract MarginRequirements is Ownable {
         delete maintenanceMargin[_account][_vaultId];
     }
 
-    // below is WIP
-    /**
-     * @notice checks if the notional value is within the allowed notional size
-     * @param //TBD
-     * @return boolean value stating whether the notional size is allowed
-     */
-    /*     function checkNotionalSize(
-        uint256 currentOtokenBalance,
-        uint256 mintAmount,
-        address underlying
-    ) external view returns (bool) {
-        uint256 notionalSize = (currentOtokenBalance.add(mintAmount)).mul(oracle.getPrice(underlying));
-
-        return (notionalSize > minMaxNotional[underlying].min && notionalSize < minMaxNotional[underlying].max);
-    } */
-
     /**
      * @notice checks if there is enough collateral to mint the desired amount of otokens
-     * @param //TBD
+     * @param _account account address
+     * @param _mintAmount desired amount of otokens to mint
+     * @param _otokenAddress otoken address
+     * @param _otokenStock stock amount of otokens already minted
+     * @param _underlying address of underlying asset
+     * @param _vault vault struct
      * @return boolean value stating whether there is enough collateral to mint
      */
-    /*     function checkMintCollateral(
-        uint256 index,
-        address account,
-        uint256 mintAmount,
-        MarginVault.Vault memory vault
+    function checkMintCollateral(
+        address _account,
+        uint256 _mintAmount,
+        address _otokenAddress,
+        uint256 _otokenStock,
+        address _underlying,
+        MarginVault.Vault memory _vault
     ) external view returns (bool) {
-        return ((vault.shortAmounts[index].add(mintAmount))
-            .mul(oracle.getPrice(OtokenInterface(vault.shortOtokens[index]).underlyingAsset()))
-            .mul(_getInitialMargin(vault.shortOtokens[index], account))
-            .div(10**18) < vault.collateralAmounts[index]);
-    } */
+        uint256 collateralDecimals = uint256(ERC20Interface(_vault.collateralAssets[0]).decimals());
+
+        return ((_otokenStock.add(_mintAmount)).mul(oracle.getPrice(_underlying)).mul(
+            _getInitialMargin(_otokenAddress, _account).mul(10**collateralDecimals)
+        ) < _vault.collateralAmounts[0].mul(oracle.getPrice(_vault.collateralAssets[0])).mul(100e18).mul(1e8));
+    }
 
     /**
      * @notice checks if there is enough collateral to withdraw the desired amount
-     * @param //TBD
+     * @param _account account address
+     * @param _withdrawAmount desired amount of otokens to withdraw
+     * @param _otokenAddress otoken address
+     * @param _underlying address of underlying asset
+     * @param _vaultId id of the vault
+     * @param _vault vault struct
      * @return boolean value stating whether there is enough collateral to withdraw
      */
-    /*     function checkWithdrawCollateral(
-        address account,
-        uint256 index,
-        uint256 vaultId,
-        uint256 withdrawAmount,
-        MarginVault.Vault memory vault
+    function checkWithdrawCollateral(
+        address _account,
+        uint256 _withdrawAmount,
+        address _otokenAddress,
+        address _underlying,
+        uint256 _vaultId,
+        MarginVault.Vault memory _vault
     ) external view returns (bool) {
+        uint256 collateralDecimals = uint256(ERC20Interface(_vault.collateralAssets[0]).decimals());
 
-        return ((vault.shortAmounts[index])
-            .mul(oracle.getPrice(OtokenInterface(vault.shortOtokens[index]).underlyingAsset()))
-            .mul(_getInitialMargin(vault.shortOtokens[index], account).add(maintenanceMargin[account][vaultId]))
-            .div(10**18) < vault.collateralAmounts[index].sub(withdrawAmount));
-    } */
+        return (_vault
+            .shortAmounts[0]
+            .mul(oracle.getPrice(_underlying))
+            .mul((_getInitialMargin(_otokenAddress, _account).add(maintenanceMargin[_account][_vaultId])))
+            .mul(10**collateralDecimals) <
+            (_vault.collateralAmounts[0].sub(_withdrawAmount))
+                .mul(oracle.getPrice(_vault.collateralAssets[0]))
+                .mul(100e18)
+                .mul(1e8));
+    }
 
     /**
      * @notice returns the initial margin value
-     * @param //TBD
+     * @param _otoken otoken address
+     * @param _account account address
      * @return inital margin value
      */
-    /*     function _getInitialMargin(address _otoken, address _account) internal view returns (uint256) {
+    function _getInitialMargin(address _otoken, address _account) internal view returns (uint256) {
         OtokenInterface otoken = OtokenInterface(_otoken);
 
         return
             initialMargin[keccak256(abi.encode(otoken.underlyingAsset(), otoken.collateralAsset(), otoken.isPut()))][
                 _account
             ];
-    } */
+    }
 }

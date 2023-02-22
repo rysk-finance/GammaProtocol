@@ -8,27 +8,23 @@ import {MarginVault} from "../libs/MarginVault.sol";
 interface MarginRequirementsInterface {
     using MarginVault for MarginVault.Vault;
 
-    //WIP
-    /*     function checkNotionalSize(
-        uint256 currentOtokenBalance,
-        uint256 mintAmount,
-        address underlying
-    ) external view returns (bool);
-
     function checkWithdrawCollateral(
-        address account,
-        uint256 index,
-        uint256 vaultId,
-        uint256 withdrawAmount,
-        MarginVault.Vault memory
+        address _account,
+        uint256 _withdrawAmount,
+        address _otokenAddress,
+        address _underlying,
+        uint256 _vaultId,
+        MarginVault.Vault memory _vault
     ) external view returns (bool);
 
     function checkMintCollateral(
-        uint256 index,
-        address account,
-        uint256 mintAmount,
-        MarginVault.Vault memory
-    ) external view returns (bool); */
+        address _account,
+        uint256 _mintAmount,
+        address _otokenAddress,
+        uint256 _otokenStock,
+        address _underlying,
+        MarginVault.Vault memory _vault
+    ) external view returns (bool);
 
     /* Controller-only functions */
     function clearMaintenanceMargin(address _account, uint256 _vaultId) external;
