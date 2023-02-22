@@ -30,9 +30,6 @@ import {MarginRequirementsInterface} from "../interfaces/MarginRequirementsInter
  * C6: msg.sender is not authorized to run action
  * C7: invalid addressbook address
  * C8: invalid owner address
- * C9: invalid input
- * C10: fullPauser cannot be set to address zero
- * C11: partialPauser cannot be set to address zero
  * C12: can not run actions for different owners
  * C13: can not run actions on different vaults
  * C14: invalid final vault state
@@ -60,8 +57,6 @@ import {MarginRequirementsInterface} from "../interfaces/MarginRequirementsInter
  * C36: cap amount should be greater than zero
  * C37: collateral exceed naked margin cap
  * C38: msg.sender is not the liquidation manager
- * C39: invalid notional amount
- * C40: insufficient collateral
  */
 
 /**
@@ -98,9 +93,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
     /// @notice True if a call action can only be executed to a whitelisted callee
     bool public callRestricted;
-
-    /// @notice True if a liquidation action can only be executed by the liquidation manager
-    bool public liquidationRestricted;
 
     /// @dev mapping between an owner address and the number of owner address vaults
     mapping(address => uint256) internal accountVaultCounter;
@@ -218,8 +210,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     event SystemFullyPaused(bool isPaused);
     /// @notice emits an event when the call action restriction changes
     event CallRestricted(bool isRestricted);
-    /// @notice emits an event when the liquidation action restriction changes
-    event LiquidationRestricted(bool isLiquidationRestricted);
     /// @notice emits an event when a donation transfer executed
     event Donated(address indexed donator, address indexed asset, uint256 amount);
     /// @notice emits an event when naked cap is updated
@@ -288,7 +278,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @notice modifier to check if the sender is the liquidation manager address
      */
     modifier onlyLiquidationManager() {
-        if (liquidationRestricted) {
+        if (addressbook.getLiquidationManager() != address(0)) {
             require(msg.sender == addressbook.getLiquidationManager(), "C38");
         }
         _;
@@ -333,7 +323,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         _refreshConfigInternal();
 
         callRestricted = true;
-        liquidationRestricted = true;
     }
 
     /**
@@ -354,8 +343,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _partiallyPaused new boolean value to set systemPartiallyPaused to
      */
     function setSystemPartiallyPaused(bool _partiallyPaused) external onlyPartialPauser {
-        require(systemPartiallyPaused != _partiallyPaused, "C9");
-
         systemPartiallyPaused = _partiallyPaused;
 
         emit SystemPartiallyPaused(systemPartiallyPaused);
@@ -367,8 +354,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _fullyPaused new boolean value to set systemFullyPaused to
      */
     function setSystemFullyPaused(bool _fullyPaused) external onlyFullPauser {
-        require(systemFullyPaused != _fullyPaused, "C9");
-
         systemFullyPaused = _fullyPaused;
 
         emit SystemFullyPaused(systemFullyPaused);
@@ -380,8 +365,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _fullPauser new fullPauser address
      */
     function setFullPauser(address _fullPauser) external onlyOwner {
-        require(_fullPauser != address(0), "C10");
-        require(fullPauser != _fullPauser, "C9");
         emit FullPauserUpdated(fullPauser, _fullPauser);
         fullPauser = _fullPauser;
     }
@@ -392,8 +375,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _partialPauser new partialPauser address
      */
     function setPartialPauser(address _partialPauser) external onlyOwner {
-        require(_partialPauser != address(0), "C11");
-        require(partialPauser != _partialPauser, "C9");
         emit PartialPauserUpdated(partialPauser, _partialPauser);
         partialPauser = _partialPauser;
     }
@@ -405,22 +386,9 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _isRestricted new call restriction state
      */
     function setCallRestriction(bool _isRestricted) external onlyOwner {
-        require(callRestricted != _isRestricted, "C9");
-
         callRestricted = _isRestricted;
 
         emit CallRestricted(callRestricted);
-    }
-
-    /**
-     * @notice allows the owner to toggle the restriction on the liquidation action and only allow the liquidation manager
-     * @dev can only be called by the owner
-     * @param _isRestricted new liquidation restriction state
-     */
-    function setLiquidationRestriction(bool _isRestricted) external onlyOwner {
-        liquidationRestricted = _isRestricted;
-
-        emit LiquidationRestricted(liquidationRestricted);
     }
 
     /**
@@ -430,8 +398,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _isOperator new boolean value that expresses if the sender is giving or revoking privileges for _operator
      */
     function setOperator(address _operator, bool _isOperator) external {
-        require(operators[msg.sender][_operator] != _isOperator, "C9");
-
         operators[msg.sender][_operator] = _isOperator;
 
         emit AccountOperatorUpdated(msg.sender, _operator, _isOperator);
@@ -499,27 +465,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      */
     function isOperator(address _owner, address _operator) external view returns (bool) {
         return operators[_owner][_operator];
-    }
-
-    /**
-     * @notice returns the current controller configuration
-     * @return whitelist, the address of the whitelist module
-     * @return oracle, the address of the oracle module
-     * @return calculator, the address of the calculator module
-     * @return pool, the address of the pool module
-     */
-    function getConfiguration()
-        external
-        view
-        returns (
-            address,
-            address,
-            address,
-            address,
-            address
-        )
-    {
-        return (address(whitelist), address(oracle), address(calculator), address(pool), address(marginRequirements));
     }
 
     /**
@@ -725,9 +670,9 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             if (actionType == Actions.ActionType.OpenVault) {
                 _openVault(Actions._parseOpenVaultArgs(action));
             } else if (actionType == Actions.ActionType.DepositLongOption) {
-                //_depositLong(Actions._parseDepositArgs(action));
+                _depositLong(Actions._parseDepositArgs(action));
             } else if (actionType == Actions.ActionType.WithdrawLongOption) {
-                //_withdrawLong(Actions._parseWithdrawArgs(action));
+                _withdrawLong(Actions._parseWithdrawArgs(action));
             } else if (actionType == Actions.ActionType.DepositCollateral) {
                 _depositCollateral(Actions._parseDepositArgs(action));
             } else if (actionType == Actions.ActionType.WithdrawCollateral) {
@@ -783,11 +728,11 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         emit VaultOpened(_args.owner, vaultId, _args.vaultType);
     }
 
-    /*
+    /**
      * @notice deposit a long oToken into a vault
      * @dev only the account owner or operator can deposit a long oToken, cannot be called when system is partiallyPaused or fullyPaused
      * @param _args DepositArgs structure
-     *
+     */
     function _depositLong(Actions.DepositArgs memory _args)
         internal
         notPartiallyPaused
@@ -808,13 +753,13 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         pool.transferToPool(_args.asset, _args.from, _args.amount);
 
         emit LongOtokenDeposited(_args.asset, _args.owner, _args.from, _args.vaultId, _args.amount);
-    }*/
+    }
 
-    /*
+    /**
      * @notice withdraw a long oToken from a vault
      * @dev only the account owner or operator can withdraw a long oToken, cannot be called when system is partiallyPaused or fullyPaused
      * @param _args WithdrawArgs structure
-     *
+     */
     function _withdrawLong(Actions.WithdrawArgs memory _args)
         internal
         notPartiallyPaused
@@ -831,7 +776,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         pool.transferToUser(_args.asset, _args.to, _args.amount);
 
         emit LongOtokenWithdrawed(_args.asset, _args.owner, _args.to, _args.vaultId, _args.amount);
-    } */
+    }
 
     /**
      * @notice deposit a collateral asset into a vault
@@ -885,9 +830,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         }
 
         if (typeVault == 1) {
-            //WIP
-            //require(marginRequirements.checkWithdrawCollateral(TBD),"C40");
-
             nakedPoolBalance[_args.asset] = nakedPoolBalance[_args.asset].sub(_args.amount);
         }
 
@@ -914,13 +856,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         OtokenInterface otoken = OtokenInterface(_args.otoken);
 
         require(now < otoken.expiryTimestamp(), "C24");
-
-        //WIP
-        //(MarginVault.Vault memory vault, , ) = getVaultWithDetails(_args.owner, _args.vaultId);
-
-        //require(marginRequirements.checkNotionalSize(TBD),"C39");
-
-        //require(marginRequirements.checkMintCollateral(TBD), "C40");
 
         vaults[_args.owner][_args.vaultId].addShort(_args.otoken, _args.amount, _args.index);
 
