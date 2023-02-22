@@ -9,6 +9,8 @@ import {
   ControllerInstance,
   MarginCalculatorInstance,
   OracleInstance,
+  MarginRequirementsInstance,
+  OTCWrapperInstance,
 } from '../../build/types/truffle-types'
 
 const { expectRevert } = require('@openzeppelin/test-helpers')
@@ -24,8 +26,10 @@ const Oracle = artifacts.require('Oracle.sol')
 const AddressBook = artifacts.require('AddressBook.sol')
 const Whitelist = artifacts.require('Whitelist.sol')
 const MarginVault = artifacts.require('MarginVault.sol')
+const MarginRequirements = artifacts.require('MarginRequirements.sol')
+const OTCWrapper = artifacts.require('OTCWrapper.sol')
 
-contract('AddressBook', ([owner, otokenImplAdd, marginPoolAdd, liquidationManagerImpl, random]) => {
+contract('AddressBook', ([owner, otokenImplAdd, marginPoolAdd, liquidationManagerImpl, keeper, random]) => {
   // ERC20 mocks
   let weth: MockERC20Instance
   // addressbook instance
@@ -151,6 +155,18 @@ contract('AddressBook', ([owner, otokenImplAdd, marginPoolAdd, liquidationManage
     })
   })
 
+  describe('Set keeper', () => {
+    it('should revert adding keeper address from non-owner address', async () => {
+      await expectRevert(addressBook.setKeeper(keeper, { from: random }), 'Ownable: caller is not the owner')
+    })
+
+    it('should set keeper address', async () => {
+      await addressBook.setKeeper(keeper, { from: owner })
+
+      assert.equal(keeper, await addressBook.getKeeper(), 'keeper address mismatch')
+    })
+  })
+
   describe('Set oracle', () => {
     let oracle: OracleInstance
 
@@ -194,6 +210,56 @@ contract('AddressBook', ([owner, otokenImplAdd, marginPoolAdd, liquidationManage
         marginCalculator.address,
         await addressBook.getMarginCalculator(),
         'Margin calculator implementation address mismatch',
+      )
+    })
+  })
+
+  describe('Set margin requirements', () => {
+    let marginRequirements: MarginRequirementsInstance
+
+    before(async () => {
+      marginRequirements = await MarginRequirements.new(addressBook.address)
+    })
+
+    it('should revert adding margin requirements address from non-owner address', async () => {
+      await expectRevert(
+        addressBook.setMarginRequirements(marginRequirements.address, { from: random }),
+        'Ownable: caller is not the owner',
+      )
+    })
+
+    it('should set margin requirements address', async () => {
+      await addressBook.setMarginRequirements(marginRequirements.address, { from: owner })
+
+      assert.equal(
+        marginRequirements.address,
+        await addressBook.getMarginRequirements(),
+        'Margin requirements module implementation address mismatch',
+      )
+    })
+  })
+
+  describe('Set OTC wrapper', () => {
+    let otcWrapper: OTCWrapperInstance
+
+    before(async () => {
+      otcWrapper = await OTCWrapper.new()
+    })
+
+    it('should revert adding OTC Wrapper address from non-owner address', async () => {
+      await expectRevert(
+        addressBook.setOTCWrapper(otcWrapper.address, { from: random }),
+        'Ownable: caller is not the owner',
+      )
+    })
+
+    it('should set OTC Wrapper address', async () => {
+      await addressBook.setOTCWrapper(otcWrapper.address, { from: owner })
+
+      assert.equal(
+        otcWrapper.address,
+        await addressBook.getOTCWrapper(),
+        'OTC wrapper module implementation address mismatch',
       )
     })
   })
