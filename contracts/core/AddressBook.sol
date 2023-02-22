@@ -29,7 +29,7 @@ contract AddressBook is Ownable {
     bytes32 private constant ORACLE = keccak256("ORACLE");
     /// @dev MarginRequirements key
     bytes32 private constant MARGIN_REQUIREMENTS = keccak256("MARGIN_REQUIREMENTS");
-    /// @dev Otc wrapper key
+    /// @dev OTC wrapper key
     bytes32 private constant OTC_WRAPPER = keccak256("OTC_WRAPPER");
     /// @dev Keeper key
     bytes32 private constant KEEPER = keccak256("KEEPER");
@@ -118,7 +118,7 @@ contract AddressBook is Ownable {
      * @notice return OTC wrapper address
      * @return OTC wrapper address
      */
-    function getOtcWrapper() external view returns (address) {
+    function getOTCWrapper() external view returns (address) {
         return getAddress(OTC_WRAPPER);
     }
 
@@ -209,6 +209,24 @@ contract AddressBook is Ownable {
      */
     function setMarginRequirements(address _marginRequirements) external onlyOwner {
         setAddress(MARGIN_REQUIREMENTS, _marginRequirements);
+    }
+
+    /**
+     * @notice set OTC wrapper address
+     * @dev can only be called by the addressbook owner
+     * @param _otcWrapper OTC wrapper address
+     */
+    function setOTCWrapper(address _otcWrapper) external onlyOwner {
+        setAddress(OTC_WRAPPER, _otcWrapper);
+    }
+
+    /**
+     * @notice set Keeper address
+     * @dev can only be called by the addressbook owner
+     * @param _keeper Keeper address
+     */
+    function setKeeper(address _keeper) external onlyOwner {
+        setAddress(KEEPER, _keeper);
     }
 
     /**
