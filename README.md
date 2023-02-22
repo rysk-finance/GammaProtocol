@@ -1,5 +1,11 @@
 # Gamma Protocol [![CircleCI](https://circleci.com/gh/opynfinance/GammaProtocol.svg?style=svg)](https://circleci.com/gh/opynfinance/GammaProtocol/tree/master) [![Coverage Status](https://coveralls.io/repos/github/opynfinance/GammaProtocol/badge.svg?branch=master)](https://coveralls.io/github/opynfinance/GammaProtocol?branch=master)
 
+TODO to enable spread on partial collat
+- Delete auction time
+- Change getNakedMarginRequired function to compute max loss of the long and short asset if they are present and then return the smaller of max loss of the spread or the partial collat value
+- remove check in isMarginableLong on vault type 1
+- in getMarginRequired function pass through and check the long strikes
+
 Gamma is a decentralized capital efficient option protocol that enables sellers to create spreads. 
 Gamma protocol enables any user to create arbitrary option tokens, that represent the right to buy or sell a certain asset in a predefined price (strike price) at or before expiry. 
 As the option seller in Gamma, you can reduce the amount of capital locked in the system by creating spreads. (e.g Instead of putting down 100 USDC and mint 1 ETH-USDC-100 Put, you can buy a ETH-USDC-50 Put, and only deposit 50 USDC as collateral)
