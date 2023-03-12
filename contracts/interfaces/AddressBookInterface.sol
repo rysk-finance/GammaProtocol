@@ -24,6 +24,8 @@ interface AddressBookInterface {
 
     function getKeeper() external view returns (address);
 
+    function getOTCWrapper() external view returns (address);
+
     function getAddress(bytes32 _id) external view returns (address);
 
     /* Setters */

@@ -19,11 +19,11 @@ interface MarginRequirementsInterface {
 
     function checkMintCollateral(
         address _account,
-        uint256 _mintAmount,
-        address _otokenAddress,
-        uint256 _otokenStock,
-        address _underlying,
-        MarginVault.Vault memory _vault
+        uint256 _notional,
+        address _underlyingAsset,
+        bool isPut,
+        uint256 _collateralAmount,
+        address _collateralAsset
     ) external view returns (bool);
 
     /* Controller-only functions */
