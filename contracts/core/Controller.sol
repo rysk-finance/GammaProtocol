@@ -18,7 +18,6 @@ import {OracleInterface} from "../interfaces/OracleInterface.sol";
 import {WhitelistInterface} from "../interfaces/WhitelistInterface.sol";
 import {MarginPoolInterface} from "../interfaces/MarginPoolInterface.sol";
 import {CalleeInterface} from "../interfaces/CalleeInterface.sol";
-import {MarginRequirementsInterface} from "../interfaces/MarginRequirementsInterface.sol";
 
 /**
  * Controller Error Codes
@@ -73,7 +72,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     OracleInterface public oracle;
     MarginCalculatorInterface public calculator;
     MarginPoolInterface public pool;
-    MarginRequirementsInterface public marginRequirements;
 
     ///@dev scale used in MarginCalculator
     uint256 internal constant BASE = 8;
@@ -965,7 +963,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         require(isValidVault, "C32");
 
         delete vaults[_args.owner][_args.vaultId];
-        marginRequirements.clearMaintenanceMargin(_args.owner, _args.vaultId);
 
         if (typeVault == 1) {
             nakedPoolBalance[collateral] = nakedPoolBalance[collateral].sub(payout);
@@ -1154,6 +1151,5 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         oracle = OracleInterface(addressbook.getOracle());
         calculator = MarginCalculatorInterface(addressbook.getMarginCalculator());
         pool = MarginPoolInterface(addressbook.getMarginPool());
-        marginRequirements = MarginRequirementsInterface(addressbook.getMarginRequirements());
     }
 }

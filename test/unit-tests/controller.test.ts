@@ -123,8 +123,6 @@ contract(
       await usdc.mint(accountOperator1, createTokenAmount(10000, usdcDecimals))
       await usdc.mint(random, createTokenAmount(10000, usdcDecimals))
       await usdc.mint(donor, createTokenAmount(10000, usdcDecimals))
-
-      // set liquidation manager to Null Address
     })
 
     describe('Controller initialization', () => {
