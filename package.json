@@ -22,7 +22,7 @@
     "build"
   ],
   "scripts": {
-    "ganache": "ganache-cli -d --port 8545 --defaultBalanceEther 500",
+    "ganache": "ganache-cli -d --port 8545 --defaultBalanceEther 500 --unlock 0xA94Ab2Bb0C67842FB40A1068068DF1225A031a7d 0x427fB2c379f02761594768357B33D267fFdf80C5",
     "migrate": "truffle migrate",
     "build": "npm run compile:contracts && npm run compile:types",
     "compile:contracts": "truffle compile",
@@ -84,7 +84,12 @@
     ]
   },
   "dependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.2",
+    "@nomiclabs/hardhat-etherscan": "^3.1.7",
+    "@nomiclabs/hardhat-waffle": "^2.0.5",
+    "@openzeppelin/contracts": "^3.4.1",
     "@truffle/hdwallet-provider": "^1.6.0",
+    "@typechain/hardhat": "^6.1.5",
     "solc": "0.6.10",
     "solc-0.6.10": "npm:solc@0.6.10",
     "solidity-docgen": "^0.5.6",
