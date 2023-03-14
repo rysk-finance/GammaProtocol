@@ -32,9 +32,9 @@ contract MarginRequirements is Ownable {
     address public addressBook;
 
     ///@dev mapping between a hash of (underlying asset, collateral asset, isPut) and a mapping of an account to an initial margin value
-    mapping(bytes32 => mapping(address => uint256)) internal initialMargin;
+    mapping(bytes32 => mapping(address => uint256)) public initialMargin;
     ///@dev mapping between an account owner and a mapping of a specific vault id to a maintenance margin value
-    mapping(address => mapping(uint256 => uint256)) internal maintenanceMargin;
+    mapping(address => mapping(uint256 => uint256)) public maintenanceMargin;
 
     /************************************************
      *  CONSTRUCTOR
@@ -164,40 +164,36 @@ contract MarginRequirements is Ownable {
         ];
 
         return
-            _notional.mul(initialMarginRequired).mul(10**collateralDecimals).mul(10e8) <
-            _collateralAmount.mul(oracle.getPrice(_collateralAsset)).mul(100e2).mul(10e6);
+            _notional.mul(initialMarginRequired).mul(10**collateralDecimals).mul(1e8) <
+            _collateralAmount.mul(oracle.getPrice(_collateralAsset)).mul(100e2).mul(1e6);
     }
 
     /**
      * @notice checks if there is enough collateral to withdraw the desired amount
      * @param _account account address
+     * @param _notional order notional amount
      * @param _withdrawAmount desired amount to withdraw
      * @param _otokenAddress otoken address
-     * @param _underlying underlying asset address
      * @param _vaultID id of the vault
      * @param _vault vault struct
      * @return boolean value stating whether there is enough collateral to withdraw
      */
     function checkWithdrawCollateral(
         address _account,
+        uint256 _notional,
         uint256 _withdrawAmount,
         address _otokenAddress,
-        address _underlying,
         uint256 _vaultID,
         MarginVault.Vault memory _vault
     ) external view returns (bool) {
         uint256 collateralDecimals = uint256(ERC20Interface(_vault.collateralAssets[0]).decimals());
 
         return
-            _vault
-                .shortAmounts[0]
-                .mul(oracle.getPrice(_underlying))
-                .mul(_getInitialMargin(_otokenAddress, _account))
-                .mul(10**collateralDecimals) <
+            _notional.mul(_getInitialMargin(_otokenAddress, _account)).mul(10**collateralDecimals).mul(1e8) <
             (_vault.collateralAmounts[0].sub(_withdrawAmount).sub(_getMaintenanceMargin(_account, _vaultID)))
                 .mul(oracle.getPrice(_vault.collateralAssets[0]))
                 .mul(100e2)
-                .mul(1e8);
+                .mul(1e6);
     }
 
     /**

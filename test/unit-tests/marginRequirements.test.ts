@@ -95,7 +95,7 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
         marginRequirements.setInitialMargin(weth.address, usdc.address, false, accountOwner1, parseUnits('10', 2), {
           from: random,
         }),
-        'Ownable: caller is not the owner.',
+        'Ownable: caller is not the owner',
       )
     })
     it('should revert if initialized with 0 initial margin', async () => {
@@ -135,11 +135,11 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
         defaultAbiCoder.encode(['address', 'address', 'bool'], [weth.address, usdc.address, false]),
       )
 
-      /*       assert.equal(
+      assert.equal(
         (await marginRequirements.initialMargin(hash, accountOwner1)).toString(),
         parseUnits('10', 2).toString(),
         'Initial margin is incorrect',
-      ) */
+      )
     })
   })
 
@@ -153,19 +153,19 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
     it('successfully clears the maintenance margin mapping', async () => {
       await marginRequirements.setMaintenanceMargin(accountOwner1, 0, parseUnits('7500', 6), { from: keeper })
 
-      /*       assert.equal(
+      assert.equal(
         (await marginRequirements.maintenanceMargin(accountOwner1, 0)).toString(),
         parseUnits('7500', 6).toString(),
         'initial maintenance margin is incorrect',
-      ) */
+      )
 
       await marginRequirements.clearMaintenanceMargin(accountOwner1, 0, { from: OTCWrapper })
 
-      /*       assert.equal(
+      assert.equal(
         (await marginRequirements.maintenanceMargin(accountOwner1, 0)).toString(),
         '0',
         'final maintenance margin is incorrect',
-      ) */
+      )
     })
   })
 
@@ -191,11 +191,11 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
     it('successfully sets maintenance margin to 7.5k USDC', async () => {
       await marginRequirements.setMaintenanceMargin(accountOwner1, 0, parseUnits('7500', 6), { from: keeper })
 
-      /*       assert.equal(
+      assert.equal(
         (await marginRequirements.maintenanceMargin(accountOwner1, 0)).toString(),
         parseUnits('7500', 6).toString(),
         'Initial margin is incorrect',
-      ) */
+      )
     })
   })
 
@@ -251,7 +251,6 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
   describe('check withdraw collateral', () => {
     it('should revert if there is insufficient collateral to withdraw', async () => {
       const shortStrike = 100
-      const underlyingPrice = 1500
       const isPut = false
       const optionExpiry = new BigNumber(await time.latest()).plus(timeToExpiry[0])
 
@@ -269,11 +268,16 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
       await whitelist.whitelistOtoken(shortOtoken.address)
 
       // set oracleprice
-      await oracle.setRealTimePrice(weth.address, scaleBigNum(underlyingPrice, 8))
       await oracle.setRealTimePrice(usdc.address, scaleBigNum(1, 8))
 
+      // main numbers
+      // initial margin = 10%
+      // maintenance margin = 7500 USDC
+      const notionalAmount = parseUnits('150000', 6)
+      const withdrawamount = parseUnits('1000', 6)
+      const collateralAmount = parseUnits('23500', USDCDECIMALS)
+
       // create mock vault
-      const collateralAmount = scaleBigNum(25000, USDCDECIMALS).toNumber()
       const vault = createVault(
         shortOtoken.address,
         undefined,
@@ -284,16 +288,13 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
       )
       const vaultId = 0
 
-      // withdraw amount
-      const withdrawamount = 2500
-
       assert.equal(
         (
           await marginRequirements.checkWithdrawCollateral(
             accountOwner1,
-            scaleBigNum(withdrawamount, USDCDECIMALS),
+            notionalAmount,
+            withdrawamount,
             shortOtoken.address,
-            weth.address,
             vaultId,
             vault,
           )
@@ -304,7 +305,6 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
     })
     it('successfully passes the withdraw collateral check', async () => {
       const shortStrike = 100
-      const underlyingPrice = 1500
       const isPut = false
       const optionExpiry = new BigNumber(await time.latest()).plus(timeToExpiry[0])
 
@@ -321,12 +321,17 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
       // whitelist otoken
       await whitelist.whitelistOtoken(shortOtoken.address)
 
-      // set oracle price
-      await oracle.setRealTimePrice(weth.address, scaleBigNum(underlyingPrice, 8))
+      // set oracleprice
       await oracle.setRealTimePrice(usdc.address, scaleBigNum(1, 8))
 
+      // main numbers
+      // initial margin = 10%
+      // maintenance margin = 7500 USDC
+      const notionalAmount = parseUnits('150000', 6)
+      const withdrawamount = parseUnits('999', 6)
+      const collateralAmount = parseUnits('23500', USDCDECIMALS)
+
       // create mock vault
-      const collateralAmount = scaleBigNum(25000, USDCDECIMALS).toNumber()
       const vault = createVault(
         shortOtoken.address,
         undefined,
@@ -337,16 +342,13 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
       )
       const vaultId = 0
 
-      // withdraw amount
-      const withdrawamount = 2499
-
       assert.equal(
         (
           await marginRequirements.checkWithdrawCollateral(
             accountOwner1,
-            scaleBigNum(withdrawamount, USDCDECIMALS),
+            notionalAmount,
+            withdrawamount,
             shortOtoken.address,
-            weth.address,
             vaultId,
             vault,
           )

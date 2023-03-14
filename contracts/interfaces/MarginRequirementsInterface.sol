@@ -10,10 +10,10 @@ interface MarginRequirementsInterface {
 
     function checkWithdrawCollateral(
         address _account,
+        uint256 _notional,
         uint256 _withdrawAmount,
         address _otokenAddress,
-        address _underlying,
-        uint256 _vaultId,
+        uint256 _vaultID,
         MarginVault.Vault memory _vault
     ) external view returns (bool);
 
