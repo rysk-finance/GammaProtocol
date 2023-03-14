@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js'
 import { ethers } from 'ethers'
-import { id } from 'ethers/lib/utils'
+
 import {
   MarginCalculatorInstance,
   MockOtokenInstance,
@@ -15,6 +15,7 @@ import {
   OTCWrapperInstance,
   ForceSendInstance,
   OtokenFactoryInstance,
+  MinimalForwarderInstance,
 } from '../../build/types/truffle-types'
 
 import {
@@ -27,7 +28,6 @@ import {
 const { expectRevert, time, BN, expect } = require('@openzeppelin/test-helpers')
 const { parseUnits } = require('ethers/lib/utils')
 
-const { EIP712Domain, domainSeparator } = require('../eip712')
 const { fromRpcSig } = require('ethereumjs-util')
 const ethSigUtil = require('eth-sig-util')
 const Wallet = require('ethereumjs-wallet').default
@@ -46,6 +46,7 @@ const MarginRequirements = artifacts.require('MarginRequirements.sol')
 const OTCWrapper = artifacts.require('OTCWrapper.sol')
 const ForceSend = artifacts.require('ForceSend.sol')
 const OtokenFactory = artifacts.require('OtokenFactory.sol')
+const MinimalForwarder = artifacts.require('MinimalForwarder.sol')
 
 // address(0)
 const ZERO_ADDR = '0x0000000000000000000000000000000000000000'
@@ -72,6 +73,23 @@ enum ActionType {
   Call,
   InvalidAction,
 }
+
+// minimal forwarder related
+const EIP712Domain = [
+  { name: 'name', type: 'string' },
+  { name: 'version', type: 'string' },
+  { name: 'chainId', type: 'uint256' },
+  { name: 'verifyingContract', type: 'address' },
+]
+
+const ForwardRequest = [
+  { name: 'from', type: 'address' },
+  { name: 'to', type: 'address' },
+  { name: 'value', type: 'uint256' },
+  { name: 'gas', type: 'uint256' },
+  { name: 'nonce', type: 'uint256' },
+  { name: 'data', type: 'bytes' },
+]
 
 contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   // ERC20 mock
@@ -100,6 +118,10 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   // OTC Wrapper module
   let otcWrapperImplementation: OTCWrapperInstance
   let otcWrapperProxy: OTCWrapperInstance
+  // minimal forwarder
+  let minimalForwarder: MinimalForwarderInstance
+  let untrustedMinimalForwarder: MinimalForwarderInstance
+  let newMinimalForwarder: MinimalForwarderInstance
 
   const USDCDECIMALS = 6
   const WETHDECIMALS = 18
@@ -119,6 +141,20 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
   // time to expiry
   let expiry: number
+
+  // minimal forwarder
+  let signatureData: {
+    primaryType: string
+    types: { EIP712Domain: { name: string; type: string }[]; ForwardRequest: { name: string; type: string }[] }
+    domain: { name: string; version: string; chainId: number; verifyingContract: string }
+    message: { from: string; to: string; value: number; gas: any; nonce: number; data: string }
+  }
+  let signatureData2: {
+    primaryType: string
+    types: { EIP712Domain: { name: string; type: string }[]; ForwardRequest: { name: string; type: string }[] }
+    domain: { name: string; version: string; chainId: number; verifyingContract: string }
+    message: { from: string; to: string; value: number; gas: any; nonce: number; data: string }
+  }
 
   before('Deployment', async () => {
     // deploy addressbook
@@ -175,8 +211,12 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     assert.equal(await controllerProxy.owner(), admin, 'Controller owner address mismatch')
     assert.equal(await controllerProxy.systemPartiallyPaused(), false, 'system is partially paused')
 
+    // deploy minimal forwarder
+    minimalForwarder = await MinimalForwarder.new()
+    untrustedMinimalForwarder = await MinimalForwarder.new()
+
     // deploy OTC wrapper
-    otcWrapperImplementation = await OTCWrapper.new()
+    otcWrapperImplementation = await OTCWrapper.new(minimalForwarder.address)
     const ownedUpgradeabilityProxy: OwnedUpgradeabilityProxyInstance = await OwnedUpgradeabilityProxy.new()
     ownedUpgradeabilityProxy.upgradeTo(otcWrapperImplementation.address)
     otcWrapperProxy = await OTCWrapper.at(ownedUpgradeabilityProxy.address)
@@ -230,7 +270,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const amount = value.toString()
       const deadline = maxDeadline
 
-      userSignature1 = { acct, amount, deadline, v, r, s }
+      userSignature1 = { amount, deadline, acct, v, r, s }
     })
     it('set up user permit USDC signature 2', async () => {
       // resulting address = 0xa94ab2bb0c67842fb40a1068068df1225a031a7d
@@ -266,7 +306,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const amount = value.toString()
       const deadline = maxDeadline
 
-      userSignature2 = { acct, amount, deadline, v, r, s }
+      userSignature2 = { amount, deadline, acct, v, r, s }
     })
     it('set up market maker permit WBTC signature', async () => {
       //resulting address = 0x427fb2c379f02761594768357b33d267ffdf80c5
@@ -302,7 +342,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const amount = value.toString()
       const deadline = maxDeadline
 
-      mmSignatureWBTC = { acct, amount, deadline, v, r, s }
+      mmSignatureWBTC = { amount, deadline, acct, v, r, s }
     })
     it('set up market maker permit USDC signature', async () => {
       //resulting address = 0x427fb2c379f02761594768357b33d267ffdf80c5
@@ -338,34 +378,104 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const amount = value.toString()
       const deadline = maxDeadline
 
-      mmSignatureUSDC = { acct, amount, deadline, v, r, s }
+      mmSignatureUSDC = { amount, deadline, acct, v, r, s }
+    })
+    it('set up user signature for placing a new order via trusted minimal forwarder', async () => {
+      const chainId = (await usdc.getChainId()).toNumber() // 8545
+
+      const strikePrice2 = scaleBigNum(1700, 8).toNumber()
+      const notional2 = parseUnits('200000', 6).toNumber()
+
+      const dataExample = [weth.address, false, strikePrice2, expiry, 1, notional2]
+
+      let ABI = [
+        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _notional)',
+      ]
+      let iface = new ethers.utils.Interface(ABI)
+
+      const callData = iface.encodeFunctionData('placeOrder', dataExample)
+
+      const name = 'MinimalForwarder'
+      const verifyingContract = minimalForwarder.address
+      const version = '0.0.1'
+
+      const from = user
+      const to = otcWrapperProxy.address
+      const value = 0
+      const gas = 3000000
+      const nonce = 0
+      const data = callData
+
+      const buildData = () => ({
+        primaryType: 'ForwardRequest',
+        types: { EIP712Domain, ForwardRequest },
+        domain: { name, version, chainId, verifyingContract },
+        message: { from, to, value, gas, nonce, data },
+      })
+
+      signatureData = buildData()
+    })
+    it('set up user signature for placing a new order via untrusted minimal forwarder', async () => {
+      const chainId = (await usdc.getChainId()).toNumber() // 8545
+
+      const strikePrice2 = scaleBigNum(1700, 8).toNumber()
+      const notional2 = parseUnits('200000', 6).toNumber()
+
+      const dataExample = [weth.address, false, strikePrice2, expiry, 1, notional2]
+
+      let ABI = [
+        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _notional)',
+      ]
+      let iface = new ethers.utils.Interface(ABI)
+
+      const callData = iface.encodeFunctionData('placeOrder', dataExample)
+
+      const name = 'MinimalForwarder'
+      const verifyingContract = untrustedMinimalForwarder.address
+      const version = '0.0.1'
+
+      const from = user
+      const to = otcWrapperProxy.address
+      const value = 0
+      const gas = 3000000
+      const nonce = 0
+      const data = callData
+
+      const buildData = () => ({
+        primaryType: 'ForwardRequest',
+        types: { EIP712Domain, ForwardRequest },
+        domain: { name, version, chainId, verifyingContract },
+        message: { from, to, value, gas, nonce, data },
+      })
+
+      signatureData2 = buildData()
     })
   })
 
   describe('#initialize', () => {
     it('should revert if initialized with 0 addressBook address', async () => {
-      const otcWrapper = await OTCWrapper.new()
+      const otcWrapper = await OTCWrapper.new(minimalForwarder.address)
       await expectRevert(
         otcWrapper.initialize(ZERO_ADDR, admin, beneficiary, new BigNumber(15 * 60), usdc.address),
         'OTCWrapper: addressbook address cannot be 0',
       )
     })
     it('should revert if initialized with 0 owner address', async () => {
-      const otcWrapper = await OTCWrapper.new()
+      const otcWrapper = await OTCWrapper.new(minimalForwarder.address)
       await expectRevert(
         otcWrapper.initialize(addressBook.address, ZERO_ADDR, beneficiary, new BigNumber(15 * 60), usdc.address),
         'OTCWrapper: owner address cannot be 0',
       )
     })
     it('should revert if initialized with 0 beneficiary address', async () => {
-      const otcWrapper = await OTCWrapper.new()
+      const otcWrapper = await OTCWrapper.new(minimalForwarder.address)
       await expectRevert(
         otcWrapper.initialize(addressBook.address, admin, ZERO_ADDR, new BigNumber(15 * 60), usdc.address),
         'OTCWrapper: beneficiary address cannot be 0',
       )
     })
     it('should revert if initialized with 0 fill deadline', async () => {
-      const otcWrapper = await OTCWrapper.new()
+      const otcWrapper = await OTCWrapper.new(minimalForwarder.address)
       await expectRevert(
         otcWrapper.initialize(addressBook.address, admin, random, new BigNumber(0), usdc.address),
         'OTCWrapper: fill deadline cannot be 0',
@@ -374,7 +484,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if initialized twice', async () => {
       await expectRevert(
         otcWrapperProxy.initialize(addressBook.address, admin, admin, 15 * 60, usdc.address),
-        'Contract instance has already been initialized',
+        'Initializable: contract is already initialized',
       )
     })
     it('successfully initialized', async () => {
@@ -402,20 +512,20 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if caller is not the owner', async () => {
       await expectRevert(
         otcWrapperProxy.setMinMaxNotional(weth.address, 1, 0, { from: random }),
-        'Ownable: caller is not the owner.',
+        'Ownable: caller is not the owner',
       )
     })
     it('sucessfully sets notional size between 50k and 1M USD', async () => {
-      otcWrapperProxy.setMinMaxNotional(weth.address, parseUnits('50000', 6), parseUnits('1000000', 6))
+      await otcWrapperProxy.setMinMaxNotional(weth.address, parseUnits('50000', 6), parseUnits('1000000', 6))
 
-      /*       assert.equal(
+      assert.equal(
         (await otcWrapperProxy.minMaxNotional(weth.address))[0].toString(),
         parseUnits('50000', 6).toString(),
       )
       assert.equal(
         (await otcWrapperProxy.minMaxNotional(weth.address))[1].toString(),
         parseUnits('1000000', 6).toString(),
-      ) */
+      )
     })
   })
 
@@ -435,13 +545,13 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if caller is not the owner', async () => {
       await expectRevert(
         otcWrapperProxy.setWhitelistMarketMaker(marketMaker, true, { from: random }),
-        'Ownable: caller is not the owner.',
+        'Ownable: caller is not the owner',
       )
     })
     it('sucessfully sets market maker whitelist status', async () => {
       assert.equal(await otcWrapperProxy.isWhitelistedMarketMaker(marketMaker), false)
 
-      otcWrapperProxy.setWhitelistMarketMaker(marketMaker, true)
+      await otcWrapperProxy.setWhitelistMarketMaker(marketMaker, true)
 
       assert.equal(await otcWrapperProxy.isWhitelistedMarketMaker(marketMaker), true)
     })
@@ -455,7 +565,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       await expectRevert(otcWrapperProxy.setFee(random, 0), 'OTCWrapper: fee cannot be 0')
     })
     it('should revert if caller is not the owner', async () => {
-      await expectRevert(otcWrapperProxy.setFee(random, 0, { from: random }), 'Ownable: caller is not the owner.')
+      await expectRevert(otcWrapperProxy.setFee(random, 0, { from: random }), 'Ownable: caller is not the owner')
     })
     it('sucessfully sets fee to 1% for WETH', async () => {
       await otcWrapperProxy.setFee(weth.address, 100) // 1%
@@ -474,7 +584,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       await expectRevert(otcWrapperProxy.setBeneficiary(ZERO_ADDR), 'OTCWrapper: beneficiary address cannot be 0')
     })
     it('should revert if caller is not the owner', async () => {
-      await expectRevert(otcWrapperProxy.setBeneficiary(random, { from: random }), 'Ownable: caller is not the owner.')
+      await expectRevert(otcWrapperProxy.setBeneficiary(random, { from: random }), 'Ownable: caller is not the owner')
     })
     it('sucessfully sets beneficiary address to admin', async () => {
       assert.equal(await otcWrapperProxy.beneficiary(), admin)
@@ -490,7 +600,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       await expectRevert(otcWrapperProxy.setFillDeadline(0), 'OTCWrapper: fill deadline cannot be 0')
     })
     it('should revert if caller is not the owner', async () => {
-      await expectRevert(otcWrapperProxy.setFillDeadline(600, { from: random }), 'Ownable: caller is not the owner.')
+      await expectRevert(otcWrapperProxy.setFillDeadline(600, { from: random }), 'Ownable: caller is not the owner')
     })
     it('sucessfully sets fill deadline to 10 minutes', async () => {
       assert.equal((await otcWrapperProxy.fillDeadline()).toString(), '900')
@@ -522,7 +632,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         'OTCWrapper: expiry must be in the future',
       )
     })
-    it('sucessfully creates a new order', async () => {
+    it('user sucessfully creates a new order directly', async () => {
       assert.equal((await otcWrapperProxy.latestOrder()).toString(), '0')
 
       const strikePrice = scaleBigNum(1300, 8)
@@ -559,11 +669,90 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(logs[0].args.notional.toString(), notional.toString())
       assert.equal(logs[0].args.buyer.toString(), user)
     })
+    it('user sucessfully creates a new order via minimal forwarder', async () => {
+      const strikePrice2 = scaleBigNum(1700, 8).toNumber()
+      const notional2 = parseUnits('200000', 6).toNumber()
+
+      const randomBuffer = Buffer.alloc(32, 'dsaas')
+      const userWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const dataExample = [weth.address, false, strikePrice2, expiry, 1, notional2]
+
+      let ABI = [
+        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _notional)',
+      ]
+      let iface = new ethers.utils.Interface(ABI)
+      const callData = iface.encodeFunctionData('placeOrder', dataExample)
+
+      const forwardRequest = {
+        from: user,
+        to: otcWrapperProxy.address,
+        value: 0,
+        gas: 3000000,
+        nonce: 0,
+        data: callData,
+      }
+
+      const data = signatureData
+      const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
+
+      assert.equal((await otcWrapperProxy.latestOrder()).toString(), '1')
+
+      await minimalForwarder.execute(forwardRequest, signature, { from: user })
+
+      assert.equal((await otcWrapperProxy.latestOrder()).toString(), '2')
+
+      // order was placed correctly
+      assert.equal((await otcWrapperProxy.orders(2))[0].toString(), weth.address)
+      assert.equal((await otcWrapperProxy.orders(2))[1].toString(), ZERO_ADDR)
+      assert.equal((await otcWrapperProxy.orders(2))[2].toString(), 'false')
+      assert.equal((await otcWrapperProxy.orders(2))[3].toString(), strikePrice2.toString())
+      assert.equal((await otcWrapperProxy.orders(2))[4].toString(), expiry.toString())
+      assert.equal((await otcWrapperProxy.orders(2))[5].toString(), '1')
+      assert.equal((await otcWrapperProxy.orders(2))[6].toString(), notional2.toString())
+      assert.equal((await otcWrapperProxy.orders(2))[7].toString(), user)
+      assert.equal((await otcWrapperProxy.orders(2))[8].toString(), ZERO_ADDR)
+      assert.equal((await otcWrapperProxy.orders(2))[9].toString(), '0')
+      assert.equal((await otcWrapperProxy.orders(2))[10].toString(), ZERO_ADDR)
+      assert.equal((await otcWrapperProxy.orders(2))[11].toString(), await time.latest())
+    })
+    it('should not pass along the user as msg.sender if order is placed via an untrusted minimal forwarder', async () => {
+      const strikePrice2 = scaleBigNum(1700, 8).toNumber()
+      const notional2 = parseUnits('200000', 6).toNumber()
+
+      const randomBuffer = Buffer.alloc(32, 'dsaas')
+      const userWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const dataExample = [weth.address, false, strikePrice2, expiry, 1, notional2]
+
+      let ABI = [
+        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _notional)',
+      ]
+      let iface = new ethers.utils.Interface(ABI)
+      const callData = iface.encodeFunctionData('placeOrder', dataExample)
+
+      const data = signatureData2
+      const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
+
+      const forwardRequest = {
+        from: user,
+        to: otcWrapperProxy.address,
+        value: 0,
+        gas: 3000000,
+        nonce: 0,
+        data: callData,
+      }
+
+      await untrustedMinimalForwarder.execute(forwardRequest, signature, { from: user })
+
+      // ensure that msg.sender that was passed along as order.buyer is the untrusted minimal forwarder and not the user
+      assert.equal((await otcWrapperProxy.orders(3))[7].toString(), untrustedMinimalForwarder.address)
+    })
   })
 
   describe('Undo order', () => {
     it('should revert if orderID is higher than lastest order', async () => {
-      await expectRevert(otcWrapperProxy.undoOrder(3, { from: user }), 'OTCWrapper: inexistent order')
+      await expectRevert(otcWrapperProxy.undoOrder(20, { from: user }), 'OTCWrapper: inexistent order')
     })
     it('should revert if order buyer is not the caller', async () => {
       await expectRevert(otcWrapperProxy.undoOrder(1, { from: random }), 'OTCWrapper: only buyer can undo the order')
@@ -592,7 +781,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   describe('Execute order', () => {
     it('should revert if orderID is higher than lastest order', async () => {
       await expectRevert(
-        otcWrapperProxy.executeOrder(4, userSignature1, mmSignatureUSDC, 1, usdc.address, 1, {
+        otcWrapperProxy.executeOrder(20, userSignature1, mmSignatureUSDC, 1, usdc.address, 1, {
           from: marketMaker,
         }),
         'OTCWrapper: inexistent order',
@@ -627,7 +816,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         from: random,
       })
       await expectRevert(
-        otcWrapperProxy.executeOrder(3, userSignature1, mmSignatureUSDC, 1, usdc.address, 1, {
+        otcWrapperProxy.executeOrder(5, userSignature1, mmSignatureUSDC, 1, usdc.address, 1, {
           from: marketMaker,
         }),
         'OTCWrapper: signer is not the buyer',
@@ -780,7 +969,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         from: user,
       })
 
-      assert.equal((await otcWrapperProxy.latestOrder()).toString(), '4')
+      assert.equal((await otcWrapperProxy.latestOrder()).toString(), '6')
 
       // admin whitelists product and collateral
       await whitelist.whitelistProduct(weth.address, usdc.address, wbtc.address, true)
@@ -826,7 +1015,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       // call execute
       const tx = await otcWrapperProxy.executeOrder(
-        4,
+        6,
         userSignature2,
         mmSignatureWBTC,
         premium,
@@ -840,7 +1029,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       // set maintenance after opening a vault
       await marginRequirements.setMaintenanceMargin(marketMaker, 2, parseUnits('1', 7), { from: keeper }) // 0.1 WBTC
 
-      const newOtoken = await MockERC20.at((await otcWrapperProxy.orders(4))[10].toString())
+      const newOtoken = await MockERC20.at((await otcWrapperProxy.orders(6))[10].toString())
       const userBalAfterOtoken = new BigNumber(await newOtoken.balanceOf(user))
       const userBalAfterUSDC = new BigNumber(await usdc.balanceOf(user))
       const beneficiaryBalAfterUSDC = new BigNumber(await usdc.balanceOf(beneficiary))
@@ -865,20 +1054,20 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(vault[0].collateralAssets[0].toString(), wbtc.address)
 
       // order accounting
-      assert.equal((await otcWrapperProxy.orders(4))[5].toString(), premium.toString())
-      assert.equal((await otcWrapperProxy.orders(4))[1].toString(), wbtc.address)
-      assert.equal((await otcWrapperProxy.orders(4))[8].toString(), marketMaker)
-      assert.equal((await otcWrapperProxy.orders(4))[9].toString(), '2')
-      assert.equal((await otcWrapperProxy.orderStatus(4)).toString(), '1')
+      assert.equal((await otcWrapperProxy.orders(6))[5].toString(), premium.toString())
+      assert.equal((await otcWrapperProxy.orders(6))[1].toString(), wbtc.address)
+      assert.equal((await otcWrapperProxy.orders(6))[8].toString(), marketMaker)
+      assert.equal((await otcWrapperProxy.orders(6))[9].toString(), '2')
+      assert.equal((await otcWrapperProxy.orderStatus(6)).toString(), '1')
 
       // emits event
       const { logs } = tx
-      assert.equal(logs[0].args.orderID.toString(), '4')
+      assert.equal(logs[0].args.orderID.toString(), '6')
       assert.equal(logs[0].args.collateralAsset.toString(), wbtc.address)
       assert.equal(logs[0].args.premium.toString(), premium)
       assert.equal(logs[0].args.seller.toString(), marketMaker)
       assert.equal(logs[0].args.vaultID.toString(), '2')
-      assert.equal(logs[0].args.oToken.toString(), (await otcWrapperProxy.orders(4))[10].toString())
+      assert.equal(logs[0].args.oToken.toString(), (await otcWrapperProxy.orders(6))[10].toString())
       assert.equal(logs[0].args.initialMargin.toString(), initialMargin)
     })
     it('should revert if fill deadline has passed', async () => {
@@ -891,7 +1080,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       await time.increase(601)
 
       await expectRevert(
-        otcWrapperProxy.executeOrder(5, userSignature1, mmSignatureUSDC, 1, usdc.address, 1, {
+        otcWrapperProxy.executeOrder(7, userSignature1, mmSignatureUSDC, 1, usdc.address, 1, {
           from: marketMaker,
         }),
         'OTCWrapper: deadline has passed',
@@ -901,7 +1090,10 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
   describe('Deposit collateral', () => {
     it('should revert if orderID is higher than lastest order', async () => {
-      await expectRevert(otcWrapperProxy.depositCollateral(6, 1, { from: marketMaker }), 'OTCWrapper: inexistent order')
+      await expectRevert(
+        otcWrapperProxy.depositCollateral(20, 1, { from: marketMaker }),
+        'OTCWrapper: inexistent order',
+      )
     })
     it('should revert if seller is not the caller', async () => {
       await expectRevert(
@@ -944,7 +1136,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   describe('Withdraw collateral', () => {
     it('should revert if orderID is higher than lastest order', async () => {
       await expectRevert(
-        otcWrapperProxy.withdrawCollateral(6, 1, { from: marketMaker }),
+        otcWrapperProxy.withdrawCollateral(20, 1, { from: marketMaker }),
         'OTCWrapper: inexistent order',
       )
     })
@@ -960,7 +1152,25 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         'OTCWrapper: insufficient collateral',
       )
     })
+    it('should revert if USDC depegs', async () => {
+      // USDC depegs to 0.5
+      await oracle.setRealTimePrice(usdc.address, scaleBigNum(5, 7))
+
+      // Maintenance margin adjusts to new depegged price - increases by 2x
+      await marginRequirements.setMaintenanceMargin(marketMaker, 1, parseUnits('2000', 6), { from: keeper })
+
+      await expectRevert(
+        otcWrapperProxy.withdrawCollateral(1, parseUnits('1000', 6), { from: marketMaker }),
+        'OTCWrapper: insufficient collateral',
+      )
+    })
     it('market maker successfully withdraws collateral', async () => {
+      // USDC repegs to 1
+      await oracle.setRealTimePrice(usdc.address, scaleBigNum(1, 8))
+
+      // Maintenance margin adjusts to new repegged price - falls by 50%
+      await marginRequirements.setMaintenanceMargin(marketMaker, 1, parseUnits('1000', 6), { from: keeper })
+
       const withdrawAmount = parseUnits('1000', 6) // 1000 USDC
 
       const vaultBefore = await controllerProxy.getVaultWithDetails(otcWrapperProxy.address, 1)
@@ -991,7 +1201,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
   describe('Settle vault', () => {
     it('should revert if orderID is higher than lastest order', async () => {
-      await expectRevert(otcWrapperProxy.settleVault(6, { from: marketMaker }), 'OTCWrapper: inexistent order')
+      await expectRevert(otcWrapperProxy.settleVault(20, { from: marketMaker }), 'OTCWrapper: inexistent order')
     })
     it('should revert if seller is not the caller', async () => {
       await expectRevert(otcWrapperProxy.settleVault(1, { from: random }), 'OTCWrapper: sender is not the order seller')
@@ -1036,7 +1246,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
       const marketMakerBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marketMaker))
 
-      // assert.isAbove((await marginRequirements.maintenanceMargin(marketMaker, 1)).toNumber(), 0)
+      assert.isAbove((await marginRequirements.maintenanceMargin(marketMaker, 1)).toNumber(), 0)
 
       // call settle vault
       const tx = await otcWrapperProxy.settleVault(1, { from: marketMaker })
@@ -1050,7 +1260,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(marginPoolBalAfterUSDC.toString(), userPayout.toString())
 
       // maintenance margin was cleared
-      // assert.equal((await marginRequirements.maintenanceMargin(marketMaker, 1)).toString(), '0')
+      assert.equal((await marginRequirements.maintenanceMargin(marketMaker, 1)).toString(), '0')
 
       // emits event
       const { logs } = tx
@@ -1097,10 +1307,10 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const marginPoolBalBeforeWBTC = new BigNumber(await wbtc.balanceOf(marginPool.address))
       const marketMakerBalBeforeWBTC = new BigNumber(await wbtc.balanceOf(marketMaker))
 
-      // assert.isAbove((await marginRequirements.maintenanceMargin(marketMaker, 2)).toNumber(), 0)
+      assert.isAbove((await marginRequirements.maintenanceMargin(marketMaker, 2)).toNumber(), 0)
 
       // call settle vault
-      const tx = await otcWrapperProxy.settleVault(4, { from: marketMaker })
+      const tx = await otcWrapperProxy.settleVault(6, { from: marketMaker })
 
       const marginPoolBalAfterWBTC = new BigNumber(await wbtc.balanceOf(marginPool.address))
       const marketMakerBalAfterWBTC = new BigNumber(await wbtc.balanceOf(marketMaker))
@@ -1111,11 +1321,36 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(marginPoolBalAfterWBTC.toString(), '0')
 
       // maintenance margin was cleared
-      // assert.equal((await marginRequirements.maintenanceMargin(marketMaker, 1)).toString(), '0')
+      assert.equal((await marginRequirements.maintenanceMargin(marketMaker, 1)).toString(), '0')
 
       // emits event
       const { logs } = tx
-      assert.equal(logs[0].args.orderID.toString(), '4')
+      assert.equal(logs[0].args.orderID.toString(), '6')
+    })
+  })
+
+  describe('Upgrade contract to new minimal forwarder', () => {
+    it('successfully upgrades the contract to new minimal forwarder', async () => {
+      // deploy new forwarder
+      newMinimalForwarder = await MinimalForwarder.new()
+
+      // deploy new OTC wrapper implementation pointing to new forwarder
+      const newOTCWrapperImplementation = await OTCWrapper.new(newMinimalForwarder.address)
+
+      // upgrade proxy to new OTC wrapper implementation
+      const proxy = await OwnedUpgradeabilityProxy.at(otcWrapperProxy.address)
+
+      // initial state
+      assert.equal((await proxy.implementation()).toString(), otcWrapperImplementation.address)
+      assert.equal((await otcWrapperProxy.isTrustedForwarder(minimalForwarder.address)).toString(), 'true')
+      assert.equal((await otcWrapperProxy.isTrustedForwarder(newMinimalForwarder.address)).toString(), 'false')
+
+      await proxy.upgradeTo(newOTCWrapperImplementation.address)
+
+      // final state
+      assert.equal((await proxy.implementation()).toString(), newOTCWrapperImplementation.address)
+      assert.equal((await otcWrapperProxy.isTrustedForwarder(minimalForwarder.address)).toString(), 'false')
+      assert.equal((await otcWrapperProxy.isTrustedForwarder(newMinimalForwarder.address)).toString(), 'true')
     })
   })
 })

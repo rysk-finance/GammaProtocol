@@ -1,40 +1,42 @@
 /**
  * SPDX-License-Identifier: UNLICENSED
  */
-pragma solidity =0.6.10;
+pragma solidity 0.8.10;
 
-pragma experimental ABIEncoderV2;
-
-import {OwnableUpgradeSafe} from "../packages/oz/upgradeability/OwnableUpgradeSafe.sol";
-import {Initializable} from "../packages/oz/upgradeability/Initializable.sol";
-import {ReentrancyGuardUpgradeSafe} from "../packages/oz/upgradeability/ReentrancyGuardUpgradeSafe.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Permit} from "@openzeppelin/contracts/drafts/IERC20Permit.sol";
-import {MarginRequirementsInterface} from "../interfaces/MarginRequirementsInterface.sol";
-import {ControllerInterface} from "../interfaces/ControllerInterface.sol";
-import {AddressBookInterface} from "../interfaces/AddressBookInterface.sol";
-import {WhitelistInterface} from "../interfaces/WhitelistInterface.sol";
-import {SafeMath} from "../packages/oz/SafeMath.sol";
-import {Actions} from "../libs/Actions.sol";
-import {OracleInterface} from "../interfaces/OracleInterface.sol";
-import {IOtokenFactoryInterface} from "../interfaces/IOtokenFactoryInterface.sol";
-import {MarginVault} from "../libs/MarginVault.sol";
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import {ERC2771ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
+import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
+import {MarginRequirementsWrapperInterface} from "../interfaces/otcWrapperInterfaces/MarginRequirementsWrapperInterface.sol";
+import {ControllerWrapperInterface} from "../interfaces/otcWrapperInterfaces/ControllerWrapperInterface.sol";
+import {AddressBookWrapperInterface} from "../interfaces/otcWrapperInterfaces/AddressBookWrapperInterface.sol";
+import {WhitelistWrapperInterface} from "../interfaces/otcWrapperInterfaces/WhitelistWrapperInterface.sol";
+import {UtilsWrapperInterface} from "../interfaces/otcWrapperInterfaces/UtilsWrapperInterface.sol";
+import {OracleWrapperInterface} from "../interfaces/otcWrapperInterfaces/OracleWrapperInterface.sol";
+import {IOtokenFactoryWrapperInterface} from "../interfaces/otcWrapperInterfaces/IOtokenFactoryWrapperInterface.sol";
+import {MinimalForwarder} from "@openzeppelin/contracts/metatx/MinimalForwarder.sol";
+import {SupportsNonCompliantERC20} from "../libs/SupportsNonCompliantERC20.sol";
 
 /**
  * @title OTC Wrapper
  * @author Ribbon Team
  * @notice Contract that overlays Gamma Protocol for the OTC related interactions
  */
-contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe {
+contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, ERC2771ContextUpgradeable {
     using SafeERC20 for IERC20;
+    using SupportsNonCompliantERC20 for IERC20;
     using SafeMath for uint256;
 
-    AddressBookInterface public addressbook;
-    MarginRequirementsInterface public marginRequirements;
-    ControllerInterface public controller;
-    OracleInterface public oracle;
-    WhitelistInterface public whitelist;
+    AddressBookWrapperInterface public addressbook;
+    MarginRequirementsWrapperInterface public marginRequirements;
+    ControllerWrapperInterface public controller;
+    OracleWrapperInterface public oracle;
+    WhitelistWrapperInterface public whitelist;
 
     /************************************************
      *  EVENTS
@@ -128,12 +130,12 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
     // struct defining permit signature details
     struct Permit {
-        // permit account
-        address acct;
         // permit amount
         uint256 amount;
         // permit deadline
         uint256 deadline;
+        // permit account
+        address acct;
         // v component of permit signature
         uint8 v;
         // r component of permit signature
@@ -151,7 +153,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     }
 
     ///@dev mapping between an asset address to a struct consisting of uint256 min and a uint256 max which will be its notional floor and cap size allowed
-    mapping(address => MinMaxNotional) internal minMaxNotional;
+    mapping(address => MinMaxNotional) public minMaxNotional;
 
     ///@notice mapping between order id and order details
     mapping(uint256 => Order) public orders;
@@ -168,6 +170,13 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
+
+    /**
+     * @notice constructor related to ERC2771
+     * @param _trustedForwarder trusted forwarder address
+     */
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(MinimalForwarder _trustedForwarder) ERC2771ContextUpgradeable(address(_trustedForwarder)) {}
 
     /**
      * @notice initialize the deployed contract
@@ -190,14 +199,14 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         require(_fillDeadline > 0, "OTCWrapper: fill deadline cannot be 0");
         require(_usdc != address(0), "OTCWrapper: usdc address cannot be 0");
 
-        __Ownable_init(_owner);
-        __ReentrancyGuard_init_unchained();
+        __Ownable_init();
+        __ReentrancyGuard_init();
 
-        addressbook = AddressBookInterface(_addressBook);
-        marginRequirements = MarginRequirementsInterface(addressbook.getMarginRequirements());
-        controller = ControllerInterface(addressbook.getController());
-        oracle = OracleInterface(addressbook.getOracle());
-        whitelist = WhitelistInterface(addressbook.getWhitelist());
+        addressbook = AddressBookWrapperInterface(_addressBook);
+        marginRequirements = MarginRequirementsWrapperInterface(addressbook.getMarginRequirements());
+        controller = ControllerWrapperInterface(addressbook.getController());
+        oracle = OracleWrapperInterface(addressbook.getOracle());
+        whitelist = WhitelistWrapperInterface(addressbook.getWhitelist());
 
         beneficiary = _beneficiary;
         fillDeadline = _fillDeadline;
@@ -303,12 +312,12 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         collateralInterface.safeTransferFrom(msg.sender, address(this), _amount);
 
         // approve margin pool to deposit collateral
-        collateralInterface.safeApprove(addressbook.getMarginPool(), _amount);
+        collateralInterface.safeApproveNonCompliant(addressbook.getMarginPool(), _amount);
 
-        Actions.ActionArgs[] memory actions = new Actions.ActionArgs[](1);
+        UtilsWrapperInterface.ActionArgs[] memory actions = new UtilsWrapperInterface.ActionArgs[](1);
 
-        actions[0] = Actions.ActionArgs(
-            Actions.ActionType.DepositCollateral,
+        actions[0] = UtilsWrapperInterface.ActionArgs(
+            UtilsWrapperInterface.ActionType.DepositCollateral,
             address(this), // owner
             address(this), // address to transfer from
             order.collateral, // deposited asset
@@ -337,24 +346,24 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
         require(order.seller == msg.sender, "OTCWrapper: sender is not the order seller");
 
-        (MarginVault.Vault memory vault, , ) = controller.getVaultWithDetails(address(this), order.vaultID);
+        (UtilsWrapperInterface.Vault memory vault, , ) = controller.getVaultWithDetails(address(this), order.vaultID);
 
         require(
             marginRequirements.checkWithdrawCollateral(
                 order.seller,
+                order.notional,
                 _amount,
                 order.oToken,
-                order.underlying,
                 order.vaultID,
                 vault
             ),
             "OTCWrapper: insufficient collateral"
         );
 
-        Actions.ActionArgs[] memory actions = new Actions.ActionArgs[](1);
+        UtilsWrapperInterface.ActionArgs[] memory actions = new UtilsWrapperInterface.ActionArgs[](1);
 
-        actions[0] = Actions.ActionArgs(
-            Actions.ActionType.WithdrawCollateral,
+        actions[0] = UtilsWrapperInterface.ActionArgs(
+            UtilsWrapperInterface.ActionType.WithdrawCollateral,
             address(this), // owner
             msg.sender, // address to transfer to
             order.collateral, // withdrawn asset
@@ -421,56 +430,6 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         uint256 _premium,
         uint256 _notional
     ) external {
-        _placeOrderFor(_underlying, _isPut, _strikePrice, _expiry, _premium, _notional, msg.sender);
-    }
-
-    /**
-     * @notice places an order on behalf of a user
-     * @param _underlying underlying asset address
-     * @param _isPut option type the vault is selling
-     * @param _strikePrice option strike price
-     * @param _expiry option expiry timestamp
-     * @param _premium order premium amount
-     * @param _notional order notional
-     * @param _user user address
-     * @param _deadline permit deadline
-     * @param _v is a valid signature
-     * @param _r is a valid signature
-     * @param _s is a valid signature
-     */
-    /*     function placeOrderFor(
-        address _underlying,
-        bool _isPut,
-        uint256 _strikePrice,
-        uint256 _expiry,
-        uint256 _premium,
-        uint256 _notional,
-        address _user,
-        uint256 _deadline,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s
-    ) external {} */
-
-    /**
-     * @notice places an order
-     * @param _underlying underlying asset address
-     * @param _isPut option type the vault is selling
-     * @param _strikePrice option strike price
-     * @param _expiry option expiry timestamp
-     * @param _premium order premium amount
-     * @param _notional order notional
-     * @param _user user address
-     */
-    function _placeOrderFor(
-        address _underlying,
-        bool _isPut,
-        uint256 _strikePrice,
-        uint256 _expiry,
-        uint256 _premium,
-        uint256 _notional,
-        address _user
-    ) internal {
         require(
             _notional > minMaxNotional[_underlying].min && _notional < minMaxNotional[_underlying].max,
             "OTCWrapper: invalid notional value"
@@ -487,14 +446,14 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
             _expiry,
             _premium,
             _notional,
-            _user,
+            _msgSender(),
             address(0),
             0,
             address(0),
             block.timestamp
         );
 
-        emit OrderPlaced(latestOrder, _underlying, _isPut, _strikePrice, _expiry, _premium, _notional, _user);
+        emit OrderPlaced(latestOrder, _underlying, _isPut, _strikePrice, _expiry, _premium, _notional, _msgSender());
     }
 
     /**
@@ -595,10 +554,10 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         // open vault
         uint256 vaultID = (controller.getAccountVaultCounter(address(this))).add(1);
 
-        Actions.ActionArgs[] memory actions = new Actions.ActionArgs[](3);
+        UtilsWrapperInterface.ActionArgs[] memory actions = new UtilsWrapperInterface.ActionArgs[](3);
 
-        actions[0] = Actions.ActionArgs(
-            Actions.ActionType.OpenVault,
+        actions[0] = UtilsWrapperInterface.ActionArgs(
+            UtilsWrapperInterface.ActionType.OpenVault,
             address(this), // owner
             address(this), // receiver
             address(0), // asset, otoken
@@ -609,11 +568,11 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         );
 
         // Approve margin pool to deposit collateral
-        IERC20(_collateralAsset).safeApprove(addressbook.getMarginPool(), totalInitialMargin);
+        IERC20(_collateralAsset).safeApproveNonCompliant(addressbook.getMarginPool(), totalInitialMargin);
 
         // deposit collateral
-        actions[1] = Actions.ActionArgs(
-            Actions.ActionType.DepositCollateral,
+        actions[1] = UtilsWrapperInterface.ActionArgs(
+            UtilsWrapperInterface.ActionType.DepositCollateral,
             address(this), // owner
             address(this), // address to transfer from
             _collateralAsset, // deposited asset
@@ -624,7 +583,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         );
 
         // create otoken, get an address and calculate mint amount
-        address otoken = IOtokenFactoryInterface(addressbook.getOtokenFactory()).createOtoken(
+        address otoken = IOtokenFactoryWrapperInterface(addressbook.getOtokenFactory()).createOtoken(
             order.underlying,
             USDC,
             _collateralAsset,
@@ -637,8 +596,8 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         // scales by 1e2 to increase from 6 decimals (notional) to 8 decimals (otoken)
         uint256 mintAmount = order.notional.mul(1e10).div(oracle.getPrice(order.underlying));
 
-        actions[2] = Actions.ActionArgs(
-            Actions.ActionType.MintShortOption,
+        actions[2] = UtilsWrapperInterface.ActionArgs(
+            UtilsWrapperInterface.ActionType.MintShortOption,
             address(this), // owner
             address(this), // address to transfer to
             otoken, // option address
@@ -677,10 +636,10 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
         require(order.seller == msg.sender, "OTCWrapper: sender is not the order seller");
 
-        Actions.ActionArgs[] memory actions = new Actions.ActionArgs[](1);
+        UtilsWrapperInterface.ActionArgs[] memory actions = new UtilsWrapperInterface.ActionArgs[](1);
 
-        actions[0] = Actions.ActionArgs(
-            Actions.ActionType.SettleVault,
+        actions[0] = UtilsWrapperInterface.ActionArgs(
+            UtilsWrapperInterface.ActionType.SettleVault,
             address(this), // owner
             msg.sender, // address to transfer to
             address(0), // not used
@@ -697,5 +656,35 @@ contract OTCWrapper is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         marginRequirements.clearMaintenanceMargin(msg.sender, order.vaultID);
 
         emit VaultSettled(_orderID);
+    }
+
+    /************************************************
+     *  MISCELLANEOUS
+     ***********************************************/
+
+    /**
+     * @dev overrides _msgSender() related to ERC2771
+     */
+    function _msgSender()
+        internal
+        view
+        virtual
+        override(ContextUpgradeable, ERC2771ContextUpgradeable)
+        returns (address sender)
+    {
+        return ERC2771ContextUpgradeable._msgSender();
+    }
+
+    /**
+     * @dev overrides _msgData() related to ERC2771
+     */
+    function _msgData()
+        internal
+        view
+        virtual
+        override(ContextUpgradeable, ERC2771ContextUpgradeable)
+        returns (bytes calldata)
+    {
+        return ERC2771ContextUpgradeable._msgData();
     }
 }
