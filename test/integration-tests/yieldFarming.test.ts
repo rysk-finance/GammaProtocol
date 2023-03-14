@@ -139,10 +139,10 @@ contract('Yield Farming: Naked Put Option closed before expiry flow', ([admin, a
 
     // mint usdc to user
     const accountOwner1Usdc = createTokenAmount(2 * usdcCollateralAmount, usdcDecimals)
-    usdc.mint(accountOwner1, accountOwner1Usdc)
+    await usdc.mint(accountOwner1, accountOwner1Usdc)
 
     // have the user approve all the usdc transfers
-    usdc.approve(marginPool.address, accountOwner1Usdc, { from: accountOwner1 })
+    await usdc.approve(marginPool.address, accountOwner1Usdc, { from: accountOwner1 })
 
     const vaultCounterBefore = new BigNumber(await controllerProxy.getAccountVaultCounter(accountOwner1))
     vaultCounter = vaultCounterBefore.plus(1).toNumber()
