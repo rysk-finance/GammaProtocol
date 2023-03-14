@@ -10,7 +10,6 @@ import {
   AddressBookInstance,
   OwnedUpgradeabilityProxyInstance,
   OtokenImplV1Instance,
-  MarginRequirementsInstance,
 } from '../../build/types/truffle-types'
 import BigNumber from 'bignumber.js'
 import { createTokenAmount, createScaledNumber } from '../utils'
@@ -29,7 +28,6 @@ const AddressBook = artifacts.require('AddressBook.sol')
 const MarginPool = artifacts.require('MarginPool.sol')
 const Controller = artifacts.require('Controller.sol')
 const MarginVault = artifacts.require('MarginVault.sol')
-const MarginRequirements = artifacts.require('MarginRequirements.sol')
 
 // address(0)
 const ZERO_ADDR = '0x0000000000000000000000000000000000000000'
@@ -63,8 +61,6 @@ contract(
     let marginPool: MarginPoolInstance
     // whitelist module mock
     let whitelist: MockWhitelistModuleInstance
-    // margin requirements
-    let marginRequirements: MarginRequirementsInstance
     // addressbook module mock
     let addressBook: AddressBookInstance
     // controller module
@@ -89,8 +85,6 @@ contract(
       marginPool = await MarginPool.new(addressBook.address)
       // whitelist module
       whitelist = await MockWhitelistModule.new()
-      // deploy MarginRequirements module
-      marginRequirements = await MarginRequirements.new(addressBook.address)
       // set margin pool in addressbook
       await addressBook.setMarginPool(marginPool.address)
       // set calculator in addressbook
@@ -99,8 +93,6 @@ contract(
       await addressBook.setOracle(oracle.address)
       // set whitelist module address
       await addressBook.setWhitelist(whitelist.address)
-      // set margin requirements module address
-      await addressBook.setMarginRequirements(marginRequirements.address)
       // deploy Controller module
       const lib = await MarginVault.new()
       await Controller.link('MarginVault', lib.address)
@@ -3811,7 +3803,7 @@ contract(
           const marginPoolBalanceBefore = new BigNumber(await usdc.balanceOf(marginPool.address))
           const senderBalanceBefore = new BigNumber(await usdc.balanceOf(accountOwner1))
 
-          controllerProxy.operate(actionArgs, { from: accountOwner1 })
+          await controllerProxy.operate(actionArgs, { from: accountOwner1 })
 
           const marginPoolBalanceAfter = new BigNumber(await usdc.balanceOf(marginPool.address))
           const senderBalanceAfter = new BigNumber(await usdc.balanceOf(accountOwner1))
@@ -4600,7 +4592,7 @@ contract(
             data: ZERO_ADDR,
           },
         ]
-        await expectRevert(controllerProxy.operate(actionArgs, { from: accountOwner1 }), '.')
+        await expectRevert(controllerProxy.operate(actionArgs, { from: accountOwner1 }), 'C5')
       })
 
       it('should revert depositing collateral when system is in full pause state', async () => {
@@ -4765,7 +4757,7 @@ contract(
       })
     })
 
-/*     describe('Refresh configuration', () => {
+    /*     describe('Refresh configuration', () => {
       it('should revert refreshing configuration from address other than owner', async () => {
         await expectRevert(controllerProxy.refreshConfiguration({ from: random }), 'Ownable: caller is not the owner')
       })
