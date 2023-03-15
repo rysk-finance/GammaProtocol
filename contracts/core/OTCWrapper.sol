@@ -69,10 +69,10 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     );
 
     /// @notice emits an event when collateral is deposited
-    event CollateralDeposited(uint256 indexed orderID, uint256 amount);
+    event CollateralDeposited(uint256 indexed orderID, uint256 amount, address indexed acct);
 
     /// @notice emits an event when collateral is withdrawn
-    event CollateralWithdrawn(uint256 indexed orderID, uint256 amount);
+    event CollateralWithdrawn(uint256 indexed orderID, uint256 amount, address indexed acct);
 
     /// @notice emits an event when a vault is settled
     event VaultSettled(uint256 indexed orderID);
@@ -330,7 +330,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         // execute actions
         controller.operate(actions);
 
-        emit CollateralDeposited(_orderID, _amount);
+        emit CollateralDeposited(_orderID, _amount, order.seller);
     }
 
     /**
@@ -365,7 +365,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         actions[0] = UtilsWrapperInterface.ActionArgs(
             UtilsWrapperInterface.ActionType.WithdrawCollateral,
             address(this), // owner
-            msg.sender, // address to transfer to
+            order.seller, // address to transfer to
             order.collateral, // withdrawn asset
             order.vaultID, // vaultId
             _amount, // amount
@@ -376,7 +376,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         // execute actions
         controller.operate(actions);
 
-        emit CollateralWithdrawn(_orderID, _amount);
+        emit CollateralWithdrawn(_orderID, _amount, order.seller);
     }
 
     /**

@@ -1130,6 +1130,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const { logs } = tx
       assert.equal(logs[0].args.orderID.toString(), '1')
       assert.equal(logs[0].args.amount.toString(), depositAmount)
+      assert.equal(logs[0].args.acct.toString(), marketMaker)
     })
   })
 
@@ -1196,6 +1197,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const { logs } = tx
       assert.equal(logs[0].args.orderID.toString(), '1')
       assert.equal(logs[0].args.amount.toString(), withdrawAmount)
+      assert.equal(logs[0].args.acct.toString(), marketMaker)
     })
   })
 
