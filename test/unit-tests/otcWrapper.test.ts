@@ -548,9 +548,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if initialized with 0 asset address', async () => {
       await expectRevert(otcWrapperProxy.setFee(ZERO_ADDR, 1), 'OTCWrapper: asset address cannot be 0')
     })
-    it('should revert if initialized with 0 fee', async () => {
-      await expectRevert(otcWrapperProxy.setFee(random, 0), 'OTCWrapper: fee cannot be 0')
-    })
     it('should revert if caller is not the owner', async () => {
       await expectRevert(otcWrapperProxy.setFee(random, 0, { from: random }), 'Ownable: caller is not the owner')
     })
