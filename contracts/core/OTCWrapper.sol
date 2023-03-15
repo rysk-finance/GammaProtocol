@@ -484,7 +484,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         uint256 _collateralAmount
     ) external nonReentrant {
         require(orderStatus[_orderID] == OrderStatus.Pending, "OTCWrapper: inexistent or unsuccessful order");
-        require(isWhitelistedMarketMaker[msg.sender], "OTCWrapper: address not whitelisted to execute");
+        require(isWhitelistedMarketMaker[msg.sender], "OTCWrapper: address not whitelisted marketmaker");
         require(_userSignature.amount >= _premium, "OTCWrapper: insufficient amount");
 
         Order memory order = orders[_orderID];
