@@ -231,8 +231,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         require(_min > 0, "OTCWrapper: minimum notional cannot be 0");
         require(_max > 0, "OTCWrapper: maximum notional cannot be 0");
 
-        minMaxNotional[_underlying].min = _min;
-        minMaxNotional[_underlying].max = _max;
+        minMaxNotional[_underlying] = MinMaxNotional(_min, _max);
     }
 
     /**
