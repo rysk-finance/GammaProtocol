@@ -182,19 +182,16 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice initialize the deployed contract
      * @param _beneficiary beneficiary address
      * @param _addressBook AddressBook address
-     * @param _owner owner address
      * @param _fillDeadline fill deadline duration
      * @param _usdc USDC address
      */
     function initialize(
         address _addressBook,
-        address _owner,
         address _beneficiary,
         uint256 _fillDeadline,
         address _usdc
     ) external initializer {
         require(_addressBook != address(0), "OTCWrapper: addressbook address cannot be 0");
-        require(_owner != address(0), "OTCWrapper: owner address cannot be 0");
         require(_beneficiary != address(0), "OTCWrapper: beneficiary address cannot be 0");
         require(_fillDeadline > 0, "OTCWrapper: fill deadline cannot be 0");
         require(_usdc != address(0), "OTCWrapper: usdc address cannot be 0");

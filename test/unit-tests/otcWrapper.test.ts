@@ -221,7 +221,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     ownedUpgradeabilityProxy.upgradeTo(otcWrapperImplementation.address)
     otcWrapperProxy = await OTCWrapper.at(ownedUpgradeabilityProxy.address)
 
-    otcWrapperProxy.initialize(addressBook.address, admin, admin, 15 * 60, usdc.address)
+    otcWrapperProxy.initialize(addressBook.address, admin, 15 * 60, usdc.address)
 
     // set OTC wrapper address in addressbook
     await addressBook.setOTCWrapper(otcWrapperProxy.address)
@@ -456,34 +456,27 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if initialized with 0 addressBook address', async () => {
       const otcWrapper = await OTCWrapper.new(minimalForwarder.address)
       await expectRevert(
-        otcWrapper.initialize(ZERO_ADDR, admin, beneficiary, new BigNumber(15 * 60), usdc.address),
+        otcWrapper.initialize(ZERO_ADDR, beneficiary, new BigNumber(15 * 60), usdc.address),
         'OTCWrapper: addressbook address cannot be 0',
-      )
-    })
-    it('should revert if initialized with 0 owner address', async () => {
-      const otcWrapper = await OTCWrapper.new(minimalForwarder.address)
-      await expectRevert(
-        otcWrapper.initialize(addressBook.address, ZERO_ADDR, beneficiary, new BigNumber(15 * 60), usdc.address),
-        'OTCWrapper: owner address cannot be 0',
       )
     })
     it('should revert if initialized with 0 beneficiary address', async () => {
       const otcWrapper = await OTCWrapper.new(minimalForwarder.address)
       await expectRevert(
-        otcWrapper.initialize(addressBook.address, admin, ZERO_ADDR, new BigNumber(15 * 60), usdc.address),
+        otcWrapper.initialize(addressBook.address, ZERO_ADDR, new BigNumber(15 * 60), usdc.address),
         'OTCWrapper: beneficiary address cannot be 0',
       )
     })
     it('should revert if initialized with 0 fill deadline', async () => {
       const otcWrapper = await OTCWrapper.new(minimalForwarder.address)
       await expectRevert(
-        otcWrapper.initialize(addressBook.address, admin, random, new BigNumber(0), usdc.address),
+        otcWrapper.initialize(addressBook.address, random, new BigNumber(0), usdc.address),
         'OTCWrapper: fill deadline cannot be 0',
       )
     })
     it('should revert if initialized twice', async () => {
       await expectRevert(
-        otcWrapperProxy.initialize(addressBook.address, admin, admin, 15 * 60, usdc.address),
+        otcWrapperProxy.initialize(addressBook.address, admin, 15 * 60, usdc.address),
         'Initializable: contract is already initialized',
       )
     })
