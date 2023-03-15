@@ -95,9 +95,9 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
     // order status
     enum OrderStatus {
+        Failed,
         Pending,
-        Succeeded,
-        Failed
+        Succeeded
     }
 
     // struct defining order details
@@ -291,7 +291,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param _amount amount to deposit
      */
     function depositCollateral(uint256 _orderID, uint256 _amount) external nonReentrant {
-        require(_orderID <= latestOrder, "OTCWrapper: inexistent order");
+        require(orderStatus[_orderID] == OrderStatus.Succeeded, "OTCWrapper: inexistent or unsuccessful order");
 
         Order memory order = orders[_orderID];
 
@@ -331,7 +331,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param _amount amount to withdraw
      */
     function withdrawCollateral(uint256 _orderID, uint256 _amount) external nonReentrant {
-        require(_orderID <= latestOrder, "OTCWrapper: inexistent order");
+        require(orderStatus[_orderID] == OrderStatus.Succeeded, "OTCWrapper: inexistent or unsuccessful order");
 
         Order memory order = orders[_orderID];
 
@@ -444,6 +444,8 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             block.timestamp
         );
 
+        orderStatus[latestOrder] = OrderStatus.Pending;
+
         emit OrderPlaced(latestOrder, _underlying, _isPut, _strikePrice, _expiry, _premium, _notional, _msgSender());
     }
 
@@ -452,9 +454,8 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param _orderID order id
      */
     function undoOrder(uint256 _orderID) external {
-        require(_orderID <= latestOrder, "OTCWrapper: inexistent order");
+        require(orderStatus[_orderID] == OrderStatus.Pending, "OTCWrapper: inexistent or unsuccessful order");
         require(orders[_orderID].buyer == msg.sender, "OTCWrapper: only buyer can undo the order");
-        require(orderStatus[_orderID] == OrderStatus.Pending, "OTCWrapper: can only undo pending orders");
 
         orderStatus[_orderID] = OrderStatus.Failed;
 
@@ -482,8 +483,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         address _collateralAsset,
         uint256 _collateralAmount
     ) external nonReentrant {
-        require(_orderID <= latestOrder, "OTCWrapper: inexistent order");
-        require(orderStatus[_orderID] == OrderStatus.Pending, "OTCWrapper: only pending orders can be executed");
+        require(orderStatus[_orderID] == OrderStatus.Pending, "OTCWrapper: inexistent or unsuccessful order");
         require(isWhitelistedMarketMaker[msg.sender], "OTCWrapper: address not whitelisted to execute");
         require(_userSignature.amount >= _premium, "OTCWrapper: insufficient amount");
 
@@ -621,7 +621,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param _orderID order id
      */
     function settleVault(uint256 _orderID) external nonReentrant {
-        require(_orderID <= latestOrder, "OTCWrapper: inexistent order");
+        require(orderStatus[_orderID] == OrderStatus.Succeeded, "OTCWrapper: inexistent or unsuccessful order");
 
         Order memory order = orders[_orderID];
 

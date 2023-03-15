@@ -735,9 +735,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   })
 
   describe('Undo order', () => {
-    it('should revert if orderID is higher than lastest order', async () => {
-      await expectRevert(otcWrapperProxy.undoOrder(20, { from: user }), 'OTCWrapper: inexistent order')
-    })
     it('should revert if order buyer is not the caller', async () => {
       await expectRevert(otcWrapperProxy.undoOrder(1, { from: random }), 'OTCWrapper: only buyer can undo the order')
     })
@@ -747,36 +744,47 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         from: user,
       })
 
-      assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
+      assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '1')
 
       const tx = await otcWrapperProxy.undoOrder(2, { from: user })
 
-      assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '2')
+      assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
 
       // emits event
       const { logs } = tx
       assert.equal(logs[0].args.orderID.toString(), '2')
     })
-    it('should revert if order status is not pending', async () => {
-      await expectRevert(otcWrapperProxy.undoOrder(2, { from: user }), 'OTCWrapper: can only undo pending orders')
+    it('should revert if orderID is higher than lastest order or the order status is not pending', async () => {
+      // Inexistent order
+      await expectRevert(
+        otcWrapperProxy.depositCollateral(20, 1, { from: marketMaker }),
+        'OTCWrapper: inexistent or unsuccessful order',
+      )
+
+      // Failed order
+      assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
+
+      await expectRevert(
+        otcWrapperProxy.depositCollateral(2, 1, { from: marketMaker }),
+        'OTCWrapper: inexistent or unsuccessful order',
+      )
     })
   })
 
   describe('Execute order', () => {
-    it('should revert if orderID is higher than lastest order', async () => {
+    it('should revert if orderID is higher than lastest order or the order status is not pending', async () => {
+      // Inexistent order
       await expectRevert(
-        otcWrapperProxy.executeOrder(20, userSignature1, mmSignatureUSDC, 1, usdc.address, 1, {
-          from: marketMaker,
-        }),
-        'OTCWrapper: inexistent order',
+        otcWrapperProxy.depositCollateral(20, 1, { from: marketMaker }),
+        'OTCWrapper: inexistent or unsuccessful order',
       )
-    })
-    it('should revert if order status is not pending', async () => {
+
+      // Failed order
+      assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
+
       await expectRevert(
-        otcWrapperProxy.executeOrder(2, userSignature1, mmSignatureUSDC, 1, usdc.address, 1, {
-          from: marketMaker,
-        }),
-        'OTCWrapper: only pending orders can be executed',
+        otcWrapperProxy.depositCollateral(2, 1, { from: marketMaker }),
+        'OTCWrapper: inexistent or unsuccessful order',
       )
     })
     it('should revert if market maker is not whitelisted', async () => {
@@ -929,7 +937,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orders(1))[1].toString(), usdc.address)
       assert.equal((await otcWrapperProxy.orders(1))[8].toString(), marketMaker)
       assert.equal((await otcWrapperProxy.orders(1))[9].toString(), '1')
-      assert.equal((await otcWrapperProxy.orderStatus(1)).toString(), '1')
+      assert.equal((await otcWrapperProxy.orderStatus(1)).toString(), '2')
 
       // emits event
       const { logs } = tx
@@ -1042,7 +1050,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orders(6))[1].toString(), wbtc.address)
       assert.equal((await otcWrapperProxy.orders(6))[8].toString(), marketMaker)
       assert.equal((await otcWrapperProxy.orders(6))[9].toString(), '2')
-      assert.equal((await otcWrapperProxy.orderStatus(6)).toString(), '1')
+      assert.equal((await otcWrapperProxy.orderStatus(6)).toString(), '2')
 
       // emits event
       const { logs } = tx
@@ -1073,10 +1081,19 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   })
 
   describe('Deposit collateral', () => {
-    it('should revert if orderID is higher than lastest order', async () => {
+    it('should revert if orderID is higher than lastest order or the order status is not succeeded', async () => {
+      // Inexistent order
       await expectRevert(
         otcWrapperProxy.depositCollateral(20, 1, { from: marketMaker }),
-        'OTCWrapper: inexistent order',
+        'OTCWrapper: inexistent or unsuccessful order',
+      )
+
+      // Failed order
+      assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
+
+      await expectRevert(
+        otcWrapperProxy.depositCollateral(2, 1, { from: marketMaker }),
+        'OTCWrapper: inexistent or unsuccessful order',
       )
     })
     it('should revert if seller is not the caller', async () => {
@@ -1119,10 +1136,19 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   })
 
   describe('Withdraw collateral', () => {
-    it('should revert if orderID is higher than lastest order', async () => {
+    it('should revert if orderID is higher than lastest order  or the order status is not succeeded', async () => {
+      // Inexistent order
       await expectRevert(
-        otcWrapperProxy.withdrawCollateral(20, 1, { from: marketMaker }),
-        'OTCWrapper: inexistent order',
+        otcWrapperProxy.depositCollateral(20, 1, { from: marketMaker }),
+        'OTCWrapper: inexistent or unsuccessful order',
+      )
+
+      // Failed order
+      assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
+
+      await expectRevert(
+        otcWrapperProxy.depositCollateral(2, 1, { from: marketMaker }),
+        'OTCWrapper: inexistent or unsuccessful order',
       )
     })
     it('should revert if seller is not the caller', async () => {
@@ -1186,8 +1212,20 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   })
 
   describe('Settle vault', () => {
-    it('should revert if orderID is higher than lastest order', async () => {
-      await expectRevert(otcWrapperProxy.settleVault(20, { from: marketMaker }), 'OTCWrapper: inexistent order')
+    it('should revert if orderID is higher than lastest order or the order status is not succeeded', async () => {
+      // Inexistent order
+      await expectRevert(
+        otcWrapperProxy.depositCollateral(20, 1, { from: marketMaker }),
+        'OTCWrapper: inexistent or unsuccessful order',
+      )
+
+      // Failed order
+      assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
+
+      await expectRevert(
+        otcWrapperProxy.depositCollateral(2, 1, { from: marketMaker }),
+        'OTCWrapper: inexistent or unsuccessful order',
+      )
     })
     it('should revert if seller is not the caller', async () => {
       await expectRevert(otcWrapperProxy.settleVault(1, { from: random }), 'OTCWrapper: sender is not the order seller')
