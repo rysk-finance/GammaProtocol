@@ -250,7 +250,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice sets the fee for a given the underlying asset
      * @dev can only be called by owner
      * @param _underlying underlying asset address
-     * @param _fee fee amount in bps (100 = 1%)
+     * @param _fee fee amount in bps (4bps = 0.04%)
      */
     function setFee(address _underlying, uint256 _fee) external onlyOwner {
         require(_underlying != address(0), "OTCWrapper: asset address cannot be 0");
@@ -493,7 +493,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         require(block.timestamp <= order.openedAt.add(fillDeadline), "OTCWrapper: deadline has passed");
         require(whitelist.isWhitelistedCollateral(_collateralAsset), "OTCWrapper: collateral is not whitelisted");
 
-        uint256 orderFee = (order.notional.mul(fee[order.underlying])).div(10000);
+        uint256 orderFee = (order.notional.mul(fee[order.underlying])).div(10000); // eg. fee = 4bps = 0.04% , then need to divide by 100 again so (( 4 / 100 ) / 100)
 
         uint256 totalInitialMargin = _collateralAmount;
         if (_collateralAsset == USDC) {
