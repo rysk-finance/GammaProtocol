@@ -37,6 +37,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     ControllerWrapperInterface public controller;
     OracleWrapperInterface public oracle;
     WhitelistWrapperInterface public whitelist;
+    IOtokenFactoryWrapperInterface public OTokenFactory;
 
     /************************************************
      *  EVENTS
@@ -211,6 +212,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         controller = ControllerWrapperInterface(addressbook.getController());
         oracle = OracleWrapperInterface(addressbook.getOracle());
         whitelist = WhitelistWrapperInterface(addressbook.getWhitelist());
+        OTokenFactory = IOtokenFactoryWrapperInterface(addressbook.getOtokenFactory());
 
         beneficiary = _beneficiary;
         fillDeadline = _fillDeadline;
@@ -574,7 +576,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         );
 
         // create otoken, get an address and calculate mint amount
-        address otoken = IOtokenFactoryWrapperInterface(addressbook.getOtokenFactory()).createOtoken(
+        address oToken = OTokenFactory.getOtoken(
             order.underlying,
             USDC,
             _collateralAsset,
@@ -582,6 +584,17 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             order.expiry,
             order.isPut
         );
+
+        if (oToken == address(0)) {
+            oToken = OTokenFactory.createOtoken(
+                order.underlying,
+                USDC,
+                _collateralAsset,
+                order.strikePrice,
+                order.expiry,
+                order.isPut
+            );
+        }
 
         // scales by 1e8 for division with oracle price
         // scales by 1e2 to increase from 6 decimals (notional) to 8 decimals (otoken)
@@ -591,7 +604,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             UtilsWrapperInterface.ActionType.MintShortOption,
             address(this), // owner
             order.buyer, // address to transfer to
-            otoken, // option address
+            oToken, // option address
             vaultID, // vaultId
             mintAmount, // amount
             0, // index
@@ -606,12 +619,12 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         orders[_orderID].collateral = _collateralAsset;
         orders[_orderID].seller = msg.sender;
         orders[_orderID].vaultID = vaultID;
-        orders[_orderID].oToken = otoken;
+        orders[_orderID].oToken = oToken;
         orderStatus[_orderID] = OrderStatus.Succeeded;
         ordersByAcct[order.buyer].push(_orderID);
         ordersByAcct[msg.sender].push(_orderID);
 
-        emit OrderExecuted(_orderID, _collateralAsset, _premium, msg.sender, vaultID, otoken, _collateralAmount);
+        emit OrderExecuted(_orderID, _collateralAsset, _premium, msg.sender, vaultID, oToken, _collateralAmount);
     }
 
     /**
