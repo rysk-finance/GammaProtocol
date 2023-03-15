@@ -152,7 +152,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         uint256 max;
     }
 
-    ///@dev mapping between an asset address to a struct consisting of uint256 min and a uint256 max which will be its notional floor and cap size allowed
+    ///@dev mapping between an asset address to a struct consisting of uint256 min and a uint256 max which will be its notional floor and cap allowed
     mapping(address => MinMaxNotional) public minMaxNotional;
 
     ///@notice mapping between order id and order details
