@@ -135,7 +135,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
   let userSignature1: permit
   let userSignature2: permit
-  let mmSignatureWBTC: permit
+  let mmSignatureEmpty: permit
   let mmSignatureUSDC: permit
   let forceSend: ForceSendInstance
 
@@ -315,7 +315,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const mmWallet = Wallet.fromPrivateKey(randomBuffer)
 
       const owner = mmWallet.getAddressString()
-      const value = parseUnits('16', 7).toNumber() // 1.6 WBTC
+      const value = 0
       const nonce = 0
       const spender = otcWrapperProxy.address
       const maxDeadline = new BigNumber(await time.latest()).plus(200 * 60).toString()
@@ -342,7 +342,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const amount = value.toString()
       const deadline = maxDeadline
 
-      mmSignatureWBTC = { amount, deadline, acct, v, r, s }
+      mmSignatureEmpty = { amount, deadline, acct, v, r, s }
     })
     it('set up market maker permit USDC signature', async () => {
       //resulting address = 0x427fb2c379f02761594768357b33d267ffdf80c5
@@ -1005,11 +1005,14 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const marginPoolBalBeforeWBTC = new BigNumber(await wbtc.balanceOf(marginPool.address))
       const mmBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marketMaker))
 
+      // market maker approves wrapper contract beforehand
+      await wbtc.approve(otcWrapperProxy.address, collateralAmount, { from: marketMaker })
+
       // call execute
       const tx = await otcWrapperProxy.executeOrder(
         6,
         userSignature2,
-        mmSignatureWBTC,
+        mmSignatureEmpty,
         premium,
         wbtc.address,
         collateralAmount,

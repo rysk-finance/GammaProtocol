@@ -395,10 +395,12 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     ) private {
         require(_amount > 0, "OTCWrapper: amount cannot be 0");
 
-        // Sign for transfer approval
-        IERC20Permit(_asset).permit(_acct, address(this), _amount, _deadline, _v, _r, _s);
+        if (_asset == USDC) {
+            // Sign for transfer approval
+            IERC20Permit(USDC).permit(_acct, address(this), _amount, _deadline, _v, _r, _s);
+        }
 
-        // An approve() by the msg.sender is required beforehand
+        // An approve() or permit() by the msg.sender is required beforehand
         IERC20(_asset).safeTransferFrom(_acct, address(this), _amount);
     }
 
