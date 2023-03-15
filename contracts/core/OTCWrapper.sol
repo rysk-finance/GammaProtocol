@@ -242,10 +242,6 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      */
     function setWhitelistMarketMaker(address _marketMakerAddress, bool _isWhitelisted) external onlyOwner {
         require(_marketMakerAddress != address(0), "OTCWrapper: market maker address cannot be 0");
-        require(
-            isWhitelistedMarketMaker[_marketMakerAddress] != _isWhitelisted,
-            "OTCWrapper: whitelist status already in place"
-        );
 
         isWhitelistedMarketMaker[_marketMakerAddress] = _isWhitelisted;
     }

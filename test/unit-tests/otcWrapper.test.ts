@@ -529,12 +529,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         'OTCWrapper: market maker address cannot be 0',
       )
     })
-    it('should revert if initialized with a repeated whitelist status', async () => {
-      await expectRevert(
-        otcWrapperProxy.setWhitelistMarketMaker(marketMaker, false),
-        'OTCWrapper: whitelist status already in place',
-      )
-    })
     it('should revert if caller is not the owner', async () => {
       await expectRevert(
         otcWrapperProxy.setWhitelistMarketMaker(marketMaker, true, { from: random }),
