@@ -351,7 +351,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const mmWallet = Wallet.fromPrivateKey(randomBuffer)
 
       const owner = mmWallet.getAddressString()
-      const value = parseUnits('11501', 6).toNumber()
+      const value = parseUnits('15001', 6).toNumber()
       const nonce = 0
       const spender = otcWrapperProxy.address
       const maxDeadline = new BigNumber(await time.latest()).plus(15 * 60).toString()
@@ -841,7 +841,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
           mmSignatureUSDC,
           parseUnits('5000', 6),
           usdc.address,
-          parseUnits('11500', 6),
+          parseUnits('15000', 6),
           {
             from: marketMaker,
           },
@@ -881,9 +881,8 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(requiredMargin.toString(), '1')
 
       const premium = parseUnits('5000', 6)
-      const collateralAmount = parseUnits('11501', 6)
+      const collateralAmount = parseUnits('15001', 6)
       const orderFee = parseUnits('150000', 6).div(100) // fee is set at 1% of notional
-      const initialMargin = collateralAmount.add(premium).sub(orderFee)
       const mintAmount = parseUnits('100', 8)
 
       const userBalBeforeUSDC = new BigNumber(await usdc.balanceOf(user))
@@ -918,18 +917,17 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(userBalBeforeUSDC.minus(userBalAfterUSDC).toString(), premium)
       assert.equal(userBalAfterOtoken.toString(), mintAmount.toString())
       assert.equal(beneficiaryBalAfterUSDC.minus(beneficiaryBalBeforeUSDC).toString(), orderFee.toString())
-      assert.equal(mmBalBeforeUSDC.minus(mmBalAfterUSDC).toString(), collateralAmount.toString())
-      assert.equal(marginPoolBalAfterUSDC.minus(marginPoolBalBeforeUSDC).toString(), initialMargin.toString())
-
+      assert.equal(
+        mmBalBeforeUSDC.minus(mmBalAfterUSDC).toString(),
+        collateralAmount.sub(premium).add(orderFee).toString(),
+      )
+      assert.equal(marginPoolBalAfterUSDC.minus(marginPoolBalBeforeUSDC).toString(), collateralAmount.toString())
       // vault data
       const vaultCounter = new BigNumber(await controllerProxy.getAccountVaultCounter(otcWrapperProxy.address))
       const vault = await controllerProxy.getVaultWithDetails(otcWrapperProxy.address, vaultCounter)
       assert.equal(new BigNumber(vault[0].shortAmounts[0]).toString(), mintAmount.toString())
       assert.equal(vault[0].shortOtokens[0].toString(), newOtoken.address)
-      assert.equal(
-        new BigNumber(vault[0].collateralAmounts[0]).toString(),
-        collateralAmount.add(premium).sub(orderFee).toString(),
-      )
+      assert.equal(new BigNumber(vault[0].collateralAmounts[0]).toString(), collateralAmount.toString())
       assert.equal(vault[0].collateralAssets[0].toString(), usdc.address)
 
       // order accounting
@@ -947,7 +945,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(logs[0].args.seller.toString(), marketMaker)
       assert.equal(logs[0].args.vaultID.toString(), '1')
       assert.equal(logs[0].args.oToken.toString(), (await otcWrapperProxy.orders(1))[10].toString())
-      assert.equal(logs[0].args.initialMargin.toString(), initialMargin)
+      assert.equal(logs[0].args.initialMargin.toString(), collateralAmount)
     })
     it('successfully executes a put with collateral in WBTC', async () => {
       // set initial margin for new product
@@ -996,7 +994,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const premium = parseUnits('5000', 6)
       const collateralAmount = parseUnits('16', 7) // 1.6 WBTC
       const orderFee = notional.div(100) // fee is set at 1% of notional
-      const initialMargin = collateralAmount
       const mintAmount = parseUnits('200', 8)
 
       const userBalBeforeUSDC = new BigNumber(await usdc.balanceOf(user))
@@ -1034,7 +1031,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(userBalAfterOtoken.toString(), mintAmount.toString())
       assert.equal(beneficiaryBalAfterUSDC.minus(beneficiaryBalBeforeUSDC).toString(), orderFee.toString())
       assert.equal(mmBalBeforeWBTC.minus(mmBalAfterWBTC).toString(), collateralAmount.toString())
-      assert.equal(marginPoolBalAfterWBTC.minus(marginPoolBalBeforeWBTC).toString(), initialMargin.toString())
+      assert.equal(marginPoolBalAfterWBTC.minus(marginPoolBalBeforeWBTC).toString(), collateralAmount.toString())
       assert.equal(mmBalAfterUSDC.minus(mmBalBeforeUSDC).toString(), premium.sub(orderFee).toString())
 
       // vault data
@@ -1060,7 +1057,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(logs[0].args.seller.toString(), marketMaker)
       assert.equal(logs[0].args.vaultID.toString(), '2')
       assert.equal(logs[0].args.oToken.toString(), (await otcWrapperProxy.orders(6))[10].toString())
-      assert.equal(logs[0].args.initialMargin.toString(), initialMargin)
+      assert.equal(logs[0].args.initialMargin.toString(), collateralAmount)
     })
     it('should revert if fill deadline has passed', async () => {
       // place new order

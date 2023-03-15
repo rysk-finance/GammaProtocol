@@ -493,20 +493,13 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         require(block.timestamp <= order.openedAt.add(fillDeadline), "OTCWrapper: deadline has passed");
         require(whitelist.isWhitelistedCollateral(_collateralAsset), "OTCWrapper: collateral is not whitelisted");
 
-        uint256 orderFee = (order.notional.mul(fee[order.underlying])).div(10000); // eg. fee = 4bps = 0.04% , then need to divide by 100 again so (( 4 / 100 ) / 100)
-
-        uint256 totalInitialMargin = _collateralAmount;
-        if (_collateralAsset == USDC) {
-            totalInitialMargin = _collateralAmount.add(_premium).sub(orderFee);
-        }
-
         require(
             marginRequirements.checkMintCollateral(
                 msg.sender,
                 order.notional,
                 order.underlying,
                 order.isPut,
-                totalInitialMargin,
+                _collateralAmount,
                 _collateralAsset
             ),
             "OTCWrapper: insufficient collateral"
@@ -534,13 +527,13 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             _mmSignature.s
         );
 
+        uint256 orderFee = (order.notional.mul(fee[order.underlying])).div(10000); // eg. fee = 4bps = 0.04% , then need to divide by 100 again so (( 4 / 100 ) / 100)
+
         // transfer fee to beneficiary address
         IERC20(USDC).safeTransfer(beneficiary, orderFee);
 
-        // transfer premium to market maker only if collateral is not USDC
-        if (_collateralAsset != USDC) {
-            IERC20(USDC).safeTransfer(msg.sender, _premium.sub(orderFee));
-        }
+        // transfer premium to market maker
+        IERC20(USDC).safeTransfer(msg.sender, _premium.sub(orderFee));
 
         // open vault
         uint256 vaultID = (controller.getAccountVaultCounter(address(this))).add(1);
@@ -559,7 +552,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         );
 
         // Approve margin pool to deposit collateral
-        IERC20(_collateralAsset).safeApproveNonCompliant(addressbook.getMarginPool(), totalInitialMargin);
+        IERC20(_collateralAsset).safeApproveNonCompliant(addressbook.getMarginPool(), _collateralAmount);
 
         // deposit collateral
         actions[1] = UtilsWrapperInterface.ActionArgs(
@@ -568,7 +561,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             address(this), // address to transfer from
             _collateralAsset, // deposited asset
             vaultID, // vaultId
-            totalInitialMargin, // amount
+            _collateralAmount, // amount
             0, //index
             "" //data
         );
@@ -612,7 +605,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         orders[_orderID].oToken = otoken;
         orderStatus[_orderID] = OrderStatus.Succeeded;
 
-        emit OrderExecuted(_orderID, _collateralAsset, _premium, msg.sender, vaultID, otoken, totalInitialMargin);
+        emit OrderExecuted(_orderID, _collateralAsset, _premium, msg.sender, vaultID, otoken, _collateralAmount);
     }
 
     /**
