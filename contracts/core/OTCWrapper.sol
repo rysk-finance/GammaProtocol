@@ -382,7 +382,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param _r is a valid signature
      * @param _s is a valid signature
      */
-    function _depositWithPermit(
+    function _deposit(
         address _acct,
         address _asset,
         uint256 _amount,
@@ -506,7 +506,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         );
 
         // user inflow
-        _depositWithPermit(
+        _deposit(
             _userSignature.acct,
             USDC,
             _premium,
@@ -517,7 +517,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         );
 
         // market maker inflow
-        _depositWithPermit(
+        _deposit(
             _mmSignature.acct,
             _collateralAsset,
             _collateralAmount,
