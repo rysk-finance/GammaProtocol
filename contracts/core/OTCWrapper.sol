@@ -583,7 +583,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         actions[2] = UtilsWrapperInterface.ActionArgs(
             UtilsWrapperInterface.ActionType.MintShortOption,
             address(this), // owner
-            address(this), // address to transfer to
+            order.buyer, // address to transfer to
             otoken, // option address
             vaultID, // vaultId
             mintAmount, // amount
@@ -593,9 +593,6 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         // execute actions
         controller.operate(actions);
-
-        // transfer otokens to user
-        IERC20(otoken).safeTransfer(order.buyer, mintAmount);
 
         // order accounting
         orders[_orderID].premium = _premium;
