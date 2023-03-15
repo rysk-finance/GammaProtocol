@@ -792,7 +792,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         otcWrapperProxy.executeOrder(1, userSignature1, mmSignatureUSDC, 1, usdc.address, 1, {
           from: random,
         }),
-        'OTCWrapper: address not whitelisted to execute',
+        'OTCWrapper: address not whitelisted marketmaker',
       )
     })
     it('should revert if user permit amount is lower than premium', async () => {
