@@ -87,11 +87,11 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     ///@notice fill deadline duration
     uint256 public fillDeadline;
 
-    // usdc address
-    address public USDC;
-
     ///@notice address that will receive the product fees
     address public beneficiary;
+
+    /// @notice USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+    address public immutable USDC;
 
     // order status
     enum OrderStatus {
@@ -174,27 +174,31 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     /**
      * @notice constructor related to ERC2771
      * @param _trustedForwarder trusted forwarder address
+     * @param _usdc USDC address
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(MinimalForwarder _trustedForwarder) ERC2771ContextUpgradeable(address(_trustedForwarder)) {}
+    constructor(MinimalForwarder _trustedForwarder, address _usdc)
+        ERC2771ContextUpgradeable(address(_trustedForwarder))
+    {
+        require(_usdc != address(0), "OTCWrapper: usdc address cannot be 0");
+
+        USDC = _usdc;
+    }
 
     /**
      * @notice initialize the deployed contract
      * @param _beneficiary beneficiary address
      * @param _addressBook AddressBook address
      * @param _fillDeadline fill deadline duration
-     * @param _usdc USDC address
      */
     function initialize(
         address _addressBook,
         address _beneficiary,
-        uint256 _fillDeadline,
-        address _usdc
+        uint256 _fillDeadline
     ) external initializer {
         require(_addressBook != address(0), "OTCWrapper: addressbook address cannot be 0");
         require(_beneficiary != address(0), "OTCWrapper: beneficiary address cannot be 0");
         require(_fillDeadline > 0, "OTCWrapper: fill deadline cannot be 0");
-        require(_usdc != address(0), "OTCWrapper: usdc address cannot be 0");
 
         __Ownable_init();
         __ReentrancyGuard_init();
@@ -207,8 +211,6 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         beneficiary = _beneficiary;
         fillDeadline = _fillDeadline;
-
-        USDC = _usdc;
     }
 
     /************************************************

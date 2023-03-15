@@ -216,12 +216,12 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     untrustedMinimalForwarder = await MinimalForwarder.new()
 
     // deploy OTC wrapper
-    otcWrapperImplementation = await OTCWrapper.new(minimalForwarder.address)
+    otcWrapperImplementation = await OTCWrapper.new(minimalForwarder.address, usdc.address)
     const ownedUpgradeabilityProxy: OwnedUpgradeabilityProxyInstance = await OwnedUpgradeabilityProxy.new()
     ownedUpgradeabilityProxy.upgradeTo(otcWrapperImplementation.address)
     otcWrapperProxy = await OTCWrapper.at(ownedUpgradeabilityProxy.address)
 
-    otcWrapperProxy.initialize(addressBook.address, admin, 15 * 60, usdc.address)
+    otcWrapperProxy.initialize(addressBook.address, admin, 15 * 60)
 
     // set OTC wrapper address in addressbook
     await addressBook.setOTCWrapper(otcWrapperProxy.address)
@@ -453,30 +453,33 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   })
 
   describe('#initialize', () => {
+    it('should revert if initialized with 0 USDC address', async () => {
+      await expectRevert(OTCWrapper.new(minimalForwarder.address, ZERO_ADDR), 'OTCWrapper: usdc address cannot be 0')
+    })
     it('should revert if initialized with 0 addressBook address', async () => {
-      const otcWrapper = await OTCWrapper.new(minimalForwarder.address)
+      const otcWrapper = await OTCWrapper.new(minimalForwarder.address, usdc.address)
       await expectRevert(
-        otcWrapper.initialize(ZERO_ADDR, beneficiary, new BigNumber(15 * 60), usdc.address),
+        otcWrapper.initialize(ZERO_ADDR, beneficiary, new BigNumber(15 * 60)),
         'OTCWrapper: addressbook address cannot be 0',
       )
     })
     it('should revert if initialized with 0 beneficiary address', async () => {
-      const otcWrapper = await OTCWrapper.new(minimalForwarder.address)
+      const otcWrapper = await OTCWrapper.new(minimalForwarder.address, usdc.address)
       await expectRevert(
-        otcWrapper.initialize(addressBook.address, ZERO_ADDR, new BigNumber(15 * 60), usdc.address),
+        otcWrapper.initialize(addressBook.address, ZERO_ADDR, new BigNumber(15 * 60)),
         'OTCWrapper: beneficiary address cannot be 0',
       )
     })
     it('should revert if initialized with 0 fill deadline', async () => {
-      const otcWrapper = await OTCWrapper.new(minimalForwarder.address)
+      const otcWrapper = await OTCWrapper.new(minimalForwarder.address, usdc.address)
       await expectRevert(
-        otcWrapper.initialize(addressBook.address, random, new BigNumber(0), usdc.address),
+        otcWrapper.initialize(addressBook.address, random, new BigNumber(0)),
         'OTCWrapper: fill deadline cannot be 0',
       )
     })
     it('should revert if initialized twice', async () => {
       await expectRevert(
-        otcWrapperProxy.initialize(addressBook.address, admin, 15 * 60, usdc.address),
+        otcWrapperProxy.initialize(addressBook.address, admin, 15 * 60),
         'Initializable: contract is already initialized',
       )
     })
@@ -1345,27 +1348,29 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   })
 
   describe('Upgrade contract to new minimal forwarder', () => {
-    it('successfully upgrades the contract to new minimal forwarder', async () => {
+    it('successfully upgrades the contract to new minimal forwarder and new USDC address', async () => {
       // deploy new forwarder
       newMinimalForwarder = await MinimalForwarder.new()
 
       // deploy new OTC wrapper implementation pointing to new forwarder
-      const newOTCWrapperImplementation = await OTCWrapper.new(newMinimalForwarder.address)
-
-      // upgrade proxy to new OTC wrapper implementation
+      const newOTCWrapperImplementation = await OTCWrapper.new(newMinimalForwarder.address, random)
+      
       const proxy = await OwnedUpgradeabilityProxy.at(otcWrapperProxy.address)
 
       // initial state
       assert.equal((await proxy.implementation()).toString(), otcWrapperImplementation.address)
       assert.equal((await otcWrapperProxy.isTrustedForwarder(minimalForwarder.address)).toString(), 'true')
       assert.equal((await otcWrapperProxy.isTrustedForwarder(newMinimalForwarder.address)).toString(), 'false')
+      assert.equal((await otcWrapperProxy.USDC()).toString(), usdc.address)
 
+      // upgrade proxy to new OTC wrapper implementation
       await proxy.upgradeTo(newOTCWrapperImplementation.address)
 
       // final state
       assert.equal((await proxy.implementation()).toString(), newOTCWrapperImplementation.address)
       assert.equal((await otcWrapperProxy.isTrustedForwarder(minimalForwarder.address)).toString(), 'false')
       assert.equal((await otcWrapperProxy.isTrustedForwarder(newMinimalForwarder.address)).toString(), 'true')
+      assert.equal((await otcWrapperProxy.USDC()).toString(), random)
     })
   })
 })
