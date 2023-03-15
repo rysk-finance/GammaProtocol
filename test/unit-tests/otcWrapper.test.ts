@@ -934,6 +934,8 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(vault[0].collateralAssets[0].toString(), usdc.address)
 
       // order accounting
+      assert.equal((await otcWrapperProxy.ordersByAcct(user, 0)).toString(), '1')
+      assert.equal((await otcWrapperProxy.ordersByAcct(marketMaker, 0)).toString(), '1')
       assert.equal((await otcWrapperProxy.orders(1))[5].toString(), premium.toString())
       assert.equal((await otcWrapperProxy.orders(1))[1].toString(), usdc.address)
       assert.equal((await otcWrapperProxy.orders(1))[8].toString(), marketMaker)
@@ -1049,6 +1051,8 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(vault[0].collateralAssets[0].toString(), wbtc.address)
 
       // order accounting
+      assert.equal((await otcWrapperProxy.ordersByAcct(user, 1)).toString(), '6')
+      assert.equal((await otcWrapperProxy.ordersByAcct(marketMaker, 1)).toString(), '6')
       assert.equal((await otcWrapperProxy.orders(6))[5].toString(), premium.toString())
       assert.equal((await otcWrapperProxy.orders(6))[1].toString(), wbtc.address)
       assert.equal((await otcWrapperProxy.orders(6))[8].toString(), marketMaker)
@@ -1357,7 +1361,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       // deploy new OTC wrapper implementation pointing to new forwarder
       const newOTCWrapperImplementation = await OTCWrapper.new(newMinimalForwarder.address, random)
-      
+
       const proxy = await OwnedUpgradeabilityProxy.at(otcWrapperProxy.address)
 
       // initial state

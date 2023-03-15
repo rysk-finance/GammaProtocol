@@ -167,6 +167,9 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     ///@notice mapping between an asset address and its corresponding fee
     mapping(address => uint256) public fee;
 
+    ///@notice mapping between acct and list of all successful orders
+    mapping(address => uint256[]) public ordersByAcct;
+
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
@@ -605,6 +608,8 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         orders[_orderID].vaultID = vaultID;
         orders[_orderID].oToken = otoken;
         orderStatus[_orderID] = OrderStatus.Succeeded;
+        ordersByAcct[order.buyer].push(_orderID);
+        ordersByAcct[msg.sender].push(_orderID);
 
         emit OrderExecuted(_orderID, _collateralAsset, _premium, msg.sender, vaultID, otoken, _collateralAmount);
     }
