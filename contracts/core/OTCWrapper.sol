@@ -652,9 +652,6 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         // execute actions
         controller.operate(actions);
 
-        // clear maintenance margin
-        marginRequirements.clearMaintenanceMargin(msg.sender, order.vaultID);
-
         emit VaultSettled(_orderID);
     }
 

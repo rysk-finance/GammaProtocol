@@ -33,8 +33,8 @@ contract MarginRequirements is Ownable {
 
     ///@dev mapping between a hash of (underlying asset, collateral asset, isPut) and a mapping of an account to an initial margin value
     mapping(bytes32 => mapping(address => uint256)) public initialMargin;
-    ///@dev mapping between an account owner and a mapping of a specific vault id to a maintenance margin value
-    mapping(address => mapping(uint256 => uint256)) public maintenanceMargin;
+    ///@dev mapping between an account owner and a specific vault id to a maintenance margin value
+    mapping(uint256 => uint256) public maintenanceMargin;
 
     /************************************************
      *  CONSTRUCTOR
@@ -50,18 +50,6 @@ contract MarginRequirements is Ownable {
         addressBook = _addressBook;
 
         oracle = OracleInterface(AddressBookInterface(_addressBook).getOracle());
-    }
-
-    /**
-     * @notice modifier to check if the sender is the OTC wrapper module
-     */
-    modifier onlyOTCWrapper() {
-        require(
-            msg.sender == AddressBookInterface(addressBook).getOTCWrapper(),
-            "MarginRequirements: Sender is not OTCWrapper"
-        );
-
-        _;
     }
 
     /**
@@ -110,34 +98,18 @@ contract MarginRequirements is Ownable {
     /**
      * @notice sets the maintenance margin absolute amount
      * @dev can only be called by keeper
-     * @param _account account address
      * @param _vaultID id of the vault
      * @param _maintenanceMargin maintenance margin absolute amount
      */
-    function setMaintenanceMargin(
-        address _account,
-        uint256 _vaultID,
-        uint256 _maintenanceMargin
-    ) external onlyKeeper {
+    function setMaintenanceMargin(uint256 _vaultID, uint256 _maintenanceMargin) external onlyKeeper {
         require(_maintenanceMargin > 0, "MarginRequirements: initial margin cannot be 0");
-        require(_account != address(0), "MarginRequirements: invalid account");
 
-        maintenanceMargin[_account][_vaultID] = _maintenanceMargin;
+        maintenanceMargin[_vaultID] = _maintenanceMargin;
     }
 
     /************************************************
      *  MARGIN OPERATIONS
      ***********************************************/
-
-    /**
-     * @notice clears the maintenance margin mapping
-     * @dev can only be called by OTC wrapper contract
-     * @param _account account address
-     * @param _vaultID id of the vault
-     */
-    function clearMaintenanceMargin(address _account, uint256 _vaultID) external onlyOTCWrapper {
-        delete maintenanceMargin[_account][_vaultID];
-    }
 
     /**
      * @notice checks if there is enough collateral to mint the desired amount of otokens
@@ -190,7 +162,7 @@ contract MarginRequirements is Ownable {
 
         return
             _notional.mul(_getInitialMargin(_otokenAddress, _account)).mul(10**collateralDecimals).mul(1e8) <
-            (_vault.collateralAmounts[0].sub(_withdrawAmount).sub(_getMaintenanceMargin(_account, _vaultID)))
+            (_vault.collateralAmounts[0].sub(_withdrawAmount).sub(maintenanceMargin[_vaultID]))
                 .mul(oracle.getPrice(_vault.collateralAssets[0]))
                 .mul(100e2)
                 .mul(1e6);
@@ -209,15 +181,5 @@ contract MarginRequirements is Ownable {
             initialMargin[keccak256(abi.encode(otoken.underlyingAsset(), otoken.collateralAsset(), otoken.isPut()))][
                 _account
             ];
-    }
-
-    /**
-     * @notice returns the maintenance margin value (avoids stack too deep)
-     * @param _account account address
-     * @param _vaultID id of the vault
-     * @return maintenance margin value
-     */
-    function _getMaintenanceMargin(address _account, uint256 _vaultID) internal view returns (uint256) {
-        return maintenanceMargin[_account][_vaultID];
     }
 }

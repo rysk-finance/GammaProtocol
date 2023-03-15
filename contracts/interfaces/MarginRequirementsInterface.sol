@@ -25,7 +25,4 @@ interface MarginRequirementsInterface {
         uint256 _collateralAmount,
         address _collateralAsset
     ) external view returns (bool);
-
-    /* Controller-only functions */
-    function clearMaintenanceMargin(address _account, uint256 _vaultId) external;
 }

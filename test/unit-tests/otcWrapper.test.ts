@@ -913,7 +913,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       )
 
       // set maintenance after opening a vault
-      await marginRequirements.setMaintenanceMargin(marketMaker, 1, parseUnits('1000', 6), { from: keeper })
+      await marginRequirements.setMaintenanceMargin(1, parseUnits('1000', 6), { from: keeper })
 
       const newOtoken = await MockERC20.at((await otcWrapperProxy.orders(1))[10].toString())
       const userBalAfterOtoken = new BigNumber(await newOtoken.balanceOf(user))
@@ -1027,7 +1027,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       )
 
       // set maintenance after opening a vault
-      await marginRequirements.setMaintenanceMargin(marketMaker, 2, parseUnits('1', 7), { from: keeper }) // 0.1 WBTC
+      await marginRequirements.setMaintenanceMargin(2, parseUnits('1', 7), { from: keeper }) // 0.1 WBTC
 
       const newOtoken = await MockERC20.at((await otcWrapperProxy.orders(6))[10].toString())
       const userBalAfterOtoken = new BigNumber(await newOtoken.balanceOf(user))
@@ -1157,7 +1157,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       await oracle.setRealTimePrice(usdc.address, scaleBigNum(5, 7))
 
       // Maintenance margin adjusts to new depegged price - increases by 2x
-      await marginRequirements.setMaintenanceMargin(marketMaker, 1, parseUnits('2000', 6), { from: keeper })
+      await marginRequirements.setMaintenanceMargin(1, parseUnits('2000', 6), { from: keeper })
 
       await expectRevert(
         otcWrapperProxy.withdrawCollateral(1, parseUnits('1000', 6), { from: marketMaker }),
@@ -1169,7 +1169,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       await oracle.setRealTimePrice(usdc.address, scaleBigNum(1, 8))
 
       // Maintenance margin adjusts to new repegged price - falls by 50%
-      await marginRequirements.setMaintenanceMargin(marketMaker, 1, parseUnits('1000', 6), { from: keeper })
+      await marginRequirements.setMaintenanceMargin(1, parseUnits('1000', 6), { from: keeper })
 
       const withdrawAmount = parseUnits('1000', 6) // 1000 USDC
 
@@ -1246,7 +1246,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
       const marketMakerBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marketMaker))
 
-      assert.isAbove((await marginRequirements.maintenanceMargin(marketMaker, 1)).toNumber(), 0)
+      assert.isAbove((await marginRequirements.maintenanceMargin(1)).toNumber(), 0)
 
       // call settle vault
       const tx = await otcWrapperProxy.settleVault(1, { from: marketMaker })
@@ -1258,9 +1258,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(marketMakerBalAfterUSDC.minus(marketMakerBalBeforeUSDC).toString(), collateralToWithdraw.toString())
       assert.equal(marginPoolBalBeforeUSDC.minus(marginPoolBalAfterUSDC).toString(), collateralToWithdraw.toString())
       assert.equal(marginPoolBalAfterUSDC.toString(), userPayout.toString())
-
-      // maintenance margin was cleared
-      assert.equal((await marginRequirements.maintenanceMargin(marketMaker, 1)).toString(), '0')
 
       // emits event
       const { logs } = tx
@@ -1307,7 +1304,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const marginPoolBalBeforeWBTC = new BigNumber(await wbtc.balanceOf(marginPool.address))
       const marketMakerBalBeforeWBTC = new BigNumber(await wbtc.balanceOf(marketMaker))
 
-      assert.isAbove((await marginRequirements.maintenanceMargin(marketMaker, 2)).toNumber(), 0)
+      assert.isAbove((await marginRequirements.maintenanceMargin(2)).toNumber(), 0)
 
       // call settle vault
       const tx = await otcWrapperProxy.settleVault(6, { from: marketMaker })
@@ -1319,9 +1316,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(marketMakerBalAfterWBTC.minus(marketMakerBalBeforeWBTC).toString(), collateralToWithdraw.toString())
       assert.equal(marginPoolBalBeforeWBTC.minus(marginPoolBalAfterWBTC).toString(), collateralToWithdraw.toString())
       assert.equal(marginPoolBalAfterWBTC.toString(), '0')
-
-      // maintenance margin was cleared
-      assert.equal((await marginRequirements.maintenanceMargin(marketMaker, 1)).toString(), '0')
 
       // emits event
       const { logs } = tx

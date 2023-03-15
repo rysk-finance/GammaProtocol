@@ -143,56 +143,24 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
     })
   })
 
-  describe('clear maintenance margin mapping', () => {
-    it('should revert if not called by OTC wrapper address', async () => {
-      await expectRevert(
-        marginRequirements.clearMaintenanceMargin(accountOwner1, 0, { from: random }),
-        'MarginRequirements: Sender is not OTCWrapper',
-      )
-    })
-    it('successfully clears the maintenance margin mapping', async () => {
-      await marginRequirements.setMaintenanceMargin(accountOwner1, 0, parseUnits('7500', 6), { from: keeper })
-
-      assert.equal(
-        (await marginRequirements.maintenanceMargin(accountOwner1, 0)).toString(),
-        parseUnits('7500', 6).toString(),
-        'initial maintenance margin is incorrect',
-      )
-
-      await marginRequirements.clearMaintenanceMargin(accountOwner1, 0, { from: OTCWrapper })
-
-      assert.equal(
-        (await marginRequirements.maintenanceMargin(accountOwner1, 0)).toString(),
-        '0',
-        'final maintenance margin is incorrect',
-      )
-    })
-  })
-
   describe('Set maintenance margin', () => {
     it('should revert if not called by the keeper', async () => {
       await expectRevert(
-        marginRequirements.setMaintenanceMargin(accountOwner1, 0, parseUnits('25', 18), { from: random }),
+        marginRequirements.setMaintenanceMargin(0, parseUnits('25', 18), { from: random }),
         'MarginRequirements: Sender is not Keeper',
       )
     })
     it('should revert if initialized with 0 maintenance margin', async () => {
       await expectRevert(
-        marginRequirements.setMaintenanceMargin(accountOwner1, 0, 0, { from: keeper }),
+        marginRequirements.setMaintenanceMargin(0, 0, { from: keeper }),
         'MarginRequirements: initial margin cannot be 0',
       )
     })
-    it('should revert if initialized with 0 account address', async () => {
-      await expectRevert(
-        marginRequirements.setMaintenanceMargin(ZERO_ADDR, 0, parseUnits('25', 18), { from: keeper }),
-        'MarginRequirements: invalid account',
-      )
-    })
     it('successfully sets maintenance margin to 7.5k USDC', async () => {
-      await marginRequirements.setMaintenanceMargin(accountOwner1, 0, parseUnits('7500', 6), { from: keeper })
+      await marginRequirements.setMaintenanceMargin(0, parseUnits('7500', 6), { from: keeper })
 
       assert.equal(
-        (await marginRequirements.maintenanceMargin(accountOwner1, 0)).toString(),
+        (await marginRequirements.maintenanceMargin(0)).toString(),
         parseUnits('7500', 6).toString(),
         'Initial margin is incorrect',
       )
