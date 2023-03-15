@@ -299,7 +299,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         IERC20 collateralInterface = IERC20(order.collateral);
 
-        // market maker inflow - an approve() by the msg.sender is required beforehand
+        // market maker inflow - an approve() or permit() by the msg.sender is required beforehand
         collateralInterface.safeTransferFrom(msg.sender, address(this), _amount);
 
         // approve margin pool to deposit collateral
