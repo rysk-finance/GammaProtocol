@@ -157,6 +157,36 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     domain: { name: string; version: string; chainId: number; verifyingContract: string }
     message: { from: string; to: string; value: number; gas: any; nonce: number; data: string }
   }
+  let signatureData3: {
+    primaryType: string
+    types: { EIP712Domain: { name: string; type: string }[]; ForwardRequest: { name: string; type: string }[] }
+    domain: { name: string; version: string; chainId: number; verifyingContract: string }
+    message: { from: string; to: string; value: number; gas: any; nonce: number; data: string }
+  }
+  let signatureData4: {
+    primaryType: string
+    types: { EIP712Domain: { name: string; type: string }[]; ForwardRequest: { name: string; type: string }[] }
+    domain: { name: string; version: string; chainId: number; verifyingContract: string }
+    message: { from: string; to: string; value: number; gas: any; nonce: number; data: string }
+  }
+  let signatureData5: {
+    primaryType: string
+    types: { EIP712Domain: { name: string; type: string }[]; ForwardRequest: { name: string; type: string }[] }
+    domain: { name: string; version: string; chainId: number; verifyingContract: string }
+    message: { from: string; to: string; value: number; gas: any; nonce: number; data: string }
+  }
+  let signatureData6: {
+    primaryType: string
+    types: { EIP712Domain: { name: string; type: string }[]; ForwardRequest: { name: string; type: string }[] }
+    domain: { name: string; version: string; chainId: number; verifyingContract: string }
+    message: { from: string; to: string; value: number; gas: any; nonce: number; data: string }
+  }
+  let signatureData7: {
+    primaryType: string
+    types: { EIP712Domain: { name: string; type: string }[]; ForwardRequest: { name: string; type: string }[] }
+    domain: { name: string; version: string; chainId: number; verifyingContract: string }
+    message: { from: string; to: string; value: number; gas: any; nonce: number; data: string }
+  }
 
   before('Deployment', async () => {
     // deploy addressbook
@@ -346,7 +376,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       userSignature3 = { amount, deadline, acct, v, r, s }
     })
-    it('set up market maker permit WBTC signature', async () => {
+    it('set up market maker permit empty signature', async () => {
       //resulting address = 0x427fb2c379f02761594768357b33d267ffdf80c5
       const randomBuffer = Buffer.alloc(32, 'abc')
 
@@ -524,6 +554,169 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       signatureData2 = buildData()
     })
+    it('set up user signature for undo a new order via trusted minimal forwarder', async () => {
+      const chainId = (await usdc.getChainId()).toNumber() // 8545
+
+      const orderId = 5
+
+      const dataExample = [orderId]
+
+      let ABI = ['function undoOrder(uint256 _orderID)']
+      let iface = new ethers.utils.Interface(ABI)
+
+      const callData = iface.encodeFunctionData('undoOrder', dataExample)
+
+      const name = 'MinimalForwarder'
+      const verifyingContract = minimalForwarder.address
+      const version = '0.0.1'
+
+      const from = user
+      const to = otcWrapperProxy.address
+      const value = 0
+      const gas = 3000000
+      const nonce = 1
+      const data = callData
+
+      const buildData = () => ({
+        primaryType: 'ForwardRequest',
+        types: { EIP712Domain, ForwardRequest },
+        domain: { name, version, chainId, verifyingContract },
+        message: { from, to, value, gas, nonce, data },
+      })
+
+      signatureData3 = buildData()
+    })
+    it('set up market maker signature for deposit collateral via trusted minimal forwarder', async () => {
+      const chainId = (await usdc.getChainId()).toNumber() // 8545
+
+      const orderId = 7
+      const depositAmount = 100000000 // 1 WBTC
+
+      const dataExample = [orderId, depositAmount]
+
+      let ABI = ['function depositCollateral(uint256 _orderID, uint256 _amount)']
+      let iface = new ethers.utils.Interface(ABI)
+
+      const callData = iface.encodeFunctionData('depositCollateral', dataExample)
+
+      const name = 'MinimalForwarder'
+      const verifyingContract = minimalForwarder.address
+      const version = '0.0.1'
+
+      const from = marketMaker
+      const to = otcWrapperProxy.address
+      const value = 0
+      const gas = 3000000
+      const nonce = 1
+      const data = callData
+
+      const buildData = () => ({
+        primaryType: 'ForwardRequest',
+        types: { EIP712Domain, ForwardRequest },
+        domain: { name, version, chainId, verifyingContract },
+        message: { from, to, value, gas, nonce, data },
+      })
+
+      signatureData4 = buildData()
+    })
+    it('set up market maker signature for withdraw collateral via trusted minimal forwarder', async () => {
+      const chainId = (await usdc.getChainId()).toNumber() // 8545
+
+      const orderId = 7
+      const withdrawAmount = 100000000 // 1 WBTC
+
+      const dataExample = [orderId, withdrawAmount]
+
+      let ABI = ['function withdrawCollateral(uint256 _orderID, uint256 _amount)']
+      let iface = new ethers.utils.Interface(ABI)
+
+      const callData = iface.encodeFunctionData('withdrawCollateral', dataExample)
+
+      const name = 'MinimalForwarder'
+      const verifyingContract = minimalForwarder.address
+      const version = '0.0.1'
+
+      const from = marketMaker
+      const to = otcWrapperProxy.address
+      const value = 0
+      const gas = 3000000
+      const nonce = 2
+      const data = callData
+
+      const buildData = () => ({
+        primaryType: 'ForwardRequest',
+        types: { EIP712Domain, ForwardRequest },
+        domain: { name, version, chainId, verifyingContract },
+        message: { from, to, value, gas, nonce, data },
+      })
+
+      signatureData5 = buildData()
+    })
+    it('set up market maker signature for execute trade via trusted minimal forwarder', async () => {
+      const chainId = (await usdc.getChainId()).toNumber() // 8545
+
+      const orderId = 8
+      const premium = parseUnits('5000', 6)
+      const collateralAmount = parseUnits('15001', 6)
+
+      const dataExample = [orderId, userSignature3, mmSignatureUSDC2, premium, usdc.address, collateralAmount]
+
+      let iface = new ethers.utils.Interface(executeOrderABI)
+
+      const callData = iface.encodeFunctionData('executeOrder', dataExample)
+
+      const name = 'MinimalForwarder'
+      const verifyingContract = minimalForwarder.address
+      const version = '0.0.1'
+
+      const from = marketMaker
+      const to = otcWrapperProxy.address
+      const value = 0
+      const gas = 3000000
+      const nonce = 0
+      const data = callData
+
+      const buildData = () => ({
+        primaryType: 'ForwardRequest',
+        types: { EIP712Domain, ForwardRequest },
+        domain: { name, version, chainId, verifyingContract },
+        message: { from, to, value, gas, nonce, data },
+      })
+
+      signatureData6 = buildData()
+    })
+    it('set up market maker signature for settle vault via trusted minimal forwarder', async () => {
+      const chainId = (await usdc.getChainId()).toNumber() // 8545
+
+      const orderId = 8
+
+      const dataExample = [orderId]
+
+      let ABI = ['function settleVault(uint256 _orderID)']
+      let iface = new ethers.utils.Interface(ABI)
+
+      const callData = iface.encodeFunctionData('settleVault', dataExample)
+
+      const name = 'MinimalForwarder'
+      const verifyingContract = minimalForwarder.address
+      const version = '0.0.1'
+
+      const from = marketMaker
+      const to = otcWrapperProxy.address
+      const value = 0
+      const gas = 3000000
+      const nonce = 3
+      const data = callData
+
+      const buildData = () => ({
+        primaryType: 'ForwardRequest',
+        types: { EIP712Domain, ForwardRequest },
+        domain: { name, version, chainId, verifyingContract },
+        message: { from, to, value, gas, nonce, data },
+      })
+
+      signatureData7 = buildData()
+    })
   })
 
   describe('#initialize', () => {
@@ -693,7 +886,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         'OTCWrapper: expiry must be in the future',
       )
     })
-    it('user sucessfully creates a new order directly', async () => {
+    it('user sucessfully creates a new order via direct call', async () => {
       assert.equal((await otcWrapperProxy.latestOrder()).toString(), '0')
 
       const strikePrice = scaleBigNum(1300, 8)
@@ -815,7 +1008,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if order buyer is not the caller', async () => {
       await expectRevert(otcWrapperProxy.undoOrder(1, { from: random }), 'OTCWrapper: only buyer can undo the order')
     })
-    it('successfully cancels an order', async () => {
+    it('successfully cancels an order via direct call', async () => {
       // create a new order
       await otcWrapperProxy.placeOrder(weth.address, true, 1, expiry, 0, parseUnits('150000', 6), {
         from: user,
@@ -830,6 +1023,43 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       // emits event
       const { logs } = tx
       assert.equal(logs[0].args.orderID.toString(), '2')
+    })
+    it('successfully cancels an order via minimal fowarder call', async () => {
+      // create a new order
+      await otcWrapperProxy.placeOrder(weth.address, true, 1, expiry, 0, parseUnits('150000', 6), {
+        from: user,
+      })
+      assert.equal((await otcWrapperProxy.latestOrder()).toString(), '5')
+
+      const randomBuffer = Buffer.alloc(32, 'dsaas')
+      const userWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const orderId = 5
+
+      const dataExample = [orderId]
+
+      let ABI = ['function undoOrder(uint256 _orderID)']
+      let iface = new ethers.utils.Interface(ABI)
+
+      const callData = iface.encodeFunctionData('undoOrder', dataExample)
+
+      const forwardRequest = {
+        from: user,
+        to: otcWrapperProxy.address,
+        value: 0,
+        gas: 3000000,
+        nonce: 1,
+        data: callData,
+      }
+
+      const data = signatureData3
+      const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
+
+      assert.equal((await otcWrapperProxy.orderStatus(5)).toString(), '1')
+
+      await minimalForwarder.execute(forwardRequest, signature, { from: user })
+
+      assert.equal((await otcWrapperProxy.orderStatus(5)).toString(), '0')
     })
     it('should revert if orderID is higher than lastest order or the order status is not pending', async () => {
       // Inexistent order
@@ -885,7 +1115,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         from: random,
       })
       await expectRevert(
-        otcWrapperProxy.executeOrder(5, userSignature1, mmSignatureUSDC1, 1, usdc.address, 1, {
+        otcWrapperProxy.executeOrder(6, userSignature1, mmSignatureUSDC1, 1, usdc.address, 1, {
           from: marketMaker,
         }),
         'OTCWrapper: signer is not the buyer',
@@ -927,7 +1157,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       )
     })
 
-    it('successfully executes call with collateral in USDC', async () => {
+    it('successfully executes call with collateral in USDC via direct call', async () => {
       // admin whitelists product and collateral
       await whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, false)
       await whitelist.whitelistNakedCollateral(usdc.address, weth.address, false)
@@ -1026,7 +1256,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(logs[0].args.oToken.toString(), (await otcWrapperProxy.orders(1))[10].toString())
       assert.equal(logs[0].args.initialMargin.toString(), collateralAmount)
     })
-    it('successfully executes a put with collateral in WBTC', async () => {
+    it('successfully executes a put with collateral in WBTC via direct call', async () => {
       // set initial margin for new product
       await marginRequirements.setInitialMargin(weth.address, wbtc.address, true, marketMaker, 1000)
 
@@ -1038,7 +1268,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         from: user,
       })
 
-      assert.equal((await otcWrapperProxy.latestOrder()).toString(), '6')
+      assert.equal((await otcWrapperProxy.latestOrder()).toString(), '7')
 
       // admin whitelists product and collateral
       await whitelist.whitelistProduct(weth.address, usdc.address, wbtc.address, true)
@@ -1086,7 +1316,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       // call execute
       const tx = await otcWrapperProxy.executeOrder(
-        6,
+        7,
         userSignature2,
         mmSignatureEmpty,
         premium,
@@ -1098,9 +1328,9 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       )
 
       // set maintenance after opening a vault
-      await marginRequirements.setMaintenanceMargin(2, parseUnits('1', 7), { from: keeper }) // 0.1 WBTC
+      await marginRequirements.setMaintenanceMargin(7, parseUnits('1', 7), { from: keeper }) // 0.1 WBTC
 
-      const newOtoken = await MockERC20.at((await otcWrapperProxy.orders(6))[10].toString())
+      const newOtoken = await MockERC20.at((await otcWrapperProxy.orders(7))[10].toString())
       const userBalAfterOtoken = new BigNumber(await newOtoken.balanceOf(user))
       const userBalAfterUSDC = new BigNumber(await usdc.balanceOf(user))
       const beneficiaryBalAfterUSDC = new BigNumber(await usdc.balanceOf(beneficiary))
@@ -1125,25 +1355,28 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(vault[0].collateralAssets[0].toString(), wbtc.address)
 
       // order accounting
-      assert.equal((await otcWrapperProxy.ordersByAcct(user, 1)).toString(), '6')
-      assert.equal((await otcWrapperProxy.ordersByAcct(marketMaker, 1)).toString(), '6')
-      assert.equal((await otcWrapperProxy.orders(6))[5].toString(), premium.toString())
-      assert.equal((await otcWrapperProxy.orders(6))[1].toString(), wbtc.address)
-      assert.equal((await otcWrapperProxy.orders(6))[8].toString(), marketMaker)
-      assert.equal((await otcWrapperProxy.orders(6))[9].toString(), '2')
-      assert.equal((await otcWrapperProxy.orderStatus(6)).toString(), '2')
+      assert.equal((await otcWrapperProxy.ordersByAcct(user, 1)).toString(), '7')
+      assert.equal((await otcWrapperProxy.ordersByAcct(marketMaker, 1)).toString(), '7')
+      assert.equal((await otcWrapperProxy.orders(7))[5].toString(), premium.toString())
+      assert.equal((await otcWrapperProxy.orders(7))[1].toString(), wbtc.address)
+      assert.equal((await otcWrapperProxy.orders(7))[8].toString(), marketMaker)
+      assert.equal((await otcWrapperProxy.orders(7))[9].toString(), '2')
+      assert.equal((await otcWrapperProxy.orderStatus(7)).toString(), '2')
 
       // emits event
       const { logs } = tx
-      assert.equal(logs[0].args.orderID.toString(), '6')
+      assert.equal(logs[0].args.orderID.toString(), '7')
       assert.equal(logs[0].args.collateralAsset.toString(), wbtc.address)
       assert.equal(logs[0].args.premium.toString(), premium)
       assert.equal(logs[0].args.seller.toString(), marketMaker)
       assert.equal(logs[0].args.vaultID.toString(), '2')
-      assert.equal(logs[0].args.oToken.toString(), (await otcWrapperProxy.orders(6))[10].toString())
+      assert.equal(logs[0].args.oToken.toString(), (await otcWrapperProxy.orders(7))[10].toString())
       assert.equal(logs[0].args.initialMargin.toString(), collateralAmount)
     })
-    it('successfully executes call with a repeated oToken', async () => {
+    it('successfully executes call with a repeated oToken via minimal forwarder', async () => {
+      const randomBuffer = Buffer.alloc(32, 'abc')
+      const userWallet = Wallet.fromPrivateKey(randomBuffer)
+
       // place repeated order
       const strikePrice = scaleBigNum(1300, 8)
       const notional = parseUnits('150000', 6)
@@ -1156,6 +1389,25 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const collateralAmount = parseUnits('15001', 6)
       const orderFee = parseUnits('150000', 6).div(100) // fee is set at 1% of notional
       const mintAmount = parseUnits('100', 8)
+      const orderId = 8
+
+      const dataExample = [orderId, userSignature3, mmSignatureUSDC2, premium, usdc.address, collateralAmount]
+
+      let iface = new ethers.utils.Interface(executeOrderABI)
+
+      const callData = iface.encodeFunctionData('executeOrder', dataExample)
+
+      const forwardRequest = {
+        from: marketMaker,
+        to: otcWrapperProxy.address,
+        value: 0,
+        gas: 3000000,
+        nonce: 0,
+        data: callData,
+      }
+
+      const data = signatureData6
+      const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
 
       const userBalBeforeUSDC = new BigNumber(await usdc.balanceOf(user))
       const beneficiaryBalBeforeUSDC = new BigNumber(await usdc.balanceOf(beneficiary))
@@ -1163,22 +1415,12 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
 
       // call execute
-      await otcWrapperProxy.executeOrder(
-        7,
-        userSignature3,
-        mmSignatureUSDC2,
-        premium,
-        usdc.address,
-        collateralAmount,
-        {
-          from: marketMaker,
-        },
-      )
+      await minimalForwarder.execute(forwardRequest, signature, { from: marketMaker })
 
       // set maintenance after opening a vault
-      await marginRequirements.setMaintenanceMargin(7, parseUnits('1000', 6), { from: keeper })
+      await marginRequirements.setMaintenanceMargin(8, parseUnits('1000', 6), { from: keeper })
 
-      const newOtoken = await MockERC20.at((await otcWrapperProxy.orders(7))[10].toString())
+      const newOtoken = await MockERC20.at((await otcWrapperProxy.orders(8))[10].toString())
       const userBalAfterOtoken = new BigNumber(await newOtoken.balanceOf(user))
       const userBalAfterUSDC = new BigNumber(await usdc.balanceOf(user))
       const beneficiaryBalAfterUSDC = new BigNumber(await usdc.balanceOf(beneficiary))
@@ -1203,16 +1445,16 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(vault[0].collateralAssets[0].toString(), usdc.address)
 
       // order accounting
-      assert.equal((await otcWrapperProxy.ordersByAcct(user, 2)).toString(), '7')
-      assert.equal((await otcWrapperProxy.ordersByAcct(marketMaker, 2)).toString(), '7')
-      assert.equal((await otcWrapperProxy.orders(7))[5].toString(), premium.toString())
-      assert.equal((await otcWrapperProxy.orders(7))[1].toString(), usdc.address)
-      assert.equal((await otcWrapperProxy.orders(7))[8].toString(), marketMaker)
-      assert.equal((await otcWrapperProxy.orders(7))[9].toString(), '3')
-      assert.equal((await otcWrapperProxy.orderStatus(7)).toString(), '2')
+      assert.equal((await otcWrapperProxy.ordersByAcct(user, 2)).toString(), '8')
+      assert.equal((await otcWrapperProxy.ordersByAcct(marketMaker, 2)).toString(), '8')
+      assert.equal((await otcWrapperProxy.orders(8))[5].toString(), premium.toString())
+      assert.equal((await otcWrapperProxy.orders(8))[1].toString(), usdc.address)
+      assert.equal((await otcWrapperProxy.orders(8))[8].toString(), marketMaker)
+      assert.equal((await otcWrapperProxy.orders(8))[9].toString(), '3')
+      assert.equal((await otcWrapperProxy.orderStatus(8)).toString(), '2')
 
       // ensure otoken address is repeated
-      assert.equal((await otcWrapperProxy.orders(1))[10].toString(), (await otcWrapperProxy.orders(7))[10].toString())
+      assert.equal((await otcWrapperProxy.orders(1))[10].toString(), (await otcWrapperProxy.orders(8))[10].toString())
       assert.equal(userBalAfterOtoken.toString(), mintAmount.mul(2).toString())
     })
     it('should revert if fill deadline has passed', async () => {
@@ -1225,7 +1467,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       await time.increase(601)
 
       await expectRevert(
-        otcWrapperProxy.executeOrder(8, userSignature1, mmSignatureUSDC1, 1, usdc.address, 1, {
+        otcWrapperProxy.executeOrder(9, userSignature1, mmSignatureUSDC1, 1, usdc.address, 1, {
           from: marketMaker,
         }),
         'OTCWrapper: deadline has passed',
@@ -1255,7 +1497,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         'OTCWrapper: sender is not the order seller',
       )
     })
-    it('market maker successfully deposits collateral', async () => {
+    it('market maker successfully deposits collateral via direct call', async () => {
       const depositAmount = parseUnits('2000', 6) // 2000 USDC
 
       const vaultBefore = await controllerProxy.getVaultWithDetails(otcWrapperProxy.address, 1)
@@ -1285,6 +1527,56 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(logs[0].args.orderID.toString(), '1')
       assert.equal(logs[0].args.amount.toString(), depositAmount)
       assert.equal(logs[0].args.acct.toString(), marketMaker)
+    })
+    it('market maker successfully deposits collateral via minimal forwarder', async () => {
+      const randomBuffer = Buffer.alloc(32, 'abc')
+      const userWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const orderId = 7
+      const depositAmount = 100000000 // 1 WBTC
+
+      const dataExample = [orderId, depositAmount]
+
+      let ABI = ['function depositCollateral(uint256 _orderID, uint256 _amount)']
+      let iface = new ethers.utils.Interface(ABI)
+
+      const callData = iface.encodeFunctionData('depositCollateral', dataExample)
+
+      const forwardRequest = {
+        from: marketMaker,
+        to: otcWrapperProxy.address,
+        value: 0,
+        gas: 3000000,
+        nonce: 1,
+        data: callData,
+      }
+
+      const data = signatureData4
+      const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
+
+      // fund btc
+      await wbtc.mint(marketMaker, createTokenAmount(2, WBTCDECIMALS))
+
+      const vaultBefore = await controllerProxy.getVaultWithDetails(otcWrapperProxy.address, 2)
+      const vaultCollateralBefore = new BigNumber(vaultBefore[0].collateralAmounts[0])
+      const marketMakerBalBeforeWBTC = new BigNumber(await wbtc.balanceOf(marketMaker))
+      const marginPoolBalBeforeWBTC = new BigNumber(await wbtc.balanceOf(marginPool.address))
+
+      // approve
+      await wbtc.approve(otcWrapperProxy.address, depositAmount, { from: marketMaker })
+
+      // call deposit collateral
+      await minimalForwarder.execute(forwardRequest, signature, { from: marketMaker })
+
+      const vaultAfter = await controllerProxy.getVaultWithDetails(otcWrapperProxy.address, 2)
+      const vaultCollateralAfter = new BigNumber(vaultAfter[0].collateralAmounts[0])
+      const marketMakerBalAfterWBTC = new BigNumber(await wbtc.balanceOf(marketMaker))
+      const marginPoolBalAfterWBTC = new BigNumber(await wbtc.balanceOf(marginPool.address))
+
+      // token flows
+      assert.equal(vaultCollateralAfter.minus(vaultCollateralBefore).toString(), depositAmount.toString())
+      assert.equal(marketMakerBalBeforeWBTC.minus(marketMakerBalAfterWBTC).toString(), depositAmount.toString())
+      assert.equal(marginPoolBalAfterWBTC.minus(marginPoolBalBeforeWBTC).toString(), depositAmount.toString())
     })
   })
 
@@ -1328,7 +1620,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         'OTCWrapper: insufficient collateral',
       )
     })
-    it('market maker successfully withdraws collateral', async () => {
+    it('market maker successfully withdraws collateral via direct call', async () => {
       // USDC repegs to 1
       await oracle.setRealTimePrice(usdc.address, scaleBigNum(1, 8))
 
@@ -1361,6 +1653,50 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(logs[0].args.orderID.toString(), '1')
       assert.equal(logs[0].args.amount.toString(), withdrawAmount)
       assert.equal(logs[0].args.acct.toString(), marketMaker)
+    })
+    it('market maker successfully withdraws collateral via minimal forwarder', async () => {
+      const randomBuffer = Buffer.alloc(32, 'abc')
+      const userWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const orderId = 7
+      const withdrawAmount = 100000000 // 1 WBTC
+
+      const dataExample = [orderId, withdrawAmount]
+
+      let ABI = ['function withdrawCollateral(uint256 _orderID, uint256 _amount)']
+      let iface = new ethers.utils.Interface(ABI)
+
+      const callData = iface.encodeFunctionData('withdrawCollateral', dataExample)
+
+      const forwardRequest = {
+        from: marketMaker,
+        to: otcWrapperProxy.address,
+        value: 0,
+        gas: 3000000,
+        nonce: 2,
+        data: callData,
+      }
+
+      const data = signatureData5
+      const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
+
+      const vaultBefore = await controllerProxy.getVaultWithDetails(otcWrapperProxy.address, 2)
+      const vaultCollateralBefore = new BigNumber(vaultBefore[0].collateralAmounts[0])
+      const marketMakerBalBeforeWBTC = new BigNumber(await wbtc.balanceOf(marketMaker))
+      const marginPoolBalBeforeWBTC = new BigNumber(await wbtc.balanceOf(marginPool.address))
+
+      // call withdraw collateral
+      await minimalForwarder.execute(forwardRequest, signature, { from: marketMaker })
+
+      const vaultAfter = await controllerProxy.getVaultWithDetails(otcWrapperProxy.address, 2)
+      const vaultCollateralAfter = new BigNumber(vaultAfter[0].collateralAmounts[0])
+      const marketMakerBalAfterWBTC = new BigNumber(await wbtc.balanceOf(marketMaker))
+      const marginPoolBalAfterWBTC = new BigNumber(await wbtc.balanceOf(marginPool.address))
+
+      // token flows
+      assert.equal(vaultCollateralBefore.minus(vaultCollateralAfter).toString(), withdrawAmount.toString())
+      assert.equal(marketMakerBalAfterWBTC.minus(marketMakerBalBeforeWBTC).toString(), withdrawAmount.toString())
+      assert.equal(marginPoolBalBeforeWBTC.minus(marginPoolBalAfterWBTC).toString(), withdrawAmount.toString())
     })
   })
 
@@ -1401,7 +1737,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       await expectRevert(otcWrapperProxy.settleVault(1, { from: marketMaker }), 'C32')
     })
-    it('market maker successfully settles after expiry ITM and user redeems otokens', async () => {
+    it('market maker successfully settles after expiry ITM via direct call and user redeems otokens', async () => {
       // past time after expiry
       await time.increase(8600000)
 
@@ -1459,7 +1795,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       assert.equal(userBalanceAfter.minus(userBalAfterUSDC).toString(), userPayout.toString())
     })
-    it('market maker successfully settles after expiry OTM', async () => {
+    it('market maker successfully settles after expiry OTM via direct call', async () => {
       // past time after expiry
       await time.increase(8600000)
 
@@ -1480,10 +1816,10 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const marginPoolBalBeforeWBTC = new BigNumber(await wbtc.balanceOf(marginPool.address))
       const marketMakerBalBeforeWBTC = new BigNumber(await wbtc.balanceOf(marketMaker))
 
-      assert.isAbove((await marginRequirements.maintenanceMargin(2)).toNumber(), 0)
+      assert.isAbove((await marginRequirements.maintenanceMargin(7)).toNumber(), 0)
 
       // call settle vault
-      const tx = await otcWrapperProxy.settleVault(6, { from: marketMaker })
+      const tx = await otcWrapperProxy.settleVault(7, { from: marketMaker })
 
       const marginPoolBalAfterWBTC = new BigNumber(await wbtc.balanceOf(marginPool.address))
       const marketMakerBalAfterWBTC = new BigNumber(await wbtc.balanceOf(marketMaker))
@@ -1495,7 +1831,64 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       // emits event
       const { logs } = tx
-      assert.equal(logs[0].args.orderID.toString(), '6')
+      assert.equal(logs[0].args.orderID.toString(), '7')
+    })
+    it('market maker successfully settles after expiry OTM via minimal forwarder', async () => {
+      const randomBuffer = Buffer.alloc(32, 'abc')
+      const userWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const orderId = 8
+
+      const dataExample = [orderId]
+
+      let ABI = ['function settleVault(uint256 _orderID)']
+      let iface = new ethers.utils.Interface(ABI)
+
+      const callData = iface.encodeFunctionData('settleVault', dataExample)
+
+      const forwardRequest = {
+        from: marketMaker,
+        to: otcWrapperProxy.address,
+        value: 0,
+        gas: 3000000,
+        nonce: 3,
+        data: callData,
+      }
+
+      const data = signatureData7
+      const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
+      
+      // past time after expiry
+      await time.increase(8600000)
+
+      //set finalized prices
+      await oracle.setExpiryPriceFinalizedAllPeiodOver(weth.address, expiry, createTokenAmount(1299), true)
+      await oracle.setExpiryPriceFinalizedAllPeiodOver(usdc.address, expiry, createTokenAmount(1), true)
+
+      // isPut = false
+      // Strike price = 1300
+      // Expiry price = 1299
+      // nr of otokens = 100
+      // user payout = 0 | OTM
+      // collateral in vault = 15001 USDC
+      // collateral free to be withdrawn by MM = 15001 - 0 = 15001 USDC
+
+      const collateralToWithdraw = createTokenAmount(15001, USDCDECIMALS)
+
+      const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const marketMakerBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marketMaker))
+
+      assert.isAbove((await marginRequirements.maintenanceMargin(7)).toNumber(), 0)
+
+      // call settle vault
+      await minimalForwarder.execute(forwardRequest, signature, { from: marketMaker })
+
+      const marginPoolBalAfterUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const marketMakerBalAfterUSDC = new BigNumber(await usdc.balanceOf(marketMaker))
+
+      // token flows
+      assert.equal(marketMakerBalAfterUSDC.minus(marketMakerBalBeforeUSDC).toString(), collateralToWithdraw.toString())
+      assert.equal(marginPoolBalBeforeUSDC.minus(marginPoolBalAfterUSDC).toString(), collateralToWithdraw.toString())
     })
   })
 
@@ -1526,3 +1919,56 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     })
   })
 })
+
+const executeOrderABI = [
+  {
+    inputs: [
+      { internalType: 'uint256', name: '_orderID', type: 'uint256' },
+      {
+        components: [
+          { internalType: 'uint256', name: 'amount', type: 'uint256' },
+          { internalType: 'uint256', name: 'deadline', type: 'uint256' },
+          { internalType: 'address', name: 'acct', type: 'address' },
+          { internalType: 'uint8', name: 'v', type: 'uint8' },
+          { internalType: 'bytes32', name: 'r', type: 'bytes32' },
+          { internalType: 'bytes32', name: 's', type: 'bytes32' },
+        ],
+        internalType: 'struct Permit',
+        name: '_userSignature',
+        type: 'tuple',
+      },
+      {
+        components: [
+          { internalType: 'uint256', name: 'amount', type: 'uint256' },
+          { internalType: 'uint256', name: 'deadline', type: 'uint256' },
+          { internalType: 'address', name: 'acct', type: 'address' },
+          { internalType: 'uint8', name: 'v', type: 'uint8' },
+          { internalType: 'bytes32', name: 'r', type: 'bytes32' },
+          { internalType: 'bytes32', name: 's', type: 'bytes32' },
+        ],
+        internalType: 'struct Permit',
+        name: '_mmSignature',
+        type: 'tuple',
+      },
+      {
+        internalType: 'uint256',
+        name: '_premium',
+        type: 'uint256',
+      },
+      {
+        internalType: 'address',
+        name: '_collateralAsset',
+        type: 'address',
+      },
+      {
+        internalType: 'uint256',
+        name: '_collateralAmount',
+        type: 'uint256',
+      },
+    ],
+    name: 'executeOrder',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+]

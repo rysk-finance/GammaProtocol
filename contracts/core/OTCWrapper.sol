@@ -302,12 +302,12 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         Order memory order = orders[_orderID];
 
-        require(order.seller == msg.sender, "OTCWrapper: sender is not the order seller");
+        require(order.seller == _msgSender(), "OTCWrapper: sender is not the order seller");
 
         IERC20 collateralInterface = IERC20(order.collateral);
 
         // market maker inflow - an approve() or permit() by the msg.sender is required beforehand
-        collateralInterface.safeTransferFrom(msg.sender, address(this), _amount);
+        collateralInterface.safeTransferFrom(order.seller, address(this), _amount);
 
         // approve margin pool to deposit collateral
         collateralInterface.safeApproveNonCompliant(addressbook.getMarginPool(), _amount);
@@ -342,7 +342,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         Order memory order = orders[_orderID];
 
-        require(order.seller == msg.sender, "OTCWrapper: sender is not the order seller");
+        require(order.seller == _msgSender(), "OTCWrapper: sender is not the order seller");
 
         (UtilsWrapperInterface.Vault memory vault, , ) = controller.getVaultWithDetails(address(this), order.vaultID);
 
@@ -464,7 +464,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      */
     function undoOrder(uint256 _orderID) external {
         require(orderStatus[_orderID] == OrderStatus.Pending, "OTCWrapper: inexistent or unsuccessful order");
-        require(orders[_orderID].buyer == msg.sender, "OTCWrapper: only buyer can undo the order");
+        require(orders[_orderID].buyer == _msgSender(), "OTCWrapper: only buyer can undo the order");
 
         orderStatus[_orderID] = OrderStatus.Failed;
 
@@ -493,7 +493,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         uint256 _collateralAmount
     ) external nonReentrant {
         require(orderStatus[_orderID] == OrderStatus.Pending, "OTCWrapper: inexistent or unsuccessful order");
-        require(isWhitelistedMarketMaker[msg.sender], "OTCWrapper: address not whitelisted marketmaker");
+        require(isWhitelistedMarketMaker[_msgSender()], "OTCWrapper: address not whitelisted marketmaker");
         require(_userSignature.amount >= _premium, "OTCWrapper: insufficient amount");
 
         Order memory order = orders[_orderID];
@@ -504,7 +504,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         require(
             marginRequirements.checkMintCollateral(
-                msg.sender,
+                _msgSender(),
                 order.notional,
                 order.underlying,
                 order.isPut,
@@ -542,7 +542,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         IERC20(USDC).safeTransfer(beneficiary, orderFee);
 
         // transfer premium to market maker
-        IERC20(USDC).safeTransfer(msg.sender, _premium.sub(orderFee));
+        IERC20(USDC).safeTransfer(_msgSender(), _premium.sub(orderFee));
 
         // open vault
         uint256 vaultID = (controller.getAccountVaultCounter(address(this))).add(1);
@@ -617,14 +617,14 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         // order accounting
         orders[_orderID].premium = _premium;
         orders[_orderID].collateral = _collateralAsset;
-        orders[_orderID].seller = msg.sender;
+        orders[_orderID].seller = _msgSender();
         orders[_orderID].vaultID = vaultID;
         orders[_orderID].oToken = oToken;
         orderStatus[_orderID] = OrderStatus.Succeeded;
         ordersByAcct[order.buyer].push(_orderID);
-        ordersByAcct[msg.sender].push(_orderID);
+        ordersByAcct[_msgSender()].push(_orderID);
 
-        emit OrderExecuted(_orderID, _collateralAsset, _premium, msg.sender, vaultID, oToken, _collateralAmount);
+        emit OrderExecuted(_orderID, _collateralAsset, _premium, _msgSender(), vaultID, oToken, _collateralAmount);
     }
 
     /**
@@ -637,14 +637,14 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         Order memory order = orders[_orderID];
 
-        require(order.seller == msg.sender, "OTCWrapper: sender is not the order seller");
+        require(order.seller == _msgSender(), "OTCWrapper: sender is not the order seller");
 
         UtilsWrapperInterface.ActionArgs[] memory actions = new UtilsWrapperInterface.ActionArgs[](1);
 
         actions[0] = UtilsWrapperInterface.ActionArgs(
             UtilsWrapperInterface.ActionType.SettleVault,
             address(this), // owner
-            msg.sender, // address to transfer to
+            order.seller, // address to transfer to
             address(0), // not used
             order.vaultID, // vaultId
             0, // not used
