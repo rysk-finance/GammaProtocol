@@ -453,6 +453,8 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             block.timestamp
         );
 
+        ordersByAcct[_msgSender()].push(latestOrder);
+
         orderStatus[latestOrder] = OrderStatus.Pending;
 
         emit OrderPlaced(latestOrder, _underlying, _isPut, _strikePrice, _expiry, _premium, _notional, _msgSender());
@@ -621,7 +623,6 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         orders[_orderID].vaultID = vaultID;
         orders[_orderID].oToken = oToken;
         orderStatus[_orderID] = OrderStatus.Succeeded;
-        ordersByAcct[order.buyer].push(_orderID);
         ordersByAcct[_msgSender()].push(_orderID);
 
         emit OrderExecuted(_orderID, _collateralAsset, _premium, _msgSender(), vaultID, oToken, _collateralAmount);

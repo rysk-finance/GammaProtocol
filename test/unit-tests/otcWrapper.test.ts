@@ -898,6 +898,8 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       assert.equal((await otcWrapperProxy.latestOrder()).toString(), '1')
 
+      assert.equal((await otcWrapperProxy.ordersByAcct(user, 0)).toString(), '1')
+
       // order was placed correctly
       assert.equal((await otcWrapperProxy.orders(1))[0].toString(), weth.address)
       assert.equal((await otcWrapperProxy.orders(1))[1].toString(), ZERO_ADDR)
@@ -949,12 +951,15 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       const data = signatureData
       const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
-
+      
       assert.equal((await otcWrapperProxy.latestOrder()).toString(), '1')
+      assert.equal((await otcWrapperProxy.ordersByAcct(user, 0)).toString(), '1')
 
       await minimalForwarder.execute(forwardRequest, signature, { from: user })
 
       assert.equal((await otcWrapperProxy.latestOrder()).toString(), '2')
+      assert.equal((await otcWrapperProxy.ordersByAcct(user, 1)).toString(), '2')
+
 
       // order was placed correctly
       assert.equal((await otcWrapperProxy.orders(2))[0].toString(), weth.address)
@@ -1238,7 +1243,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(vault[0].collateralAssets[0].toString(), usdc.address)
 
       // order accounting
-      assert.equal((await otcWrapperProxy.ordersByAcct(user, 0)).toString(), '1')
       assert.equal((await otcWrapperProxy.ordersByAcct(marketMaker, 0)).toString(), '1')
       assert.equal((await otcWrapperProxy.orders(1))[5].toString(), premium.toString())
       assert.equal((await otcWrapperProxy.orders(1))[1].toString(), usdc.address)
@@ -1355,7 +1359,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(vault[0].collateralAssets[0].toString(), wbtc.address)
 
       // order accounting
-      assert.equal((await otcWrapperProxy.ordersByAcct(user, 1)).toString(), '7')
       assert.equal((await otcWrapperProxy.ordersByAcct(marketMaker, 1)).toString(), '7')
       assert.equal((await otcWrapperProxy.orders(7))[5].toString(), premium.toString())
       assert.equal((await otcWrapperProxy.orders(7))[1].toString(), wbtc.address)
@@ -1445,7 +1448,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(vault[0].collateralAssets[0].toString(), usdc.address)
 
       // order accounting
-      assert.equal((await otcWrapperProxy.ordersByAcct(user, 2)).toString(), '8')
       assert.equal((await otcWrapperProxy.ordersByAcct(marketMaker, 2)).toString(), '8')
       assert.equal((await otcWrapperProxy.orders(8))[5].toString(), premium.toString())
       assert.equal((await otcWrapperProxy.orders(8))[1].toString(), usdc.address)
