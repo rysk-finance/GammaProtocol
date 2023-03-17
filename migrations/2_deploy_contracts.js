@@ -71,7 +71,7 @@ module.exports = async function(deployer, network, accounts) {
   // deploy OTC wrapper
   const addressUSDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"; // ETH Mainnet USDC address
   const fillDeadline = 15*60 // 15 minutes
-  const beneficiary = "0xF8368119Bb1073Cf01B841848725d81b542A4c19" // Temporary
+  const beneficiary = "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674" // Ribbon multisig
   
   const otcWrapperImplementation = await OTCWrapper.new(forwarder.address, addressUSDC)
   const ownedUpgradeabilityProxy = await OwnedUpgradeabilityProxy.new()
