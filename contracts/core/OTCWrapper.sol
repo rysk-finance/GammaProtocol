@@ -306,7 +306,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         IERC20 collateralInterface = IERC20(order.collateral);
 
-        // market maker inflow - an approve() or permit() by the msg.sender is required beforehand
+        // market maker inflow - an approve() or permit() by the _msgSender() is required beforehand
         collateralInterface.safeTransferFrom(order.seller, address(this), _amount);
 
         // approve margin pool to deposit collateral
@@ -378,7 +378,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     }
 
     /**
-     * @notice Deposits the `asset` from msg.sender without an approve
+     * @notice Deposits the `asset` from _msgSender() without an approve
      * `v`, `r` and `s` must be a valid `secp256k1` signature from `owner`
      * over the EIP712-formatted function arguments
      * @param _acct signer account
@@ -405,7 +405,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             IERC20Permit(USDC).permit(_acct, address(this), _amount, _deadline, _v, _r, _s);
         }
 
-        // An approve() or permit() by the msg.sender is required beforehand
+        // An approve() or permit() by the _msgSender() is required beforehand
         IERC20(_asset).safeTransferFrom(_acct, address(this), _amount);
     }
 
