@@ -1610,6 +1610,12 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         'OTCWrapper: insufficient collateral',
       )
     })
+    it('should revert if withdrawAmount + maintenanceMargin > collateral in vault', async () => {
+      await expectRevert(
+        otcWrapperProxy.withdrawCollateral(1, parseUnits('16001', 6), { from: marketMaker }),
+        'MarginRequirements: insufficient collateral',
+      )
+    })
     it('should revert if USDC depegs', async () => {
       // USDC depegs to 0.5
       await oracle.setRealTimePrice(usdc.address, scaleBigNum(5, 7))

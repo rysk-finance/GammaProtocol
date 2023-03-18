@@ -173,6 +173,11 @@ contract MarginRequirements is Ownable {
     ) external view returns (bool) {
         uint256 collateralDecimals = uint256(ERC20Interface(_vault.collateralAssets[0]).decimals());
 
+        require(
+            _withdrawAmount.add(maintenanceMargin[_vaultID]) < _vault.collateralAmounts[0],
+            "MarginRequirements: insufficient collateral"
+        );
+
         return
             _notional.mul(_getInitialMargin(_otokenAddress, _account)).mul(10**collateralDecimals).mul(
                 10**ORACLE_DECIMALS
