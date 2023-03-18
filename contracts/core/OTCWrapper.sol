@@ -85,7 +85,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     ///@notice order counter
     uint256 public latestOrder;
 
-    ///@notice fill deadline duration
+    ///@notice fill deadline duration in seconds
     uint256 public fillDeadline;
 
     ///@notice address that will receive the product fees
@@ -103,9 +103,9 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
     // struct defining order details
     struct Order {
-        // underlying asset address
+        // underlying asset address (with its respective token decimals)
         address underlying;
-        // collateral asset address
+        // collateral asset address (with its respective token decimals)
         address collateral;
         // option type the vault is selling
         bool isPut;
@@ -113,9 +113,9 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         uint256 strikePrice;
         // option expiry timestamp
         uint256 expiry;
-        // order premium amount
+        // order premium amount in USDC (with USDC decimals)
         uint256 premium;
-        // order notional
+        // order notional in USD (with 6 decimals)
         uint256 notional;
         // buyer address
         address buyer;
@@ -123,7 +123,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         address seller;
         // id of the vault
         uint256 vaultID;
-        // otoken address
+        // otoken address (with 8 decimals)
         address oToken;
         // timestamp of when the order was opened
         uint256 openedAt;
@@ -131,7 +131,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
     // struct defining permit signature details
     struct Permit {
-        // permit amount
+        // permit amount (with its respective token decimals)
         uint256 amount;
         // permit deadline
         uint256 deadline;
@@ -145,11 +145,11 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         bytes32 s;
     }
 
-    // struct defining the upper and lower boundaries of notional for an asset
+    // struct defining the upper and lower boundaries of USD notional for an asset
     struct MinMaxNotional {
-        // minimum notional value allowed
+        // minimum USD notional value allowed (with 6 decimals)
         uint256 min;
-        // maximum notional value allowed
+        // maximum USD notional value allowed (with 6 decimals)
         uint256 max;
     }
 
@@ -193,7 +193,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice initialize the deployed contract
      * @param _beneficiary beneficiary address
      * @param _addressBook AddressBook address
-     * @param _fillDeadline fill deadline duration
+     * @param _fillDeadline fill deadline duration in seconds
      */
     function initialize(
         address _addressBook,
@@ -226,8 +226,8 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice sets the floor and cap of a particular asset notional
      * @dev can only be called by owner
      * @param _underlying underlying asset address
-     * @param _min minimum notional value allowed in USD with 6 decimals
-     * @param _max maximum notional value allowed in USD with 6 decimals
+     * @param _min minimum USD notional value allowed (with 6 decimals)
+     * @param _max maximum USD notional value allowed (with 6 decimals)
      */
     function setMinMaxNotional(
         address _underlying,
@@ -279,7 +279,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     /**
      * @notice sets the fill deadline duration
      * @dev can only be called by owner
-     * @param _fillDeadline fill deadline duration
+     * @param _fillDeadline fill deadline duration in seconds
      */
     function setFillDeadline(uint256 _fillDeadline) external onlyOwner {
         require(_fillDeadline > 0, "OTCWrapper: fill deadline cannot be 0");
@@ -295,7 +295,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice allows market maker to deposit collateral
      * @dev can only be called by the market maker who is the order seller
      * @param _orderID id of the order
-     * @param _amount amount to deposit
+     * @param _amount amount to deposit (with its respective token decimals)
      */
     function depositCollateral(uint256 _orderID, uint256 _amount) external nonReentrant {
         require(orderStatus[_orderID] == OrderStatus.Succeeded, "OTCWrapper: inexistent or unsuccessful order");
@@ -335,7 +335,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice allows market maker to withdraw collateral
      * @dev can only be called by the market maker who is the order seller
      * @param _orderID id of the order
-     * @param _amount amount to withdraw
+     * @param _amount amount to withdraw (with its respective token decimals)
      */
     function withdrawCollateral(uint256 _orderID, uint256 _amount) external nonReentrant {
         require(orderStatus[_orderID] == OrderStatus.Succeeded, "OTCWrapper: inexistent or unsuccessful order");
@@ -383,7 +383,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * over the EIP712-formatted function arguments
      * @param _acct signer account
      * @param _asset is the asset address to deposit
-     * @param _amount is the amount to deposit
+     * @param _amount is the amount to deposit (with its respective token decimals)
      * @param _deadline must be a timestamp in the future
      * @param _v is a valid signature
      * @param _r is a valid signature
@@ -417,10 +417,10 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice places an order
      * @param _underlying underlying asset address
      * @param _isPut option type the vault is selling
-     * @param _strikePrice option strike price
+     * @param _strikePrice option strike price (with its respective token decimals)
      * @param _expiry option expiry timestamp
-     * @param _premium order premium amount
-     * @param _notional order notional
+     * @param _premium order premium amount (USDC value with USDC decimals)
+     * @param _notional order notional (USD value with 6 decimals)
      */
     function placeOrder(
         address _underlying,
@@ -482,9 +482,9 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param _orderID id of the order
      * @param _userSignature user permit signature
      * @param _mmSignature market maker permit signature
-     * @param _premium order premium amount
+     * @param _premium order premium amount (USDC value with USDC decimals)
      * @param _collateralAsset collateral asset address
-     * @param _collateralAmount collateral amount
+     * @param _collateralAmount collateral amount (with its respective token decimals)
      */
     function executeOrder(
         uint256 _orderID,
@@ -539,9 +539,9 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param _order order struct with order details
      * @param _userSignature user permit signature
      * @param _mmSignature market maker permit signature
-     * @param _premium order premium amount
+     * @param _premium order premium amount (USDC value with USDC decimals)
      * @param _collateralAsset collateral asset address
-     * @param _collateralAmount collateral amount
+     * @param _collateralAmount collateral amount (with its respective token decimals)
      */
     function _settleFunds(
         Order memory _order,
@@ -586,7 +586,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice deposits collateral and mints otokens
      * @param _order order struct with order details
      * @param _collateralAsset collateral asset address
-     * @param _collateralAmount collateral amount
+     * @param _collateralAmount collateral amount (with its respective token decimals)
      * @return vault id and otoken address
      */
     function _depositCollateralAndMint(

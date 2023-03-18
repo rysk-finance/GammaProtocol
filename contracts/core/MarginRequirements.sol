@@ -34,7 +34,7 @@ contract MarginRequirements is Ownable {
     /// @notice Number of decimals in notional variable
     uint256 public constant NOTIONAL_DECIMALS = 6;
 
-    /// @notice Number of decimals price output from oracle
+    /// @notice Number of decimals in price output from oracle
     uint256 public constant ORACLE_DECIMALS = 8;
 
     /************************************************
@@ -88,7 +88,7 @@ contract MarginRequirements is Ownable {
      * @param _collateralAsset collateral asset address
      * @param _isPut option type the vault is selling
      * @param _account account address
-     * @param _initialMargin initial margin percentage (eg. 10% = 1000)
+     * @param _initialMargin initial margin percentage (eg. 10% = 10 * 10**2 = 1000)
      */
     function setInitialMargin(
         address _underlying,
@@ -112,7 +112,7 @@ contract MarginRequirements is Ownable {
      * @notice sets the maintenance margin absolute amount
      * @dev can only be called by keeper
      * @param _vaultID id of the vault
-     * @param _maintenanceMargin maintenance margin absolute amount
+     * @param _maintenanceMargin maintenance margin absolute amount with its respective token decimals
      */
     function setMaintenanceMargin(uint256 _vaultID, uint256 _maintenanceMargin) external onlyKeeper {
         require(_maintenanceMargin > 0, "MarginRequirements: initial margin cannot be 0");
@@ -127,11 +127,11 @@ contract MarginRequirements is Ownable {
     /**
      * @notice checks if there is enough collateral to mint the desired amount of otokens
      * @param _account account address
-     * @param _notional order notional amount
+     * @param _notional order notional amount (USD value with 6 decimals)
      * @param _underlying underlying asset address
      * @param _isPut option type the vault is selling
      * @param _collateralAsset collateral asset address
-     * @param _collateralAmount collateral amount
+     * @param _collateralAmount collateral amount (with its respective token decimals)
      * @return boolean value stating whether there is enough collateral to mint
      */
     function checkMintCollateral(
@@ -156,8 +156,8 @@ contract MarginRequirements is Ownable {
     /**
      * @notice checks if there is enough collateral to withdraw the desired amount
      * @param _account account address
-     * @param _notional order notional amount
-     * @param _withdrawAmount desired amount to withdraw
+     * @param _notional order notional amount (USD value with 6 decimals)
+     * @param _withdrawAmount desired amount to withdraw (with its respective token decimals)
      * @param _otokenAddress otoken address
      * @param _vaultID id of the vault
      * @param _vault vault struct
