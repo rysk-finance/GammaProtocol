@@ -276,9 +276,10 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @notice modifier to check if the sender is the liquidation manager address
      */
     modifier onlyLiquidationManager() {
-        if (addressbook.getLiquidationManager() != address(0)) {
-            require(msg.sender == addressbook.getLiquidationManager(), "C38");
-        }
+        require(
+            msg.sender == addressbook.getLiquidationManager() || addressbook.getLiquidationManager() == address(0),
+            "C38"
+        );
         _;
     }
 
