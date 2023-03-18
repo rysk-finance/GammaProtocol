@@ -25,6 +25,19 @@ contract MarginRequirements is Ownable {
     OracleInterface public oracle;
 
     /************************************************
+     *  CONSTANTS
+     ***********************************************/
+
+    /// @notice Max initial margin value - equivalent to 100%
+    uint256 public constant MAX_INITIAL_MARGIN = 100 * 10**2;
+
+    /// @notice Number of decimals in notional variable
+    uint256 public constant NOTIONAL_DECIMALS = 6;
+
+    /// @notice Number of decimals price output from oracle
+    uint256 public constant ORACLE_DECIMALS = 8;
+
+    /************************************************
      *  STORAGE
      ***********************************************/
 
@@ -136,8 +149,8 @@ contract MarginRequirements is Ownable {
         ];
 
         return
-            _notional.mul(initialMarginRequired).mul(10**collateralDecimals).mul(1e8) <
-            _collateralAmount.mul(oracle.getPrice(_collateralAsset)).mul(100e2).mul(1e6);
+            _notional.mul(initialMarginRequired).mul(10**collateralDecimals).mul(10**ORACLE_DECIMALS) <
+            _collateralAmount.mul(oracle.getPrice(_collateralAsset)).mul(MAX_INITIAL_MARGIN).mul(10**NOTIONAL_DECIMALS);
     }
 
     /**
@@ -161,11 +174,13 @@ contract MarginRequirements is Ownable {
         uint256 collateralDecimals = uint256(ERC20Interface(_vault.collateralAssets[0]).decimals());
 
         return
-            _notional.mul(_getInitialMargin(_otokenAddress, _account)).mul(10**collateralDecimals).mul(1e8) <
+            _notional.mul(_getInitialMargin(_otokenAddress, _account)).mul(10**collateralDecimals).mul(
+                10**ORACLE_DECIMALS
+            ) <
             (_vault.collateralAmounts[0].sub(_withdrawAmount).sub(maintenanceMargin[_vaultID]))
                 .mul(oracle.getPrice(_vault.collateralAssets[0]))
-                .mul(100e2)
-                .mul(1e6);
+                .mul(MAX_INITIAL_MARGIN)
+                .mul(10**NOTIONAL_DECIMALS);
     }
 
     /**
