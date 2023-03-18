@@ -516,6 +516,41 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             "OTCWrapper: insufficient collateral"
         );
 
+        // settle funds
+        _settleFunds(order, _userSignature, _mmSignature, _premium, _collateralAsset, _collateralAmount);
+
+        // deposit collateral and mint otokens
+        (uint256 vaultID, address oToken) = _depositCollateralAndMint(order, _collateralAsset, _collateralAmount);
+
+        // order accounting
+        orders[_orderID].premium = _premium;
+        orders[_orderID].collateral = _collateralAsset;
+        orders[_orderID].seller = _msgSender();
+        orders[_orderID].vaultID = vaultID;
+        orders[_orderID].oToken = oToken;
+        orderStatus[_orderID] = OrderStatus.Succeeded;
+        ordersByAcct[_msgSender()].push(_orderID);
+
+        emit OrderExecuted(_orderID, _collateralAsset, _premium, _msgSender(), vaultID, oToken, _collateralAmount);
+    }
+
+    /**
+     * @notice both parties deposit, the fee is transferred to beneficiary and premium is transferred to market maker
+     * @param _order order struct with order details
+     * @param _userSignature user permit signature
+     * @param _mmSignature market maker permit signature
+     * @param _premium order premium amount
+     * @param _collateralAsset collateral asset address
+     * @param _collateralAmount collateral amount
+     */
+    function _settleFunds(
+        Order memory _order,
+        Permit calldata _userSignature,
+        Permit calldata _mmSignature,
+        uint256 _premium,
+        address _collateralAsset,
+        uint256 _collateralAmount
+    ) private {
         // user inflow
         _deposit(
             _userSignature.acct,
@@ -538,14 +573,27 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             _mmSignature.s
         );
 
-        uint256 orderFee = (order.notional.mul(fee[order.underlying])).div(10000); // eg. fee = 4bps = 0.04% , then need to divide by 100 again so (( 4 / 100 ) / 100)
+        uint256 orderFee = (_order.notional.mul(fee[_order.underlying])).div(10000); // eg. fee = 4bps = 0.04% , then need to divide by 100 again so (( 4 / 100 ) / 100)
 
         // transfer fee to beneficiary address
         IERC20(USDC).safeTransfer(beneficiary, orderFee);
 
         // transfer premium to market maker
         IERC20(USDC).safeTransfer(_msgSender(), _premium.sub(orderFee));
+    }
 
+    /**
+     * @notice deposits collateral and mints otokens
+     * @param _order order struct with order details
+     * @param _collateralAsset collateral asset address
+     * @param _collateralAmount collateral amount
+     * @return vault id and otoken address
+     */
+    function _depositCollateralAndMint(
+        Order memory _order,
+        address _collateralAsset,
+        uint256 _collateralAmount
+    ) private returns (uint256, address) {
         // open vault
         uint256 vaultID = (controller.getAccountVaultCounter(address(this))).add(1);
 
@@ -577,35 +625,18 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             "" //data
         );
 
-        // create otoken, get an address and calculate mint amount
-        address oToken = OTokenFactory.getOtoken(
-            order.underlying,
-            USDC,
-            _collateralAsset,
-            order.strikePrice,
-            order.expiry,
-            order.isPut
-        );
-
-        if (oToken == address(0)) {
-            oToken = OTokenFactory.createOtoken(
-                order.underlying,
-                USDC,
-                _collateralAsset,
-                order.strikePrice,
-                order.expiry,
-                order.isPut
-            );
-        }
+        // retrieve otoken address
+        address oToken = _getOrDeployOToken(_order, _collateralAsset);
 
         // scales by 1e8 for division with oracle price
         // scales by 1e2 to increase from 6 decimals (notional) to 8 decimals (otoken)
-        uint256 mintAmount = order.notional.mul(1e10).div(oracle.getPrice(order.underlying));
+        uint256 mintAmount = _order.notional.mul(1e10).div(oracle.getPrice(_order.underlying));
 
+        // mint otokens
         actions[2] = UtilsWrapperInterface.ActionArgs(
             UtilsWrapperInterface.ActionType.MintShortOption,
             address(this), // owner
-            order.buyer, // address to transfer to
+            _order.buyer, // address to transfer to
             oToken, // option address
             vaultID, // vaultId
             mintAmount, // amount
@@ -616,16 +647,37 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         // execute actions
         controller.operate(actions);
 
-        // order accounting
-        orders[_orderID].premium = _premium;
-        orders[_orderID].collateral = _collateralAsset;
-        orders[_orderID].seller = _msgSender();
-        orders[_orderID].vaultID = vaultID;
-        orders[_orderID].oToken = oToken;
-        orderStatus[_orderID] = OrderStatus.Succeeded;
-        ordersByAcct[_msgSender()].push(_orderID);
+        return (vaultID, oToken);
+    }
 
-        emit OrderExecuted(_orderID, _collateralAsset, _premium, _msgSender(), vaultID, oToken, _collateralAmount);
+    /**
+     * @notice checks if oToken exists, if not then deploys a new one
+     * @param _order order struct with order details
+     * @param _collateralAsset collateral asset address
+     * @return otoken address
+     */
+    function _getOrDeployOToken(Order memory _order, address _collateralAsset) private returns (address) {
+        address oToken = OTokenFactory.getOtoken(
+            _order.underlying,
+            USDC,
+            _collateralAsset,
+            _order.strikePrice,
+            _order.expiry,
+            _order.isPut
+        );
+
+        if (oToken == address(0)) {
+            oToken = OTokenFactory.createOtoken(
+                _order.underlying,
+                USDC,
+                _collateralAsset,
+                _order.strikePrice,
+                _order.expiry,
+                _order.isPut
+            );
+        }
+
+        return oToken;
     }
 
     /**
