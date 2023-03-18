@@ -822,14 +822,14 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       await expectRevert(otcWrapperProxy.setFee(random, 0, { from: random }), 'Ownable: caller is not the owner')
     })
     it('sucessfully sets fee to 1% for WETH', async () => {
-      await otcWrapperProxy.setFee(weth.address, 100) // 1%
+      await otcWrapperProxy.setFee(weth.address, 10000) // 1%
 
-      assert.equal((await otcWrapperProxy.fee(weth.address)).toString(), '100')
+      assert.equal((await otcWrapperProxy.fee(weth.address)).toString(), '10000')
     })
     it('sucessfully sets fee to 1% for WBTC', async () => {
-      await otcWrapperProxy.setFee(wbtc.address, 100) // 1%
+      await otcWrapperProxy.setFee(wbtc.address, 10000) // 1%
 
-      assert.equal((await otcWrapperProxy.fee(wbtc.address)).toString(), '100')
+      assert.equal((await otcWrapperProxy.fee(wbtc.address)).toString(), '10000')
     })
   })
 

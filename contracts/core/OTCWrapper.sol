@@ -257,7 +257,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice sets the fee for a given the underlying asset
      * @dev can only be called by owner
      * @param _underlying underlying asset address
-     * @param _fee fee amount in bps (4bps = 0.04%)
+     * @param _fee fee amount in bps with 2 decimals (400 = 4bps = 0.04%)
      */
     function setFee(address _underlying, uint256 _fee) external onlyOwner {
         require(_underlying != address(0), "OTCWrapper: asset address cannot be 0");
@@ -573,7 +573,10 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             _mmSignature.s
         );
 
-        uint256 orderFee = (_order.notional.mul(fee[_order.underlying])).div(10000); // eg. fee = 4bps = 0.04% , then need to divide by 100 again so (( 4 / 100 ) / 100)
+        // eg. fee = 4bps = 0.04% , then need to divide by 100 again so (( 4 / 100 ) / 100)
+        // after the above it is divided again by 1e2 which is the fee decimals
+        // when aggregated the division becomes by 1e6
+        uint256 orderFee = (_order.notional.mul(fee[_order.underlying])).div(1e6);
 
         // transfer fee to beneficiary address
         IERC20(USDC).safeTransfer(beneficiary, orderFee);
