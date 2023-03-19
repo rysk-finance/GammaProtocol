@@ -29,7 +29,7 @@ const MarginVault = artifacts.require('MarginVault.sol')
 const MarginRequirements = artifacts.require('MarginRequirements.sol')
 const OTCWrapper = artifacts.require('OTCWrapper.sol')
 
-contract('AddressBook', ([owner, otokenImplAdd, marginPoolAdd, liquidationManagerImpl, keeper, random, trustedForwarder]) => {
+contract('AddressBook', ([owner, otokenImplAdd, marginPoolAdd, liquidationManagerImpl, keeper, random, trustedForwarder, addressUSDC]) => {
   // ERC20 mocks
   let weth: MockERC20Instance
   // addressbook instance
@@ -243,7 +243,7 @@ contract('AddressBook', ([owner, otokenImplAdd, marginPoolAdd, liquidationManage
     let otcWrapper: OTCWrapperInstance
 
     before(async () => {
-      otcWrapper = await OTCWrapper.new(trustedForwarder)
+      otcWrapper = await OTCWrapper.new(trustedForwarder, addressUSDC)
     })
 
     it('should revert adding OTC Wrapper address from non-owner address', async () => {
