@@ -296,21 +296,31 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @dev can only be called by the market maker who is the order seller
      * @param _orderID id of the order
      * @param _amount amount to deposit (with its respective token decimals)
+     * @param _mmSignature market maker permit signature
      */
-    function depositCollateral(uint256 _orderID, uint256 _amount) external nonReentrant {
+    function depositCollateral(
+        uint256 _orderID,
+        uint256 _amount,
+        Permit calldata _mmSignature
+    ) external nonReentrant {
         require(orderStatus[_orderID] == OrderStatus.Succeeded, "OTCWrapper: inexistent or unsuccessful order");
 
         Order memory order = orders[_orderID];
 
         require(order.seller == _msgSender(), "OTCWrapper: sender is not the order seller");
 
-        IERC20 collateralInterface = IERC20(order.collateral);
-
-        // market maker inflow - an approve() or permit() by the _msgSender() is required beforehand
-        collateralInterface.safeTransferFrom(order.seller, address(this), _amount);
+        _deposit(
+            _mmSignature.acct,
+            order.collateral,
+            _amount,
+            _mmSignature.deadline,
+            _mmSignature.v,
+            _mmSignature.r,
+            _mmSignature.s
+        );
 
         // approve margin pool to deposit collateral
-        collateralInterface.safeApproveNonCompliant(addressbook.getMarginPool(), _amount);
+        IERC20(order.collateral).safeApproveNonCompliant(addressbook.getMarginPool(), _amount);
 
         UtilsWrapperInterface.ActionArgs[] memory actions = new UtilsWrapperInterface.ActionArgs[](1);
 

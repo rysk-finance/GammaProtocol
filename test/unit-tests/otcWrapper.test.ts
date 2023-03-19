@@ -139,6 +139,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   let mmSignatureEmpty: permit
   let mmSignatureUSDC1: permit
   let mmSignatureUSDC2: permit
+  let mmSignatureUSDC3: permit
   let forceSend: ForceSendInstance
 
   // time to expiry
@@ -484,6 +485,42 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       mmSignatureUSDC2 = { amount, deadline, acct, v, r, s }
     })
+    it('set up market maker permit USDC signature 3', async () => {
+      //resulting address = 0x427fb2c379f02761594768357b33d267ffdf80c5
+      const randomBuffer = Buffer.alloc(32, 'abc')
+
+      const mmWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const owner = mmWallet.getAddressString()
+      const value = parseUnits('2000', 6).toNumber()
+      const nonce = 2
+      const spender = otcWrapperProxy.address
+      const maxDeadline = new BigNumber(await time.latest()).plus(15 * 60).toString()
+
+      // fund eth
+      forceSend = await ForceSend.new(addressBook.address)
+      await forceSend.go(owner, { value: ethers.utils.parseEther('2').toString() })
+
+      // fund usdc
+      await usdc.mint(owner, createTokenAmount(200000, USDCDECIMALS))
+
+      const buildData = (chainId: number, verifyingContract: string, deadline = maxDeadline) => ({
+        primaryType: 'Permit',
+        types: { EIP712Domain, Permit },
+        domain: { name, version, chainId, verifyingContract },
+        message: { owner, spender, value, nonce, deadline },
+      })
+
+      const data = buildData((await usdc.getChainId()).toNumber(), usdc.address)
+      const signature = ethSigUtil.signTypedMessage(mmWallet.getPrivateKey(), { data })
+      const { v, r, s } = fromRpcSig(signature)
+
+      const acct = owner
+      const amount = value.toString()
+      const deadline = maxDeadline
+
+      mmSignatureUSDC3 = { amount, deadline, acct, v, r, s }
+    })
     it('set up user signature for placing a new order via trusted minimal forwarder', async () => {
       const chainId = (await usdc.getChainId()).toNumber() // 8545
 
@@ -592,9 +629,9 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const orderId = 7
       const depositAmount = 100000000 // 1 WBTC
 
-      const dataExample = [orderId, depositAmount]
+      const dataExample = [orderId, depositAmount, mmSignatureEmpty]
 
-      let ABI = ['function depositCollateral(uint256 _orderID, uint256 _amount)']
+      let ABI = depositCollateralABI
       let iface = new ethers.utils.Interface(ABI)
 
       const callData = iface.encodeFunctionData('depositCollateral', dataExample)
@@ -960,7 +997,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.latestOrder()).toString(), '2')
       assert.equal((await otcWrapperProxy.ordersByAcct(user, 1)).toString(), '2')
 
-
       // order was placed correctly
       assert.equal((await otcWrapperProxy.orders(2))[0].toString(), weth.address)
       assert.equal((await otcWrapperProxy.orders(2))[1].toString(), ZERO_ADDR)
@@ -1069,7 +1105,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if orderID is higher than lastest order or the order status is not pending', async () => {
       // Inexistent order
       await expectRevert(
-        otcWrapperProxy.depositCollateral(20, 1, { from: marketMaker }),
+        otcWrapperProxy.depositCollateral(20, 1, mmSignatureEmpty, { from: marketMaker }),
         'OTCWrapper: inexistent or unsuccessful order',
       )
 
@@ -1077,7 +1113,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
 
       await expectRevert(
-        otcWrapperProxy.depositCollateral(2, 1, { from: marketMaker }),
+        otcWrapperProxy.depositCollateral(2, 1, mmSignatureEmpty, { from: marketMaker }),
         'OTCWrapper: inexistent or unsuccessful order',
       )
     })
@@ -1087,7 +1123,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if orderID is higher than lastest order or the order status is not pending', async () => {
       // Inexistent order
       await expectRevert(
-        otcWrapperProxy.depositCollateral(20, 1, { from: marketMaker }),
+        otcWrapperProxy.depositCollateral(20, 1, mmSignatureEmpty, { from: marketMaker }),
         'OTCWrapper: inexistent or unsuccessful order',
       )
 
@@ -1095,7 +1131,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
 
       await expectRevert(
-        otcWrapperProxy.depositCollateral(2, 1, { from: marketMaker }),
+        otcWrapperProxy.depositCollateral(2, 1, mmSignatureEmpty, { from: marketMaker }),
         'OTCWrapper: inexistent or unsuccessful order',
       )
     })
@@ -1481,7 +1517,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if orderID is higher than lastest order or the order status is not succeeded', async () => {
       // Inexistent order
       await expectRevert(
-        otcWrapperProxy.depositCollateral(20, 1, { from: marketMaker }),
+        otcWrapperProxy.depositCollateral(20, 1, mmSignatureEmpty, { from: marketMaker }),
         'OTCWrapper: inexistent or unsuccessful order',
       )
 
@@ -1489,13 +1525,13 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
 
       await expectRevert(
-        otcWrapperProxy.depositCollateral(2, 1, { from: marketMaker }),
+        otcWrapperProxy.depositCollateral(2, 1, mmSignatureEmpty, { from: marketMaker }),
         'OTCWrapper: inexistent or unsuccessful order',
       )
     })
     it('should revert if seller is not the caller', async () => {
       await expectRevert(
-        otcWrapperProxy.depositCollateral(1, 1, { from: random }),
+        otcWrapperProxy.depositCollateral(1, 1, mmSignatureEmpty, { from: random }),
         'OTCWrapper: sender is not the order seller',
       )
     })
@@ -1508,11 +1544,8 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const marketMakerBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marketMaker))
       const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
 
-      // approve
-      await usdc.approve(otcWrapperProxy.address, depositAmount, { from: marketMaker })
-
       // call deposit collateral
-      const tx = await otcWrapperProxy.depositCollateral(1, depositAmount, { from: marketMaker })
+      const tx = await otcWrapperProxy.depositCollateral(1, depositAmount, mmSignatureUSDC3, { from: marketMaker })
 
       const vaultAfter = await controllerProxy.getVaultWithDetails(otcWrapperProxy.address, 1)
       const vaultCollateralAfter = new BigNumber(vaultAfter[0].collateralAmounts[0])
@@ -1537,9 +1570,9 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const orderId = 7
       const depositAmount = 100000000 // 1 WBTC
 
-      const dataExample = [orderId, depositAmount]
+      const dataExample = [orderId, depositAmount, mmSignatureEmpty]
 
-      let ABI = ['function depositCollateral(uint256 _orderID, uint256 _amount)']
+      let ABI = depositCollateralABI
       let iface = new ethers.utils.Interface(ABI)
 
       const callData = iface.encodeFunctionData('depositCollateral', dataExample)
@@ -1586,7 +1619,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if orderID is higher than lastest order  or the order status is not succeeded', async () => {
       // Inexistent order
       await expectRevert(
-        otcWrapperProxy.depositCollateral(20, 1, { from: marketMaker }),
+        otcWrapperProxy.withdrawCollateral(20, 1, { from: marketMaker }),
         'OTCWrapper: inexistent or unsuccessful order',
       )
 
@@ -1594,7 +1627,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
 
       await expectRevert(
-        otcWrapperProxy.depositCollateral(2, 1, { from: marketMaker }),
+        otcWrapperProxy.withdrawCollateral(2, 1, { from: marketMaker }),
         'OTCWrapper: inexistent or unsuccessful order',
       )
     })
@@ -1712,7 +1745,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if orderID is higher than lastest order or the order status is not succeeded', async () => {
       // Inexistent order
       await expectRevert(
-        otcWrapperProxy.depositCollateral(20, 1, { from: marketMaker }),
+        otcWrapperProxy.settleVault(20, { from: marketMaker }),
         'OTCWrapper: inexistent or unsuccessful order',
       )
 
@@ -1720,7 +1753,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
 
       await expectRevert(
-        otcWrapperProxy.depositCollateral(2, 1, { from: marketMaker }),
+        otcWrapperProxy.settleVault(2, { from: marketMaker }),
         'OTCWrapper: inexistent or unsuccessful order',
       )
     })
@@ -1975,6 +2008,32 @@ const executeOrderABI = [
       },
     ],
     name: 'executeOrder',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+]
+
+const depositCollateralABI = [
+  {
+    inputs: [
+      { internalType: 'uint256', name: '_orderID', type: 'uint256' },
+      { internalType: 'uint256', name: '_amount', type: 'uint256' },
+      {
+        components: [
+          { internalType: 'uint256', name: 'amount', type: 'uint256' },
+          { internalType: 'uint256', name: 'deadline', type: 'uint256' },
+          { internalType: 'address', name: 'acct', type: 'address' },
+          { internalType: 'uint8', name: 'v', type: 'uint8' },
+          { internalType: 'bytes32', name: 'r', type: 'bytes32' },
+          { internalType: 'bytes32', name: 's', type: 'bytes32' },
+        ],
+        internalType: 'struct Permit',
+        name: '_mmSignature',
+        type: 'tuple',
+      },
+    ],
+    name: 'depositCollateral',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
