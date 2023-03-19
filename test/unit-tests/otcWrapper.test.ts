@@ -1613,7 +1613,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if withdrawAmount + maintenanceMargin > collateral in vault', async () => {
       await expectRevert(
         otcWrapperProxy.withdrawCollateral(1, parseUnits('16001', 6), { from: marketMaker }),
-        'MarginRequirements: insufficient collateral',
+        'OTCWrapper: insufficient collateral',
       )
     })
     it('should revert if USDC depegs', async () => {

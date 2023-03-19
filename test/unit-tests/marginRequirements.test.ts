@@ -242,7 +242,7 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
       // initial margin = 10%
       // maintenance margin = 7500 USDC
       const notionalAmount = parseUnits('150000', 6)
-      const withdrawamount = parseUnits('1000', 6)
+      const withdrawamount = parseUnits('1001', 6)
       const collateralAmount = parseUnits('23500', USDCDECIMALS)
 
       // create mock vault
@@ -296,7 +296,7 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
       // initial margin = 10%
       // maintenance margin = 7500 USDC
       const notionalAmount = parseUnits('150000', 6)
-      const withdrawamount = parseUnits('999', 6)
+      const withdrawamount = parseUnits('1000', 6)
       const collateralAmount = parseUnits('23500', USDCDECIMALS)
 
       // create mock vault

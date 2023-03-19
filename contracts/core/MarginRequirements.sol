@@ -187,10 +187,9 @@ contract MarginRequirements is Ownable {
         uint256 collateralDecimals = uint256(ERC20Interface(_vault.collateralAssets[0]).decimals());
 
         // avoids subtraction overflow
-        require(
-            _withdrawAmount.add(maintenanceMargin[_vaultID]) < _vault.collateralAmounts[0],
-            "MarginRequirements: insufficient collateral"
-        );
+        if (_withdrawAmount.add(maintenanceMargin[_vaultID]) > _vault.collateralAmounts[0]) {
+            return false;
+        }
 
         //     InitialMargin + MaintenanceMargin <= Collateral - WithdrawAmount
         // (=) InitialMargin <= Collateral - WithdrawAmount - MaintenanceMargin
