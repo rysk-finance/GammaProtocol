@@ -1153,7 +1153,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
           mmSignatureUSDC1,
           parseUnits('5000', 6),
           usdc.address,
-          parseUnits('15000', 6),
+          parseUnits('14999', 6),
           {
             from: marketMaker,
           },
@@ -1606,7 +1606,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     })
     it('should revert if there is insufficient collateral', async () => {
       await expectRevert(
-        otcWrapperProxy.withdrawCollateral(1, parseUnits('1001', 6), { from: marketMaker }),
+        otcWrapperProxy.withdrawCollateral(1, parseUnits('1002', 6), { from: marketMaker }),
         'OTCWrapper: insufficient collateral',
       )
     })

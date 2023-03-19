@@ -150,18 +150,18 @@ contract MarginRequirements is Ownable {
             _account
         ];
 
-        // InitialMargin < Collateral
+        // InitialMargin <= Collateral
 
         // Starts with:
-        // notional (USD) * (initial margin/100) < collateral (#tokens) * collateral price (in USD)
+        // notional (USD) * (initial margin/100) <= collateral (#tokens) * collateral price (in USD)
 
         // initial margin is dividing by 100 since it is a %. Then, 100 moves to the other equation side multiplying:
-        // notional (USD) * initial margin < collateral (#tokens) * collateral price * 100
+        // notional (USD) * initial margin <= collateral (#tokens) * collateral price * 100
 
         // Remaining values are added to ensure both sides of the equation are scaled equally given they differ in decimal amounts
 
         return
-            _notional.mul(initialMarginRequired).mul(10**collateralDecimals).mul(10**ORACLE_DECIMALS) <
+            _notional.mul(initialMarginRequired).mul(10**collateralDecimals).mul(10**ORACLE_DECIMALS) <=
             _collateralAmount.mul(oracle.getPrice(_collateralAsset)).mul(MAX_INITIAL_MARGIN).mul(10**NOTIONAL_DECIMALS);
     }
 
@@ -192,21 +192,21 @@ contract MarginRequirements is Ownable {
             "MarginRequirements: insufficient collateral"
         );
 
-        //     InitialMargin + MaintenanceMargin < Collateral - WithdrawAmount
-        // (=) InitialMargin < Collateral - WithdrawAmount - MaintenanceMargin
+        //     InitialMargin + MaintenanceMargin <= Collateral - WithdrawAmount
+        // (=) InitialMargin <= Collateral - WithdrawAmount - MaintenanceMargin
 
         // Starts with:
-        // notional (USD) * (initial margin/100) < [collateral (#tokens) - withdrawAmount (#tokens) - maintenanceMargin (#tokens)] * collateral price (in USD)
+        // notional (USD) * (initial margin/100) <= [collateral (#tokens) - withdrawAmount (#tokens) - maintenanceMargin (#tokens)] * collateral price (in USD)
 
         // initial margin is dividing by 100 since it is a %. Then, 100 moves to the other equation side multiplying:
-        // notional (USD) * initial margin < [collateral (#tokens) - WithdrawAmount (#tokens) - MaintenanceMargin (#tokens)] * collateral price (in USD) * 100
+        // notional (USD) * initial margin <= [collateral (#tokens) - WithdrawAmount (#tokens) - MaintenanceMargin (#tokens)] * collateral price (in USD) * 100
 
         // Remaining values are added to ensure both sides of the equation are scaled equally given they differ in decimal amounts
 
         return
             _notional.mul(_getInitialMargin(_otokenAddress, _account)).mul(10**collateralDecimals).mul(
                 10**ORACLE_DECIMALS
-            ) <
+            ) <=
             (_vault.collateralAmounts[0].sub(_withdrawAmount).sub(maintenanceMargin[_vaultID]))
                 .mul(oracle.getPrice(_vault.collateralAssets[0]))
                 .mul(MAX_INITIAL_MARGIN)
