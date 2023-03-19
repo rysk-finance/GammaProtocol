@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.6.10;
+pragma solidity 0.8.10;
 
-interface AddressBookInterface {
+interface AddressBookWrapperInterface {
     /* Getters */
 
     function getOtokenImpl() external view returns (address);

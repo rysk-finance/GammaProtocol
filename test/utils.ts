@@ -1,8 +1,12 @@
 import { MockERC20Instance } from '../build/types/truffle-types'
 import BigNumber from 'bignumber.js'
+import { BigNumberish, Contract, Signature, Wallet } from 'ethers'
+import { splitSignature } from 'ethers/lib/utils'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 const util = require('@0x/protocol-utils')
 const ethSigUtil = require('eth-sig-util')
+const { ethers } = require('ethers/lib/utils')
 
 export type vault = {
   shortAmounts: (BigNumber | string | number)[]
@@ -11,6 +15,15 @@ export type vault = {
   shortOtokens: string[]
   longOtokens: string[]
   collateralAssets: string[]
+}
+
+export type permit = {
+  acct: string
+  amount: (BigNumber | string | number)
+  deadline: (BigNumber | string | number)
+  v: string
+  r: string
+  s: string
 }
 
 /**
@@ -56,7 +69,7 @@ export const createTokenAmount = (num: number | BigNumber, decimals = 8) => {
 }
 
 /**
- * Create a number string that scales numbers to 1e18
+ * Create a number string that scales numbers to 1e8
  * @param num
  */
 export const createScaledNumber = (num: number, decimals = 8): string => {
@@ -64,7 +77,7 @@ export const createScaledNumber = (num: number, decimals = 8): string => {
 }
 
 /**
- * Create a number string that scales numbers to 1e18
+ * Create a number string that scales numbers to 1e8
  * @param num
  */
 export const createScaledBigNumber = (num: number, decimals = 8): BigNumber => {
@@ -175,4 +188,92 @@ export const expectedLiquidationPrice = (
 
 export const calcRelativeDiff = (expected: BigNumber, actual: BigNumber): BigNumber => {
   return actual.minus(expected).abs()
+}
+
+export async function generateWallet(asset: Contract, amount: BigNumber, owner: SignerWithAddress) {
+  let provider = new ethers.providers.JsonRpcProvider(process.env.TEST_URI)
+  let signer = new ethers.Wallet('0ce495bd7bab5341ae5a7ac195173fba1aa56f6561e35e1fec6176e2519ab8da', provider)
+
+  await ethers.provider.request({
+    // provider change to ethers
+    method: 'hardhat_impersonateAccount',
+    params: [signer.address],
+  })
+
+  await asset.connect(owner).transfer(signer.address, amount)
+  //await asset.transfer(signer.address, amount, { from: owner });
+
+  // Create a transaction object
+  let tx = {
+    to: signer.address,
+    // Convert currency unit from ether to wei
+    value: ethers.utils.parseEther('10'),
+  }
+
+  await owner.sendTransaction(tx)
+
+  return signer
+}
+
+export async function getDAIPermitSignature(
+  wallet: Wallet,
+  token: Contract,
+  spender: string,
+  expiry: BigNumberish,
+  allowed: boolean,
+  permitConfig?: {
+    nonce: BigNumberish
+    name: string
+    chainId: number
+    version: string
+  },
+): Promise<Signature> {
+  const [nonce, name, version, chainId] = await Promise.all([
+    permitConfig?.nonce ?? '0',
+    permitConfig?.name ?? 'Dai Stablecoin',
+    permitConfig?.version ?? '1',
+    permitConfig?.chainId ?? '1',
+  ])
+
+  return splitSignature(
+    await wallet._signTypedData(
+      {
+        name,
+        version,
+        chainId,
+        verifyingContract: token.address,
+      },
+      {
+        Permit: [
+          {
+            name: 'holder',
+            type: 'address',
+          },
+          {
+            name: 'spender',
+            type: 'address',
+          },
+          {
+            name: 'nonce',
+            type: 'uint256',
+          },
+          {
+            name: 'expiry',
+            type: 'uint256',
+          },
+          {
+            name: 'allowed',
+            type: 'bool',
+          },
+        ],
+      },
+      {
+        holder: wallet.address,
+        spender,
+        nonce,
+        expiry,
+        allowed,
+      },
+    ),
+  )
 }

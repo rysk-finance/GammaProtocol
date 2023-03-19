@@ -29,9 +29,6 @@ import {CalleeInterface} from "../interfaces/CalleeInterface.sol";
  * C6: msg.sender is not authorized to run action
  * C7: invalid addressbook address
  * C8: invalid owner address
- * C9: invalid input
- * C10: fullPauser cannot be set to address zero
- * C11: partialPauser cannot be set to address zero
  * C12: can not run actions for different owners
  * C13: can not run actions on different vaults
  * C14: invalid final vault state
@@ -58,6 +55,7 @@ import {CalleeInterface} from "../interfaces/CalleeInterface.sol";
  * C35: invalid vault id
  * C36: cap amount should be greater than zero
  * C37: collateral exceed naked margin cap
+ * C38: msg.sender is not the liquidation manager
  */
 
 /**
@@ -275,6 +273,17 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     }
 
     /**
+     * @notice modifier to check if the sender is the liquidation manager address
+     */
+    modifier onlyLiquidationManager() {
+        require(
+            msg.sender == addressbook.getLiquidationManager() || addressbook.getLiquidationManager() == address(0),
+            "C38"
+        );
+        _;
+    }
+
+    /**
      * @dev check if the system is not in a partiallyPaused state
      */
     function _isNotPartiallyPaused() internal view {
@@ -333,8 +342,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _partiallyPaused new boolean value to set systemPartiallyPaused to
      */
     function setSystemPartiallyPaused(bool _partiallyPaused) external onlyPartialPauser {
-        require(systemPartiallyPaused != _partiallyPaused, "C9");
-
         systemPartiallyPaused = _partiallyPaused;
 
         emit SystemPartiallyPaused(systemPartiallyPaused);
@@ -346,8 +353,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _fullyPaused new boolean value to set systemFullyPaused to
      */
     function setSystemFullyPaused(bool _fullyPaused) external onlyFullPauser {
-        require(systemFullyPaused != _fullyPaused, "C9");
-
         systemFullyPaused = _fullyPaused;
 
         emit SystemFullyPaused(systemFullyPaused);
@@ -359,8 +364,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _fullPauser new fullPauser address
      */
     function setFullPauser(address _fullPauser) external onlyOwner {
-        require(_fullPauser != address(0), "C10");
-        require(fullPauser != _fullPauser, "C9");
         emit FullPauserUpdated(fullPauser, _fullPauser);
         fullPauser = _fullPauser;
     }
@@ -371,8 +374,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _partialPauser new partialPauser address
      */
     function setPartialPauser(address _partialPauser) external onlyOwner {
-        require(_partialPauser != address(0), "C11");
-        require(partialPauser != _partialPauser, "C9");
         emit PartialPauserUpdated(partialPauser, _partialPauser);
         partialPauser = _partialPauser;
     }
@@ -384,8 +385,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _isRestricted new call restriction state
      */
     function setCallRestriction(bool _isRestricted) external onlyOwner {
-        require(callRestricted != _isRestricted, "C9");
-
         callRestricted = _isRestricted;
 
         emit CallRestricted(callRestricted);
@@ -398,8 +397,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _isOperator new boolean value that expresses if the sender is giving or revoking privileges for _operator
      */
     function setOperator(address _operator, bool _isOperator) external {
-        require(operators[msg.sender][_operator] != _isOperator, "C9");
-
         operators[msg.sender][_operator] = _isOperator;
 
         emit AccountOperatorUpdated(msg.sender, _operator, _isOperator);
@@ -1005,7 +1002,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @dev can liquidate different vaults id in the same operate() call
      * @param _args liquidation action arguments struct
      */
-    function _liquidate(Actions.LiquidateArgs memory _args) internal notPartiallyPaused {
+    function _liquidate(Actions.LiquidateArgs memory _args) internal notPartiallyPaused onlyLiquidationManager {
         require(_checkVaultId(_args.owner, _args.vaultId), "C35");
 
         // check if vault is undercollateralized

@@ -155,9 +155,9 @@ contract(
         )
       })
 
-      it('should revert when set an already operator', async () => {
+      /*       it('should revert when set an already operator', async () => {
         await expectRevert(controllerProxy.setOperator(accountOperator1, true, { from: accountOwner1 }), 'C9')
-      })
+      }) */
 
       it('should be able to remove operator', async () => {
         await controllerProxy.setOperator(accountOperator1, false, { from: accountOwner1 })
@@ -169,9 +169,9 @@ contract(
         )
       })
 
-      it('should revert when removing an already removed operator', async () => {
+      /*       it('should revert when removing an already removed operator', async () => {
         await expectRevert(controllerProxy.setOperator(accountOperator1, false, { from: accountOwner1 }), 'C9')
-      })
+      }) */
     })
 
     describe('Vault', () => {
@@ -3803,7 +3803,7 @@ contract(
           const marginPoolBalanceBefore = new BigNumber(await usdc.balanceOf(marginPool.address))
           const senderBalanceBefore = new BigNumber(await usdc.balanceOf(accountOwner1))
 
-          controllerProxy.operate(actionArgs, { from: accountOwner1 })
+          await controllerProxy.operate(actionArgs, { from: accountOwner1 })
 
           const marginPoolBalanceAfter = new BigNumber(await usdc.balanceOf(marginPool.address))
           const senderBalanceAfter = new BigNumber(await usdc.balanceOf(accountOwner1))
@@ -3981,9 +3981,9 @@ contract(
         )
       })
 
-      it('should revert activating call action restriction when it is already activated', async () => {
+      /*       it('should revert activating call action restriction when it is already activated', async () => {
         await expectRevert(controllerProxy.setCallRestriction(true, { from: owner }), 'C9')
-      })
+      }) */
 
       it('should revert calling any arbitrary address when call restriction is activated', async () => {
         const arbitraryTarget: CallTesterInstance = await CallTester.new()
@@ -4034,9 +4034,9 @@ contract(
         assert.equal(await controllerProxy.callRestricted(), false, 'Call action restriction deactivation failed')
       })
 
-      it('should revert deactivating call action restriction when it is already deactivated', async () => {
+      /*       it('should revert deactivating call action restriction when it is already deactivated', async () => {
         await expectRevert(controllerProxy.setCallRestriction(false, { from: owner }), 'C9')
-      })
+      }) */
     })
 
     describe('Sync vault latest update timestamp', () => {
@@ -4260,17 +4260,17 @@ contract(
         assert.equal(await controllerProxy.partialPauser(), partialPauser, 'pauser address mismatch')
       })
 
-      it('should revert set pauser address to the same previous address', async () => {
+      /*       it('should revert set pauser address to the same previous address', async () => {
         await expectRevert(controllerProxy.setPartialPauser(partialPauser, { from: owner }), 'C9')
-      })
+      }) */
 
       it('should revert when pausing the system from address other than pauser', async () => {
         await expectRevert(controllerProxy.setSystemPartiallyPaused(true, { from: random }), 'C2')
       })
 
-      it('should revert partially un-pausing an already running system', async () => {
+      /*       it('should revert partially un-pausing an already running system', async () => {
         await expectRevert(controllerProxy.setSystemPartiallyPaused(false, { from: partialPauser }), 'C9')
-      })
+      }) */
 
       it('should pause system', async () => {
         const stateBefore = await controllerProxy.systemPartiallyPaused()
@@ -4282,9 +4282,9 @@ contract(
         assert.equal(stateAfter, true, 'System not paused')
       })
 
-      it('should revert partially pausing an already patially paused system', async () => {
+      /*       it('should revert partially pausing an already patially paused system', async () => {
         await expectRevert(controllerProxy.setSystemPartiallyPaused(true, { from: partialPauser }), 'C9')
-      })
+      }) */
 
       it('should revert opening a vault when system is partially paused', async () => {
         const vaultCounter = new BigNumber(await controllerProxy.getAccountVaultCounter(accountOwner1))
@@ -4547,9 +4547,9 @@ contract(
         )
       })
 
-      it('should revert set fullPauser address to address zero', async () => {
+      /*       it('should revert set fullPauser address to address zero', async () => {
         await expectRevert(controllerProxy.setFullPauser(ZERO_ADDR, { from: owner }), 'C10')
-      })
+      }) */
 
       it('should set fullPauser', async () => {
         await controllerProxy.setFullPauser(fullPauser, { from: owner })
@@ -4560,9 +4560,9 @@ contract(
         await expectRevert(controllerProxy.setSystemFullyPaused(true, { from: random }), 'C1')
       })
 
-      it('should revert fully un-pausing an already running system', async () => {
+      /*       it('should revert fully un-pausing an already running system', async () => {
         await expectRevert(controllerProxy.setSystemFullyPaused(false, { from: fullPauser }), 'C9')
-      })
+      }) */
 
       it('should trigger full pause', async () => {
         const stateBefore = await controllerProxy.systemFullyPaused()
@@ -4574,9 +4574,9 @@ contract(
         assert.equal(stateAfter, true, 'System not in full pause state')
       })
 
-      it('should revert fully pausing an already fully paused system', async () => {
+      /*       it('should revert fully pausing an already fully paused system', async () => {
         await expectRevert(controllerProxy.setSystemFullyPaused(true, { from: fullPauser }), 'C9')
-      })
+      }) */
 
       it('should revert opening a vault when system is in full pause state', async () => {
         const vaultCounter = new BigNumber(await controllerProxy.getAccountVaultCounter(accountOwner1))
@@ -4592,7 +4592,7 @@ contract(
             data: ZERO_ADDR,
           },
         ]
-        await expectRevert(controllerProxy.operate(actionArgs, { from: accountOwner1 }), '.')
+        await expectRevert(controllerProxy.operate(actionArgs, { from: accountOwner1 }), 'C5')
       })
 
       it('should revert depositing collateral when system is in full pause state', async () => {

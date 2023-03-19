@@ -9,6 +9,10 @@ const MarginPool = artifacts.require('MarginPool')
 const MarginCalculator = artifacts.require('MarginCalculator')
 const AddressBook = artifacts.require('AddressBook')
 const Controller = artifacts.require('Controller')
+const MinimalForwarder = artifacts.require('MinimalForwarder')
+const MarginRequirements = artifacts.require('MarginRequirements')
+const OTCWrapper = artifacts.require('OTCWrapper')
+const OwnedUpgradeabilityProxy = artifacts.require('OwnedUpgradeabilityProxy')
 
 module.exports = async function(deployer, network, accounts) {
   const [deployerAddress] = accounts
@@ -54,4 +58,33 @@ module.exports = async function(deployer, network, accounts) {
   await deployer.deploy(Controller, {from: deployerAddress})
   const controller = await Controller.deployed()
   await addressbook.setController(controller.address, {from: deployerAddress})
+
+  // deploy Margin Requirements 
+  await deployer.deploy(MarginRequirements, addressbook.address, {from: deployerAddress})
+  const requirements = await MarginRequirements.deployed()
+  await addressbook.setMarginRequirements(requirements.address, {from: deployerAddress})
+
+  // deploy Minimal Forwarder
+  await deployer.deploy(MinimalForwarder, {from: deployerAddress})
+  const forwarder = await MinimalForwarder.deployed()
+
+  // deploy OTC wrapper
+  const addressUSDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"; // ETH Mainnet USDC address
+  const fillDeadline = 15*60 // 15 minutes
+  const beneficiary = "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674" // Ribbon multisig
+  
+  const otcWrapperImplementation = await OTCWrapper.new(forwarder.address, addressUSDC)
+  const ownedUpgradeabilityProxy = await OwnedUpgradeabilityProxy.new()
+
+  await ownedUpgradeabilityProxy.upgradeTo(otcWrapperImplementation.address)
+  
+  const otcWrapperProxy = await OTCWrapper.at(ownedUpgradeabilityProxy.address)
+
+  await otcWrapperProxy.initialize(addressbook.address, beneficiary, fillDeadline)
+
+  await addressbook.setOTCWrapper(otcWrapperProxy.address, {from: deployerAddress})
+  
+  console.log("OTC Wrapper Implementation at", otcWrapperImplementation.address)
+
+  console.log("OTC Wrapper Proxy at", otcWrapperProxy.address)
 }
