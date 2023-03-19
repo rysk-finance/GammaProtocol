@@ -4757,7 +4757,7 @@ contract(
       })
     })
 
-    /*     describe('Refresh configuration', () => {
+    describe('Refresh configuration', () => {
       it('should revert refreshing configuration from address other than owner', async () => {
         await expectRevert(controllerProxy.refreshConfiguration({ from: random }), 'Ownable: caller is not the owner')
       })
@@ -4782,7 +4782,7 @@ contract(
         assert.equal(_pool, marginPool.address, 'Oracle address mismatch after refresh')
         assert.equal(_whitelist, whitelist.address, 'Oracle address mismatch after refresh')
       })
-    }) */
+    })
 
     describe('Execute an invalid action', () => {
       it('Should execute transaction with no state updates', async () => {

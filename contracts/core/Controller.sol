@@ -467,6 +467,26 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     }
 
     /**
+     * @notice returns the current controller configuration
+     * @return whitelist, the address of the whitelist module
+     * @return oracle, the address of the oracle module
+     * @return calculator, the address of the calculator module
+     * @return pool, the address of the pool module
+     */
+    function getConfiguration()
+        external
+        view
+        returns (
+            address,
+            address,
+            address,
+            address
+        )
+    {
+        return (address(whitelist), address(oracle), address(calculator), address(pool));
+    }
+
+    /**
      * @notice return a vault's proceeds pre or post expiry, the amount of collateral that can be removed from a vault
      * @param _owner account owner of the vault
      * @param _vaultId vaultId to return balances for
