@@ -487,6 +487,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice executes an order
      * @dev can only be called by whitelisted market makers
      *      requires that product and collateral have already been whitelisted beforehand
+     *      ensure that initial margin has been set up beforehand
      *      ensure collateral naked cap from Controller.sol is high enough for the additional collateral
      *      ensure setUpperBoundValues and setSpotShock from MarginCalculator.sol have been set up
      * @param _orderID id of the order
