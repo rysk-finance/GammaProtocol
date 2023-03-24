@@ -1197,6 +1197,23 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         'OTCWrapper: insufficient collateral',
       )
     })
+    it('should revert if market maker signature is not from msgSender()', async () => {
+
+      await expectRevert(
+        otcWrapperProxy.executeOrder(
+          1,
+          userSignature1,
+          userSignature2,
+          parseUnits('5000', 6),
+          usdc.address,
+          parseUnits('14999', 6),
+          {
+            from: marketMaker,
+          },
+        ),
+        'OTCWrapper: signer is not the market maker',
+      )
+    })
 
     it('successfully executes call with collateral in USDC via direct call', async () => {
       // admin whitelists product and collateral
@@ -1531,8 +1548,14 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     })
     it('should revert if seller is not the caller', async () => {
       await expectRevert(
-        otcWrapperProxy.depositCollateral(1, 1, mmSignatureEmpty, { from: random }),
+        otcWrapperProxy.depositCollateral(1, 1, userSignature1, { from: user }),
         'OTCWrapper: sender is not the order seller',
+      )
+    })
+    it('should revert if market maker signature is not from msgSender()', async () => {
+      await expectRevert(
+        otcWrapperProxy.depositCollateral(1, 1, userSignature1, { from: marketMaker }),
+        'OTCWrapper: signer is not the market maker',
       )
     })
     it('market maker successfully deposits collateral via direct call', async () => {

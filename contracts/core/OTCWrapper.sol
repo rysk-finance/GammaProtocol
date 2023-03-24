@@ -304,6 +304,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         Permit calldata _mmSignature
     ) external nonReentrant {
         require(orderStatus[_orderID] == OrderStatus.Succeeded, "OTCWrapper: inexistent or unsuccessful order");
+        require(_mmSignature.acct == _msgSender(), "OTCWrapper: signer is not the market maker");
 
         Order memory order = orders[_orderID];
 
@@ -512,6 +513,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         Order memory order = orders[_orderID];
 
         require(_userSignature.acct == order.buyer, "OTCWrapper: signer is not the buyer");
+        require(_mmSignature.acct == _msgSender(), "OTCWrapper: signer is not the market maker");
         require(block.timestamp <= order.openedAt.add(fillDeadline), "OTCWrapper: deadline has passed");
         require(whitelist.isWhitelistedCollateral(_collateralAsset), "OTCWrapper: collateral is not whitelisted");
 
