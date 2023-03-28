@@ -8,7 +8,6 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {ERC2771ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
@@ -30,7 +29,6 @@ import {SupportsNonCompliantERC20} from "../libs/SupportsNonCompliantERC20.sol";
 contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, ERC2771ContextUpgradeable {
     using SafeERC20 for IERC20;
     using SupportsNonCompliantERC20 for IERC20;
-    using SafeMath for uint256;
 
     AddressBookWrapperInterface public addressbook;
     MarginRequirementsWrapperInterface public marginRequirements;
@@ -518,7 +516,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         require(_userSignature.acct == order.buyer, "OTCWrapper: signer is not the buyer");
         require(_userSignature.amount == order.premium, "OTCWrapper: invalid signature amount");
         require(_mmSignature.acct == _msgSender(), "OTCWrapper: signer is not the market maker");
-        require(block.timestamp <= order.openedAt.add(fillDeadline), "OTCWrapper: deadline has passed");
+        require(block.timestamp <= (order.openedAt + fillDeadline), "OTCWrapper: deadline has passed");
         require(whitelist.isWhitelistedCollateral(_collateralAsset), "OTCWrapper: collateral is not whitelisted");
 
         require(
@@ -595,13 +593,13 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         // eg. fee = 4bps = 0.04% , then need to divide by 100 again so (( 4 / 100 ) / 100)
         // after the above it is divided again by 1e2 which is the fee decimals
         // when aggregated the division becomes by 1e6
-        uint256 orderFee = (_order.notional.mul(fee[_order.underlying])).div(1e6);
+        uint256 orderFee = (_order.notional * (fee[_order.underlying])) / (1e6);
 
         // transfer fee to beneficiary address
         IERC20(USDC).safeTransfer(beneficiary, orderFee);
 
         // transfer premium to market maker
-        IERC20(USDC).safeTransfer(_msgSender(), _premium.sub(orderFee));
+        IERC20(USDC).safeTransfer(_msgSender(), (_premium - orderFee));
     }
 
     /**
@@ -617,7 +615,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         uint256 _collateralAmount
     ) private returns (uint256, address) {
         // open vault
-        uint256 vaultID = (controller.getAccountVaultCounter(address(this))).add(1);
+        uint256 vaultID = (controller.getAccountVaultCounter(address(this))) + 1;
 
         UtilsWrapperInterface.ActionArgs[] memory actions = new UtilsWrapperInterface.ActionArgs[](3);
 
@@ -652,7 +650,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         // scales by 1e8 for division with oracle price
         // scales by 1e2 to increase from 6 decimals (notional) to 8 decimals (otoken)
-        uint256 mintAmount = _order.notional.mul(1e10).div(oracle.getPrice(_order.underlying));
+        uint256 mintAmount = (_order.notional * (1e10)) / (oracle.getPrice(_order.underlying));
 
         // mint otokens
         actions[2] = UtilsWrapperInterface.ActionArgs(
