@@ -314,6 +314,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             _mmSignature.acct,
             order.collateral,
             _amount,
+            _amount,
             _mmSignature.deadline,
             _mmSignature.v,
             _mmSignature.r,
@@ -394,7 +395,8 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * over the EIP712-formatted function arguments
      * @param _acct signer account
      * @param _asset is the asset address to deposit
-     * @param _amount is the amount to deposit (with its respective token decimals)
+     * @param _signatureAmount is the permit signature amount (with its respective token decimals)
+     * @param _depositAmount is the amount to deposit (with its respective token decimals)
      * @param _deadline must be a timestamp in the future
      * @param _v is a valid signature
      * @param _r is a valid signature
@@ -403,21 +405,22 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     function _deposit(
         address _acct,
         address _asset,
-        uint256 _amount,
+        uint256 _signatureAmount,
+        uint256 _depositAmount,
         uint256 _deadline,
         uint8 _v,
         bytes32 _r,
         bytes32 _s
     ) private {
-        require(_amount > 0, "OTCWrapper: amount cannot be 0");
+        require(_depositAmount > 0, "OTCWrapper: amount cannot be 0");
 
         if (_asset == USDC) {
             // Sign for transfer approval
-            IERC20Permit(USDC).permit(_acct, address(this), _amount, _deadline, _v, _r, _s);
+            IERC20Permit(USDC).permit(_acct, address(this), _signatureAmount, _deadline, _v, _r, _s);
         }
 
         // An approve() or permit() by the _msgSender() is required beforehand
-        IERC20(_asset).safeTransferFrom(_acct, address(this), _amount);
+        IERC20(_asset).safeTransferFrom(_acct, address(this), _depositAmount);
     }
 
     /************************************************
@@ -513,6 +516,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         Order memory order = orders[_orderID];
 
         require(_userSignature.acct == order.buyer, "OTCWrapper: signer is not the buyer");
+        require(_userSignature.amount == order.premium, "OTCWrapper: invalid signature amount");
         require(_mmSignature.acct == _msgSender(), "OTCWrapper: signer is not the market maker");
         require(block.timestamp <= order.openedAt.add(fillDeadline), "OTCWrapper: deadline has passed");
         require(whitelist.isWhitelistedCollateral(_collateralAsset), "OTCWrapper: collateral is not whitelisted");
@@ -568,6 +572,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         _deposit(
             _userSignature.acct,
             USDC,
+            _userSignature.amount,
             _premium,
             _userSignature.deadline,
             _userSignature.v,
@@ -579,6 +584,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         _deposit(
             _mmSignature.acct,
             _collateralAsset,
+            _collateralAmount,
             _collateralAmount,
             _mmSignature.deadline,
             _mmSignature.v,
