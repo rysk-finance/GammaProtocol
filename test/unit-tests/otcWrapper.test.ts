@@ -895,6 +895,12 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if caller is not the owner', async () => {
       await expectRevert(otcWrapperProxy.setFee(random, 0, { from: random }), 'Ownable: caller is not the owner')
     })
+    it('should revert if initialized with fee over 100%', async () => {
+      await expectRevert(
+        otcWrapperProxy.setFee(random, parseUnits('1', 7)),
+        'OTCWrapper: fee cannot be higher than 100%',
+      )
+    })
     it('sucessfully sets fee to 1% for WETH', async () => {
       await otcWrapperProxy.setFee(weth.address, 10000) // 1%
 
@@ -966,9 +972,17 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const strikePrice = scaleBigNum(1300, 8)
       const notional = parseUnits('150000', 6)
 
-      const tx = await otcWrapperProxy.placeOrder(weth.address, false, strikePrice, expiry, parseUnits('5000', 6), notional, {
-        from: user,
-      })
+      const tx = await otcWrapperProxy.placeOrder(
+        weth.address,
+        false,
+        strikePrice,
+        expiry,
+        parseUnits('5000', 6),
+        notional,
+        {
+          from: user,
+        },
+      )
 
       assert.equal((await otcWrapperProxy.latestOrder()).toString(), '1')
 
@@ -1025,7 +1039,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       const data = signatureData
       const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
-      
+
       assert.equal((await otcWrapperProxy.latestOrder()).toString(), '1')
       assert.equal((await otcWrapperProxy.ordersByAcct(user, 0)).toString(), '1')
 
@@ -1251,7 +1265,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       )
     })
     it('should revert if market maker signature is not from msgSender()', async () => {
-
       await expectRevert(
         otcWrapperProxy.executeOrder(
           1,
@@ -1374,7 +1387,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const strikePrice = scaleBigNum(1300, 8)
       const notional = parseUnits('300000', 6)
 
-      await otcWrapperProxy.placeOrder(weth.address, true, strikePrice, expiry, parseUnits("5000", 6), notional, {
+      await otcWrapperProxy.placeOrder(weth.address, true, strikePrice, expiry, parseUnits('5000', 6), notional, {
         from: user,
       })
 
@@ -1567,7 +1580,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     })
     it('should revert if fill deadline has passed', async () => {
       // place new order
-      await otcWrapperProxy.placeOrder(weth.address, false, 1, expiry, parseUnits("5000", 6), parseUnits('150000', 6), {
+      await otcWrapperProxy.placeOrder(weth.address, false, 1, expiry, parseUnits('5000', 6), parseUnits('150000', 6), {
         from: user,
       })
 
@@ -1974,7 +1987,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       const data = signatureData7
       const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
-      
+
       // past time after expiry
       await time.increase(8600000)
 

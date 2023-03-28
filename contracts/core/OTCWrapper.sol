@@ -252,13 +252,14 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     }
 
     /**
-     * @notice sets the fee for a given the underlying asset
+     * @notice sets the fee for a given underlying asset
      * @dev can only be called by owner
      * @param _underlying underlying asset address
      * @param _fee fee amount in bps with 2 decimals (400 = 4bps = 0.04%)
      */
     function setFee(address _underlying, uint256 _fee) external onlyOwner {
         require(_underlying != address(0), "OTCWrapper: asset address cannot be 0");
+        require(_fee <= 1e6, "OTCWrapper: fee cannot be higher than 100%"); // 1e6 is equivalent to 100%
 
         fee[_underlying] = _fee;
     }
