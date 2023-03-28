@@ -98,7 +98,7 @@ contract MarginRequirements is Ownable {
         uint256 _initialMargin
     ) external onlyOwner {
         require(
-            _initialMargin > 0 && _initialMargin <= 100 * 10**2,
+            _initialMargin > 0 && _initialMargin <= MAX_INITIAL_MARGIN,
             "MarginRequirements: initial margin cannot be 0 or higher than 100%"
         );
         require(_underlying != address(0), "MarginRequirements: invalid underlying");
