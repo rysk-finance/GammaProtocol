@@ -479,7 +479,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const userCollateralBefore = new BigNumber(await usdc.balanceOf(accountOwner1))
       const nakedMarginPoolBefore = new BigNumber(await controllerProxy.getNakedPoolBalance(usdc.address))
 
-      await expectRevert(controllerProxy.operate(withdrawArgs, { from: accountOwner1 }), "V9")
+      await expectRevert(controllerProxy.operate(withdrawArgs, { from: accountOwner1 }), 'V9')
     })
   })
 
@@ -681,7 +681,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const userCollateralBefore = new BigNumber(await weth.balanceOf(accountOwner1))
       const nakedMarginPoolBefore = new BigNumber(await controllerProxy.getNakedPoolBalance(weth.address))
 
-      await expectRevert(controllerProxy.operate(withdrawArgs, { from: accountOwner1 }), "V9")
+      await expectRevert(controllerProxy.operate(withdrawArgs, { from: accountOwner1 }), 'V9')
     })
   })
 
@@ -918,7 +918,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       ]
 
       const userCollateralBefore = new BigNumber(await usdc.balanceOf(accountOwner1))
-      console.log("x")
+      console.log('x')
       await controllerProxy.operate(withdrawArgs, { from: accountOwner1 })
 
       const userCollateralAfter = new BigNumber(await usdc.balanceOf(accountOwner1))
@@ -1137,29 +1137,28 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
         vaultOwner: accountOwner1,
         auctionPrice: isLiquidatable[1],
         vaultId: vaultCounter.toString(),
-        series: vaultDetails.shortOtokens[0]
+        series: vaultDetails.shortOtokens[0],
       })
       const liquidatorCollateralBalanceAfter = new BigNumber(await usdc.balanceOf(liquidator))
       const vaultAfterLiquidation = (
         await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter.toString())
       )[0]
       const nakedMarginPoolAfter = new BigNumber(await controllerProxy.getNakedPoolBalance(usdc.address))
-      const liquidationDetails = await controllerProxy.getVaultLiquidationDetails(accountOwner1, vaultCounter.toString())
-      assert.equal(
-        liquidationDetails[0],
-        shortOtoken.address,
-        'series address is incorrect'
+      const liquidationDetails = await controllerProxy.getVaultLiquidationDetails(
+        accountOwner1,
+        vaultCounter.toString(),
       )
+      assert.equal(liquidationDetails[0], shortOtoken.address, 'series address is incorrect')
       assert.equal(
         new BigNumber(liquidationDetails[1]).toString(),
         new BigNumber(createTokenAmount(shortAmount)).toString(),
-        'short amount is incorrect'
-      )      
+        'short amount is incorrect',
+      )
       assert.equal(
         new BigNumber(liquidationDetails[2]).toString(),
         new BigNumber(vaultBeforeLiquidation.collateralAmounts[0]).toString(),
-        'collateral amount is incorrect'
-      )      
+        'collateral amount is incorrect',
+      )
       assert.equal(
         nakedMarginPoolAfter.toString(),
         nakedMarginPoolBefore
@@ -1187,38 +1186,36 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       )
     })
     it('should clear liquidation details', async () => {
-      const liquidationDetailsBefore = await controllerProxy.getVaultLiquidationDetails(accountOwner1, vaultCounter.toString())
-      await controllerProxy.clearVaultLiquidationDetails(vaultCounter.toString(), {"from": accountOwner1})
-      const liquidationDetailsAfter = await controllerProxy.getVaultLiquidationDetails(accountOwner1, vaultCounter.toString())
-      assert.equal(
-        liquidationDetailsAfter[0],
-        ZERO_ADDR,
-        'series address is incorrect'
+      const liquidationDetailsBefore = await controllerProxy.getVaultLiquidationDetails(
+        accountOwner1,
+        vaultCounter.toString(),
       )
+      await controllerProxy.clearVaultLiquidationDetails(vaultCounter.toString(), { from: accountOwner1 })
+      const liquidationDetailsAfter = await controllerProxy.getVaultLiquidationDetails(
+        accountOwner1,
+        vaultCounter.toString(),
+      )
+      assert.equal(liquidationDetailsAfter[0], ZERO_ADDR, 'series address is incorrect')
       assert.equal(
         new BigNumber(liquidationDetailsAfter[1]).toString(),
         new BigNumber(0).toString(),
-        'short amount is incorrect'
-      )      
+        'short amount is incorrect',
+      )
       assert.equal(
         new BigNumber(liquidationDetailsAfter[2]).toString(),
         new BigNumber(0).toString(),
-        'collateral amount is incorrect'
+        'collateral amount is incorrect',
       )
-      assert.notEqual(
-        liquidationDetailsAfter[0],
-        liquidationDetailsBefore[0],
-        'series address is incorrect'
-      )
+      assert.notEqual(liquidationDetailsAfter[0], liquidationDetailsBefore[0], 'series address is incorrect')
       assert.notEqual(
         new BigNumber(liquidationDetailsAfter[1]).toString(),
         new BigNumber(liquidationDetailsBefore[1]).toString(),
-        'short amount is incorrect'
-      )      
+        'short amount is incorrect',
+      )
       assert.notEqual(
         new BigNumber(liquidationDetailsAfter[2]).toString(),
         new BigNumber(liquidationDetailsBefore[2]).toString(),
-        'collateral amount is incorrect'
+        'collateral amount is incorrect',
       )
     })
     it('should not be able to withdraw remaining collateral', async () => {
@@ -1240,7 +1237,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       const userCollateralBefore = new BigNumber(await usdc.balanceOf(accountOwner1))
       const nakedMarginPoolBefore = new BigNumber(await controllerProxy.getNakedPoolBalance(usdc.address))
 
-      await expectRevert(controllerProxy.operate(withdrawArgs, { from: accountOwner1 }), "V9")
+      await expectRevert(controllerProxy.operate(withdrawArgs, { from: accountOwner1 }), 'V9')
     })
   })
   describe('Naked margin position: full liquidation call position USD collateral with lower liquidation multiplier', () => {
@@ -1350,8 +1347,8 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
     it('should set liquidation multiplier', async () => {
       const newMulti = new BigNumber(1000)
       await calculator.setLiquidationMultiplier(newMulti)
-      const multi = (await calculator.liquidationMultiplier())
-      assert.equal(multi.toString(), newMulti.toString(), "Liquidation multiplier not configured")
+      const multi = await calculator.liquidationMultiplier()
+      assert.equal(multi.toString(), newMulti.toString(), 'Liquidation multiplier not configured')
     })
     it('should fully liquidate undercollateralized vault', async () => {
       // advance time
@@ -1397,29 +1394,28 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
         vaultOwner: accountOwner1,
         auctionPrice: isLiquidatable[1],
         vaultId: vaultCounter.toString(),
-        series: vaultDetails.shortOtokens[0]
+        series: vaultDetails.shortOtokens[0],
       })
       const liquidatorCollateralBalanceAfter = new BigNumber(await usdc.balanceOf(liquidator))
       const vaultAfterLiquidation = (
         await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter.toString())
       )[0]
       const nakedMarginPoolAfter = new BigNumber(await controllerProxy.getNakedPoolBalance(usdc.address))
-      const liquidationDetails = await controllerProxy.getVaultLiquidationDetails(accountOwner1, vaultCounter.toString())
-      assert.equal(
-        liquidationDetails[0],
-        shortOtoken.address,
-        'series address is incorrect'
+      const liquidationDetails = await controllerProxy.getVaultLiquidationDetails(
+        accountOwner1,
+        vaultCounter.toString(),
       )
+      assert.equal(liquidationDetails[0], shortOtoken.address, 'series address is incorrect')
       assert.equal(
         new BigNumber(liquidationDetails[1]).toString(),
         new BigNumber(createTokenAmount(shortAmount)).toString(),
-        'short amount is incorrect'
-      )      
+        'short amount is incorrect',
+      )
       assert.equal(
         new BigNumber(liquidationDetails[2]).toString(),
         new BigNumber(vaultBeforeLiquidation.collateralAmounts[0]).multipliedBy(1000).dividedBy(10000).toString(),
-        'collateral amount is incorrect'
-      )      
+        'collateral amount is incorrect',
+      )
       assert.equal(
         nakedMarginPoolAfter.toString(),
         nakedMarginPoolBefore
@@ -1451,38 +1447,36 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       assert.equal(isLiquidatable[0], false, 'Vault liquidation state mismatch')
     })
     it('should clear liquidation details', async () => {
-      const liquidationDetailsBefore = await controllerProxy.getVaultLiquidationDetails(accountOwner1, vaultCounter.toString())
-      await controllerProxy.clearVaultLiquidationDetails(vaultCounter.toString(), {"from": accountOwner1})
-      const liquidationDetailsAfter = await controllerProxy.getVaultLiquidationDetails(accountOwner1, vaultCounter.toString())
-      assert.equal(
-        liquidationDetailsAfter[0],
-        ZERO_ADDR,
-        'series address is incorrect'
+      const liquidationDetailsBefore = await controllerProxy.getVaultLiquidationDetails(
+        accountOwner1,
+        vaultCounter.toString(),
       )
+      await controllerProxy.clearVaultLiquidationDetails(vaultCounter.toString(), { from: accountOwner1 })
+      const liquidationDetailsAfter = await controllerProxy.getVaultLiquidationDetails(
+        accountOwner1,
+        vaultCounter.toString(),
+      )
+      assert.equal(liquidationDetailsAfter[0], ZERO_ADDR, 'series address is incorrect')
       assert.equal(
         new BigNumber(liquidationDetailsAfter[1]).toString(),
         new BigNumber(0).toString(),
-        'short amount is incorrect'
-      )      
+        'short amount is incorrect',
+      )
       assert.equal(
         new BigNumber(liquidationDetailsAfter[2]).toString(),
         new BigNumber(0).toString(),
-        'collateral amount is incorrect'
+        'collateral amount is incorrect',
       )
-      assert.notEqual(
-        liquidationDetailsAfter[0],
-        liquidationDetailsBefore[0],
-        'series address is incorrect'
-      )
+      assert.notEqual(liquidationDetailsAfter[0], liquidationDetailsBefore[0], 'series address is incorrect')
       assert.notEqual(
         new BigNumber(liquidationDetailsAfter[1]).toString(),
         new BigNumber(liquidationDetailsBefore[1]).toString(),
-        'short amount is incorrect'
-      )      
+        'short amount is incorrect',
+      )
       assert.notEqual(
         new BigNumber(liquidationDetailsAfter[2]).toString(),
         new BigNumber(liquidationDetailsBefore[2]).toString(),
-        'collateral amount is incorrect'
+        'collateral amount is incorrect',
       )
     })
     it('should not be able to withdraw remaining collateral', async () => {
@@ -1506,14 +1500,22 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       await controllerProxy.operate(withdrawArgs, { from: accountOwner1 })
       const userCollateralAfter = new BigNumber(await usdc.balanceOf(accountOwner1))
       const nakedMarginPoolAfter = new BigNumber(await controllerProxy.getNakedPoolBalance(usdc.address)).toString()
-      assert.equal(userCollateralAfter.minus(vaultAfterLiquidation.collateralAmounts[0]).toString(), userCollateralBefore, "Collateral amount incorrect")
-      assert.equal(nakedMarginPoolBefore.minus(vaultAfterLiquidation.collateralAmounts[0]).toString(), nakedMarginPoolAfter, "Pool collateral incorrect")
+      assert.equal(
+        userCollateralAfter.minus(vaultAfterLiquidation.collateralAmounts[0]).toString(),
+        userCollateralBefore,
+        'Collateral amount incorrect',
+      )
+      assert.equal(
+        nakedMarginPoolBefore.minus(vaultAfterLiquidation.collateralAmounts[0]).toString(),
+        nakedMarginPoolAfter,
+        'Pool collateral incorrect',
+      )
       const vaultAfterWithdraw = (await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter))[0]
-      assert.equal(vaultAfterWithdraw.collateralAmounts[0], new BigNumber(0), "vault should have 0 collat")
+      assert.equal(vaultAfterWithdraw.collateralAmounts[0], new BigNumber(0), 'vault should have 0 collat')
     })
   })
 
-  describe('Only liquidation manager modifier', () => {
+  describe('isLiquidationManager', () => {
     const shortAmount = 1
     const shortStrike = 100
     const isPut = true
@@ -1617,7 +1619,7 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
       // mint short otoken
       await shortOtoken.mintOtoken(liquidator, createTokenAmount(shortAmount))
     })
-    it('Should revert if called when liquidation manager is defined', async () => {
+    it('Should revert in liquidate if called when liquidation manager is defined', async () => {
       // advance time
       await time.increase(1500)
 
@@ -1731,6 +1733,38 @@ contract('Controller: naked margin', ([owner, accountOwner1, liquidator, random]
         errorDelta,
         'Liquidator collateral balance mismatch after liquidation',
       )
+    })
+    it('Should revert in sync via direct call if called when liquidation manager is defined', async () => {
+       // set liquidation manager
+       await addressBook.setLiquidationManager(random)
+       
+      await expectRevert(controllerProxy.sync(ZERO_ADDR, 0, { from: accountOwner1 }), 'C38')
+    })
+    it('Should revert in clearVaultLiquidationDetails via direct call if called when liquidation manager is defined', async () => {
+      await expectRevert(controllerProxy.clearVaultLiquidationDetails(0, { from: accountOwner1 }), 'C38')
+    })
+  })
+
+  describe('isOTCWrapper', () => {
+    it('should revert in onlyAuthorized via direct call if called when OTCWrapper is defined', async () => {
+      // set OTC wrapper in AddressBook
+      await addressBook.setOTCWrapper(random)
+
+      // Using Open Vault as example of a onlyAuthorized call
+      const actionArgs = [
+        {
+          actionType: ActionType.OpenVault,
+          owner: accountOwner1,
+          secondAddress: random,
+          asset: ZERO_ADDR,
+          vaultId: '1',
+          amount: '0',
+          index: '0',
+          data: ZERO_ADDR,
+        },
+      ]
+
+      await expectRevert(controllerProxy.operate(actionArgs, { from: accountOwner1 }), 'C39')
     })
   })
 })
