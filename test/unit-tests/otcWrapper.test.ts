@@ -137,10 +137,16 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
   let userSignature2: permit
   let userSignature3: permit
   let userSignature4: permit
+  let userSignature5: permit
+  let userSignature6: permit
+  let userSignature7: permit
   let mmSignatureEmpty: permit
   let mmSignatureUSDC1: permit
   let mmSignatureUSDC2: permit
   let mmSignatureUSDC3: permit
+  let mmSignatureUSDC4: permit
+  let mmSignatureUSDC5: permit
+  let mmSignatureUSDC6: permit
   let forceSend: ForceSendInstance
 
   // time to expiry
@@ -267,6 +273,34 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
     // set expiry for options
     expiry = createValidExpiry(Number(await time.latest()), 10)
+
+    // admin whitelists product and collateral
+    await whitelist.whitelistCollateral(usdc.address)
+    await whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, false)
+    await whitelist.whitelistNakedCollateral(usdc.address, weth.address, false)
+
+    await whitelist.whitelistProduct(weth.address, usdc.address, wbtc.address, true)
+    await whitelist.whitelistNakedCollateral(wbtc.address, weth.address, true)
+    await whitelist.whitelistCollateral(wbtc.address)
+
+    // set initial margin for new product
+    await marginRequirements.setInitialMargin(weth.address, wbtc.address, true, marketMaker, 1000)
+    await marginRequirements.setInitialMargin(weth.address, usdc.address, false, marketMaker, 1000)
+
+    // set naked cap collateral to high number
+    await controllerProxy.setNakedCap(usdc.address, parseUnits('1', 25))
+    await controllerProxy.setNakedCap(wbtc.address, parseUnits('1', 25))
+
+    // set upper bound values and spot shock
+    const upperBoundValue = 1
+    await calculator.setUpperBoundValues(weth.address, usdc.address, usdc.address, false, [expiry], [upperBoundValue])
+    await calculator.setSpotShock(weth.address, usdc.address, usdc.address, false, scaleBigNum(1500, 35))
+
+    await calculator.setUpperBoundValues(weth.address, usdc.address, wbtc.address, true, [expiry], [upperBoundValue])
+    await calculator.setSpotShock(weth.address, usdc.address, wbtc.address, true, scaleBigNum(1500, 35))
+
+    // USDC at expiry
+    await oracle.setExpiryPriceFinalizedAllPeiodOver(usdc.address, expiry, createTokenAmount(1), true)
   })
 
   describe('permit setup', () => {
@@ -280,7 +314,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const value = parseUnits('5000', 6).toNumber()
       const nonce = 0
       const spender = otcWrapperProxy.address
-      const maxDeadline = new BigNumber(await time.latest()).plus(15 * 60).toString()
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 50).toString()
 
       // fund eth
       forceSend = await ForceSend.new(addressBook.address)
@@ -316,7 +350,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const value = parseUnits('5000', 6).toNumber()
       const nonce = 1
       const spender = otcWrapperProxy.address
-      const maxDeadline = new BigNumber(await time.latest()).plus(15 * 60).toString()
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 50).toString()
 
       // fund eth
       forceSend = await ForceSend.new(addressBook.address)
@@ -352,7 +386,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const value = parseUnits('5000', 6).toNumber()
       const nonce = 2
       const spender = otcWrapperProxy.address
-      const maxDeadline = new BigNumber(await time.latest()).plus(15 * 60).toString()
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 100).toString()
 
       // fund eth
       forceSend = await ForceSend.new(addressBook.address)
@@ -388,7 +422,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const value = parseUnits('10000', 6).toNumber()
       const nonce = 3
       const spender = otcWrapperProxy.address
-      const maxDeadline = new BigNumber(await time.latest()).plus(15 * 60).toString()
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 50).toString()
 
       // fund eth
       forceSend = await ForceSend.new(addressBook.address)
@@ -413,6 +447,114 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const deadline = maxDeadline
 
       userSignature4 = { amount, deadline, acct, v, r, s }
+    })
+    it('set up user permit USDC signature 5', async () => {
+      // resulting address = 0xa94ab2bb0c67842fb40a1068068df1225a031a7d
+      const randomBuffer = Buffer.alloc(32, 'dsaas')
+
+      const userWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const owner = userWallet.getAddressString()
+      const value = parseUnits('5000', 6).toNumber()
+      const nonce = 3
+      const spender = otcWrapperProxy.address
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 100).toString()
+
+      // fund eth
+      forceSend = await ForceSend.new(addressBook.address)
+      await forceSend.go(owner, { value: ethers.utils.parseEther('2').toString() })
+
+      // fund usdc
+      await usdc.mint(owner, createTokenAmount(200000, USDCDECIMALS))
+
+      const buildData = (chainId: number, verifyingContract: string, deadline = maxDeadline) => ({
+        primaryType: 'Permit',
+        types: { EIP712Domain, Permit },
+        domain: { name, version, chainId, verifyingContract },
+        message: { owner, spender, value, nonce, deadline },
+      })
+
+      const data = buildData((await usdc.getChainId()).toNumber(), usdc.address)
+      const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
+      const { v, r, s } = fromRpcSig(signature)
+
+      const acct = owner
+      const amount = value.toString()
+      const deadline = maxDeadline
+
+      userSignature5 = { amount, deadline, acct, v, r, s }
+    })
+    it('set up user permit USDC signature 6', async () => {
+      // resulting address = 0xa94ab2bb0c67842fb40a1068068df1225a031a7d
+      const randomBuffer = Buffer.alloc(32, 'dsaas')
+
+      const userWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const owner = userWallet.getAddressString()
+      const value = parseUnits('5000', 6).toNumber()
+      const nonce = 4
+      const spender = otcWrapperProxy.address
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 100).toString()
+
+      // fund eth
+      forceSend = await ForceSend.new(addressBook.address)
+      await forceSend.go(owner, { value: ethers.utils.parseEther('2').toString() })
+
+      // fund usdc
+      await usdc.mint(owner, createTokenAmount(200000, USDCDECIMALS))
+
+      const buildData = (chainId: number, verifyingContract: string, deadline = maxDeadline) => ({
+        primaryType: 'Permit',
+        types: { EIP712Domain, Permit },
+        domain: { name, version, chainId, verifyingContract },
+        message: { owner, spender, value, nonce, deadline },
+      })
+
+      const data = buildData((await usdc.getChainId()).toNumber(), usdc.address)
+      const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
+      const { v, r, s } = fromRpcSig(signature)
+
+      const acct = owner
+      const amount = value.toString()
+      const deadline = maxDeadline
+
+      userSignature6 = { amount, deadline, acct, v, r, s }
+    })
+    it('set up user permit USDC signature 7', async () => {
+      // resulting address = 0xa94ab2bb0c67842fb40a1068068df1225a031a7d
+      const randomBuffer = Buffer.alloc(32, 'dsaas')
+
+      const userWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const owner = userWallet.getAddressString()
+      const value = parseUnits('5000', 6).toNumber()
+      const nonce = 5
+      const spender = otcWrapperProxy.address
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 100).toString()
+
+      // fund eth
+      forceSend = await ForceSend.new(addressBook.address)
+      await forceSend.go(owner, { value: ethers.utils.parseEther('2').toString() })
+
+      // fund usdc
+      await usdc.mint(owner, createTokenAmount(200000, USDCDECIMALS))
+
+      const buildData = (chainId: number, verifyingContract: string, deadline = maxDeadline) => ({
+        primaryType: 'Permit',
+        types: { EIP712Domain, Permit },
+        domain: { name, version, chainId, verifyingContract },
+        message: { owner, spender, value, nonce, deadline },
+      })
+
+      const data = buildData((await usdc.getChainId()).toNumber(), usdc.address)
+      const signature = ethSigUtil.signTypedMessage(userWallet.getPrivateKey(), { data })
+      const { v, r, s } = fromRpcSig(signature)
+
+      const acct = owner
+      const amount = value.toString()
+      const deadline = maxDeadline
+
+      userSignature7 = { amount, deadline, acct, v, r, s }
     })
     it('set up market maker permit empty signature', async () => {
       //resulting address = 0x427fb2c379f02761594768357b33d267ffdf80c5
@@ -460,7 +602,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const value = parseUnits('15001', 6).toNumber()
       const nonce = 0
       const spender = otcWrapperProxy.address
-      const maxDeadline = new BigNumber(await time.latest()).plus(15 * 60).toString()
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 50).toString()
 
       // fund eth
       forceSend = await ForceSend.new(addressBook.address)
@@ -496,7 +638,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const value = parseUnits('15001', 6).toNumber()
       const nonce = 1
       const spender = otcWrapperProxy.address
-      const maxDeadline = new BigNumber(await time.latest()).plus(15 * 60).toString()
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 50).toString()
 
       // fund eth
       forceSend = await ForceSend.new(addressBook.address)
@@ -532,7 +674,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const value = parseUnits('2000', 6).toNumber()
       const nonce = 2
       const spender = otcWrapperProxy.address
-      const maxDeadline = new BigNumber(await time.latest()).plus(15 * 60).toString()
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 50).toString()
 
       // fund eth
       forceSend = await ForceSend.new(addressBook.address)
@@ -558,16 +700,124 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       mmSignatureUSDC3 = { amount, deadline, acct, v, r, s }
     })
+    it('set up market maker permit USDC signature 4', async () => {
+      //resulting address = 0x427fb2c379f02761594768357b33d267ffdf80c5
+      const randomBuffer = Buffer.alloc(32, 'abc')
+
+      const mmWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const owner = mmWallet.getAddressString()
+      const value = parseUnits('15001', 6).toNumber()
+      const nonce = 3
+      const spender = otcWrapperProxy.address
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 100).toString()
+
+      // fund eth
+      forceSend = await ForceSend.new(addressBook.address)
+      await forceSend.go(owner, { value: ethers.utils.parseEther('2').toString() })
+
+      // fund usdc
+      await usdc.mint(owner, createTokenAmount(200000, USDCDECIMALS))
+
+      const buildData = (chainId: number, verifyingContract: string, deadline = maxDeadline) => ({
+        primaryType: 'Permit',
+        types: { EIP712Domain, Permit },
+        domain: { name, version, chainId, verifyingContract },
+        message: { owner, spender, value, nonce, deadline },
+      })
+
+      const data = buildData((await usdc.getChainId()).toNumber(), usdc.address)
+      const signature = ethSigUtil.signTypedMessage(mmWallet.getPrivateKey(), { data })
+      const { v, r, s } = fromRpcSig(signature)
+
+      const acct = owner
+      const amount = value.toString()
+      const deadline = maxDeadline
+
+      mmSignatureUSDC4 = { amount, deadline, acct, v, r, s }
+    })
+    it('set up market maker permit USDC signature 5', async () => {
+      //resulting address = 0x427fb2c379f02761594768357b33d267ffdf80c5
+      const randomBuffer = Buffer.alloc(32, 'abc')
+
+      const mmWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const owner = mmWallet.getAddressString()
+      const value = parseUnits('15001', 6).toNumber()
+      const nonce = 4
+      const spender = otcWrapperProxy.address
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 100).toString()
+
+      // fund eth
+      forceSend = await ForceSend.new(addressBook.address)
+      await forceSend.go(owner, { value: ethers.utils.parseEther('2').toString() })
+
+      // fund usdc
+      await usdc.mint(owner, createTokenAmount(200000, USDCDECIMALS))
+
+      const buildData = (chainId: number, verifyingContract: string, deadline = maxDeadline) => ({
+        primaryType: 'Permit',
+        types: { EIP712Domain, Permit },
+        domain: { name, version, chainId, verifyingContract },
+        message: { owner, spender, value, nonce, deadline },
+      })
+
+      const data = buildData((await usdc.getChainId()).toNumber(), usdc.address)
+      const signature = ethSigUtil.signTypedMessage(mmWallet.getPrivateKey(), { data })
+      const { v, r, s } = fromRpcSig(signature)
+
+      const acct = owner
+      const amount = value.toString()
+      const deadline = maxDeadline
+
+      mmSignatureUSDC5 = { amount, deadline, acct, v, r, s }
+    })
+    it('set up market maker permit USDC signature 6', async () => {
+      //resulting address = 0x427fb2c379f02761594768357b33d267ffdf80c5
+      const randomBuffer = Buffer.alloc(32, 'abc')
+
+      const mmWallet = Wallet.fromPrivateKey(randomBuffer)
+
+      const owner = mmWallet.getAddressString()
+      const value = parseUnits('15001', 6).toNumber()
+      const nonce = 5
+      const spender = otcWrapperProxy.address
+      const maxDeadline = new BigNumber(await time.latest()).plus(8600000 * 100).toString()
+
+      // fund eth
+      forceSend = await ForceSend.new(addressBook.address)
+      await forceSend.go(owner, { value: ethers.utils.parseEther('2').toString() })
+
+      // fund usdc
+      await usdc.mint(owner, createTokenAmount(200000, USDCDECIMALS))
+
+      const buildData = (chainId: number, verifyingContract: string, deadline = maxDeadline) => ({
+        primaryType: 'Permit',
+        types: { EIP712Domain, Permit },
+        domain: { name, version, chainId, verifyingContract },
+        message: { owner, spender, value, nonce, deadline },
+      })
+
+      const data = buildData((await usdc.getChainId()).toNumber(), usdc.address)
+      const signature = ethSigUtil.signTypedMessage(mmWallet.getPrivateKey(), { data })
+      const { v, r, s } = fromRpcSig(signature)
+
+      const acct = owner
+      const amount = value.toString()
+      const deadline = maxDeadline
+
+      mmSignatureUSDC6 = { amount, deadline, acct, v, r, s }
+    })
     it('set up user signature for placing a new order via trusted minimal forwarder', async () => {
       const chainId = (await usdc.getChainId()).toNumber() // 8545
 
       const strikePrice2 = scaleBigNum(1700, 8).toNumber()
-      const notional2 = parseUnits('200000', 6).toNumber()
+      const size2 = parseUnits('110', 8).toNumber()
 
-      const dataExample = [weth.address, false, strikePrice2, expiry, 1, notional2]
+      const dataExample = [weth.address, false, strikePrice2, expiry, 1, size2]
 
       let ABI = [
-        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _notional)',
+        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _size)',
       ]
       let iface = new ethers.utils.Interface(ABI)
 
@@ -597,12 +847,12 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const chainId = (await usdc.getChainId()).toNumber() // 8545
 
       const strikePrice2 = scaleBigNum(1700, 8).toNumber()
-      const notional2 = parseUnits('200000', 6).toNumber()
+      const size2 = parseUnits('110', 8).toNumber()
 
-      const dataExample = [weth.address, false, strikePrice2, expiry, 1, notional2]
+      const dataExample = [weth.address, false, strikePrice2, expiry, 1, size2]
 
       let ABI = [
-        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _notional)',
+        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _size)',
       ]
       let iface = new ethers.utils.Interface(ABI)
 
@@ -949,6 +1199,12 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     it('should revert if notional amount is below min', async () => {
       await expectRevert(
         otcWrapperProxy.placeOrder(weth.address, false, 1, expiry, 0, 0),
+        'OTCWrapper: size cannot be 0',
+      )
+    })
+    it('should revert if notional amount is below min', async () => {
+      await expectRevert(
+        otcWrapperProxy.placeOrder(weth.address, false, 1, expiry, 0, 1),
         'OTCWrapper: invalid notional value',
       )
     })
@@ -962,7 +1218,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const pastExpiry = new BigNumber(await time.latest()).minus(100)
 
       await expectRevert(
-        otcWrapperProxy.placeOrder(weth.address, false, 1, pastExpiry, 0, parseUnits('100000', 6)),
+        otcWrapperProxy.placeOrder(weth.address, false, 1, pastExpiry, 0, parseUnits('100', 8)),
         'OTCWrapper: expiry must be in the future',
       )
     })
@@ -970,7 +1226,8 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.latestOrder()).toString(), '0')
 
       const strikePrice = scaleBigNum(1300, 8)
-      const notional = parseUnits('150000', 6)
+      // notional = parseUnits('150000', 6)
+      const size = parseUnits('100', 8)
 
       const tx = await otcWrapperProxy.placeOrder(
         weth.address,
@@ -978,7 +1235,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         strikePrice,
         expiry,
         parseUnits('5000', 6),
-        notional,
+        size,
         {
           from: user,
         },
@@ -995,12 +1252,13 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orders(1))[3].toString(), strikePrice.toString())
       assert.equal((await otcWrapperProxy.orders(1))[4].toString(), expiry.toString())
       assert.equal((await otcWrapperProxy.orders(1))[5].toString(), parseUnits('5000', 6).toString())
-      assert.equal((await otcWrapperProxy.orders(1))[6].toString(), notional.toString())
+      assert.equal((await otcWrapperProxy.orders(1))[6].toString(), '0')
       assert.equal((await otcWrapperProxy.orders(1))[7].toString(), user)
       assert.equal((await otcWrapperProxy.orders(1))[8].toString(), ZERO_ADDR)
       assert.equal((await otcWrapperProxy.orders(1))[9].toString(), '0')
       assert.equal((await otcWrapperProxy.orders(1))[10].toString(), ZERO_ADDR)
       assert.equal((await otcWrapperProxy.orders(1))[11].toString(), await time.latest())
+      assert.equal((await otcWrapperProxy.orders(1))[12].toString(), size.toString())
 
       // emits event
       const { logs } = tx
@@ -1010,20 +1268,20 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(logs[0].args.strikePrice.toString(), strikePrice.toString())
       assert.equal(logs[0].args.expiry.toString(), expiry.toString())
       assert.equal(logs[0].args.premium.toString(), parseUnits('5000', 6).toString())
-      assert.equal(logs[0].args.notional.toString(), notional.toString())
+      assert.equal(logs[0].args.size.toString(), size.toString())
       assert.equal(logs[0].args.buyer.toString(), user)
     })
     it('user sucessfully creates a new order via minimal forwarder', async () => {
       const strikePrice2 = scaleBigNum(1700, 8).toNumber()
-      const notional2 = parseUnits('200000', 6).toNumber()
+      const size2 = parseUnits('110', 8).toNumber()
 
       const randomBuffer = Buffer.alloc(32, 'dsaas')
       const userWallet = Wallet.fromPrivateKey(randomBuffer)
 
-      const dataExample = [weth.address, false, strikePrice2, expiry, 1, notional2]
+      const dataExample = [weth.address, false, strikePrice2, expiry, 1, size2]
 
       let ABI = [
-        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _notional)',
+        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _size)',
       ]
       let iface = new ethers.utils.Interface(ABI)
       const callData = iface.encodeFunctionData('placeOrder', dataExample)
@@ -1055,24 +1313,25 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orders(2))[3].toString(), strikePrice2.toString())
       assert.equal((await otcWrapperProxy.orders(2))[4].toString(), expiry.toString())
       assert.equal((await otcWrapperProxy.orders(2))[5].toString(), '1')
-      assert.equal((await otcWrapperProxy.orders(2))[6].toString(), notional2.toString())
+      assert.equal((await otcWrapperProxy.orders(2))[6].toString(), '0')
       assert.equal((await otcWrapperProxy.orders(2))[7].toString(), user)
       assert.equal((await otcWrapperProxy.orders(2))[8].toString(), ZERO_ADDR)
       assert.equal((await otcWrapperProxy.orders(2))[9].toString(), '0')
       assert.equal((await otcWrapperProxy.orders(2))[10].toString(), ZERO_ADDR)
       assert.equal((await otcWrapperProxy.orders(2))[11].toString(), await time.latest())
+      assert.equal((await otcWrapperProxy.orders(2))[12].toString(), size2.toString())
     })
     it('should not pass along the user as msg.sender if order is placed via an untrusted minimal forwarder', async () => {
       const strikePrice2 = scaleBigNum(1700, 8).toNumber()
-      const notional2 = parseUnits('200000', 6).toNumber()
+      const size2 = parseUnits('110', 8).toNumber()
 
       const randomBuffer = Buffer.alloc(32, 'dsaas')
       const userWallet = Wallet.fromPrivateKey(randomBuffer)
 
-      const dataExample = [weth.address, false, strikePrice2, expiry, 1, notional2]
+      const dataExample = [weth.address, false, strikePrice2, expiry, 1, size2]
 
       let ABI = [
-        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _notional)',
+        'function placeOrder(address _underlying, bool _isPut, uint256 _strikePrice, uint256 _expiry, uint256 _premium, uint256 _size)',
       ]
       let iface = new ethers.utils.Interface(ABI)
       const callData = iface.encodeFunctionData('placeOrder', dataExample)
@@ -1102,7 +1361,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     })
     it('successfully cancels an order via direct call', async () => {
       // create a new order
-      await otcWrapperProxy.placeOrder(weth.address, true, 1, expiry, 0, parseUnits('150000', 6), {
+      await otcWrapperProxy.placeOrder(weth.address, true, 1, expiry, 0, parseUnits('100', 8), {
         from: user,
       })
 
@@ -1118,7 +1377,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     })
     it('successfully cancels an order via minimal fowarder call', async () => {
       // create a new order
-      await otcWrapperProxy.placeOrder(weth.address, true, 1, expiry, 0, parseUnits('150000', 6), {
+      await otcWrapperProxy.placeOrder(weth.address, true, 1, expiry, 0, parseUnits('100', 8), {
         from: user,
       })
       assert.equal((await otcWrapperProxy.latestOrder()).toString(), '5')
@@ -1203,7 +1462,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       )
     })
     it('should revert if the user permit signer is not the order buyer', async () => {
-      await otcWrapperProxy.placeOrder(weth.address, true, 1, expiry, 0, parseUnits('150000', 6), {
+      await otcWrapperProxy.placeOrder(weth.address, true, 1, expiry, 0, parseUnits('100', 8), {
         from: random,
       })
       await expectRevert(
@@ -1246,9 +1505,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       )
     })
     it('should revert if there is not enough collateral to mint', async () => {
-      await marginRequirements.setInitialMargin(weth.address, usdc.address, false, marketMaker, 1000)
-      await whitelist.whitelistCollateral(usdc.address)
-
       await expectRevert(
         otcWrapperProxy.executeOrder(
           1,
@@ -1280,20 +1536,30 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         'OTCWrapper: signer is not the market maker',
       )
     })
+    it('should revert if price changed significnatly and notional value is no longer valid', async () => {
+      // sudden price drop
+      await oracle.setRealTimePrice(weth.address, scaleBigNum(300, 8))
+
+      await expectRevert(
+        otcWrapperProxy.executeOrder(
+          1,
+          userSignature1,
+          mmSignatureUSDC1,
+          parseUnits('5000', 6),
+          usdc.address,
+          parseUnits('11501', 6),
+          {
+            from: marketMaker,
+          },
+        ),
+        'OTCWrapper: invalid notional value',
+      )
+
+      // price restores
+      await oracle.setRealTimePrice(weth.address, scaleBigNum(1500, 8))
+    })
 
     it('successfully executes call with collateral in USDC via direct call', async () => {
-      // admin whitelists product and collateral
-      await whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, false)
-      await whitelist.whitelistNakedCollateral(usdc.address, weth.address, false)
-
-      // set naked cap collateral to high number
-      await controllerProxy.setNakedCap(usdc.address, parseUnits('1', 25))
-
-      // set upper bound values and spot shock
-      const upperBoundValue = 1
-      await calculator.setUpperBoundValues(weth.address, usdc.address, usdc.address, false, [expiry], [upperBoundValue])
-      await calculator.setSpotShock(weth.address, usdc.address, usdc.address, false, scaleBigNum(1500, 35))
-
       const requiredMargin = new BigNumber(
         await calculator.getNakedMarginRequired(
           weth.address,
@@ -1368,6 +1634,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orders(1))[8].toString(), marketMaker)
       assert.equal((await otcWrapperProxy.orders(1))[9].toString(), '1')
       assert.equal((await otcWrapperProxy.orderStatus(1)).toString(), '2')
+      assert.equal((await otcWrapperProxy.orders(1))[6].toString(), parseUnits('150000', 6).toString())
 
       // emits event
       const { logs } = tx
@@ -1380,31 +1647,16 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(logs[0].args.initialMargin.toString(), collateralAmount)
     })
     it('successfully executes a put with collateral in WBTC via direct call', async () => {
-      // set initial margin for new product
-      await marginRequirements.setInitialMargin(weth.address, wbtc.address, true, marketMaker, 1000)
-
       // user places a new order
       const strikePrice = scaleBigNum(1300, 8)
       const notional = parseUnits('300000', 6)
+      const size = parseUnits('200', 8)
 
-      await otcWrapperProxy.placeOrder(weth.address, true, strikePrice, expiry, parseUnits('5000', 6), notional, {
+      await otcWrapperProxy.placeOrder(weth.address, true, strikePrice, expiry, parseUnits('5000', 6), size, {
         from: user,
       })
 
       assert.equal((await otcWrapperProxy.latestOrder()).toString(), '7')
-
-      // admin whitelists product and collateral
-      await whitelist.whitelistProduct(weth.address, usdc.address, wbtc.address, true)
-      await whitelist.whitelistNakedCollateral(wbtc.address, weth.address, true)
-      await whitelist.whitelistCollateral(wbtc.address)
-
-      // set naked cap collateral to high number
-      await controllerProxy.setNakedCap(wbtc.address, parseUnits('1', 25))
-
-      // set upper bound values and spot shock
-      const upperBoundValue = 1
-      await calculator.setUpperBoundValues(weth.address, usdc.address, wbtc.address, true, [expiry], [upperBoundValue])
-      await calculator.setSpotShock(weth.address, usdc.address, wbtc.address, true, scaleBigNum(1500, 35))
 
       const requiredMargin = new BigNumber(
         await calculator.getNakedMarginRequired(
@@ -1484,6 +1736,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orders(7))[8].toString(), marketMaker)
       assert.equal((await otcWrapperProxy.orders(7))[9].toString(), '2')
       assert.equal((await otcWrapperProxy.orderStatus(7)).toString(), '2')
+      assert.equal((await otcWrapperProxy.orders(7))[6].toString(), notional.toString())
 
       // emits event
       const { logs } = tx
@@ -1502,8 +1755,9 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       // place repeated order
       const strikePrice = scaleBigNum(1300, 8)
       const notional = parseUnits('150000', 6)
+      const size = parseUnits('100', 8)
 
-      await otcWrapperProxy.placeOrder(weth.address, false, strikePrice, expiry, parseUnits('5000', 6), notional, {
+      await otcWrapperProxy.placeOrder(weth.address, false, strikePrice, expiry, parseUnits('5000', 6), size, {
         from: user,
       })
 
@@ -1573,6 +1827,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orders(8))[8].toString(), marketMaker)
       assert.equal((await otcWrapperProxy.orders(8))[9].toString(), '3')
       assert.equal((await otcWrapperProxy.orderStatus(8)).toString(), '2')
+      assert.equal((await otcWrapperProxy.orders(8))[6].toString(), notional.toString())
 
       // ensure otoken address is repeated
       assert.equal((await otcWrapperProxy.orders(1))[10].toString(), (await otcWrapperProxy.orders(8))[10].toString())
@@ -1580,7 +1835,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     })
     it('should revert if fill deadline has passed', async () => {
       // place new order
-      await otcWrapperProxy.placeOrder(weth.address, false, 1, expiry, parseUnits('5000', 6), parseUnits('150000', 6), {
+      await otcWrapperProxy.placeOrder(weth.address, false, 1, expiry, parseUnits('5000', 6), parseUnits('100', 8), {
         from: user,
       })
 
@@ -1883,7 +2138,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       // collateral in vault = 16001 USDC
       // collateral free to be withdrawn by MM = 16001 - 10000 = 6001 USDC
 
-      const userPayout = createTokenAmount(10000, USDCDECIMALS)
       const collateralToWithdraw = createTokenAmount(6001, USDCDECIMALS)
 
       const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
@@ -1904,26 +2158,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       // emits event
       const { logs } = tx
       assert.equal(logs[0].args.orderID.toString(), '1')
-
-      // user redeems the otokens
-      const redeemArgs = [
-        {
-          actionType: ActionType.Redeem,
-          owner: ZERO_ADDR,
-          secondAddress: user,
-          asset: (await otcWrapperProxy.orders(1))[10].toString(),
-          vaultId: '1',
-          amount: createTokenAmount(100),
-          index: '0',
-          data: ZERO_ADDR,
-        },
-      ]
-
-      const userBalAfterUSDC = new BigNumber(await usdc.balanceOf(user))
-      await controllerProxy.operate(redeemArgs, { from: user })
-      const userBalanceAfter = new BigNumber(await usdc.balanceOf(user))
-
-      assert.equal(userBalanceAfter.minus(userBalAfterUSDC).toString(), userPayout.toString())
     })
     it('market maker successfully settles after expiry OTM via direct call', async () => {
       // past time after expiry
@@ -2019,6 +2253,257 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       // token flows
       assert.equal(marketMakerBalAfterUSDC.minus(marketMakerBalBeforeUSDC).toString(), collateralToWithdraw.toString())
       assert.equal(marginPoolBalBeforeUSDC.minus(marginPoolBalAfterUSDC).toString(), collateralToWithdraw.toString())
+    })
+  })
+
+  describe('Redeem', () => {
+    it('should revert if there is a direct call to redeem on controller instead of via the wrapper contract', async () => {
+      // user redeems the otokens
+      const redeemArgs = [
+        {
+          actionType: ActionType.Redeem,
+          owner: ZERO_ADDR,
+          secondAddress: user,
+          asset: (await otcWrapperProxy.orders(1))[10].toString(),
+          vaultId: '1',
+          amount: createTokenAmount(100),
+          index: '0',
+          data: ZERO_ADDR,
+        },
+      ]
+
+      await expectRevert(controllerProxy.operate(redeemArgs, { from: user }), 'C39')
+    })
+    it('should revert if orderID is higher than lastest order or the order status is not succeeded', async () => {
+      // Inexistent order
+      await expectRevert(
+        otcWrapperProxy.settleVault(20, { from: marketMaker }),
+        'OTCWrapper: inexistent or unsuccessful order',
+      )
+
+      // Failed order
+      assert.equal((await otcWrapperProxy.orderStatus(2)).toString(), '0')
+
+      await expectRevert(
+        otcWrapperProxy.settleVault(2, { from: marketMaker }),
+        'OTCWrapper: inexistent or unsuccessful order',
+      )
+    })
+    it('should revert if buyer is not the caller', async () => {
+      await expectRevert(otcWrapperProxy.redeem(1, { from: random }), 'OTCWrapper: sender is not the order buyer')
+    })
+    it('no collateral amounts are redeemed if buyer tries to redeem before or after the vault was settled OTM', async () => {
+      const strikePrice = scaleBigNum(1300, 8)
+      // notional = parseUnits('150000', 6)
+      const size = parseUnits('100', 8)
+      const premium = parseUnits('5000', 6)
+      const collateralAmount = parseUnits('15001', 6)
+      const expiry = createValidExpiry(Number(await time.latest()), 10)
+
+      await otcWrapperProxy.placeOrder(weth.address, false, strikePrice, expiry, parseUnits('5000', 6), size, {
+        from: user,
+      })
+
+      const orderID = await otcWrapperProxy.latestOrder()
+
+      await otcWrapperProxy.executeOrder(
+        orderID,
+        userSignature5,
+        mmSignatureUSDC4,
+        premium,
+        usdc.address,
+        collateralAmount,
+        {
+          from: marketMaker,
+        },
+      )
+
+      // move to past expiry date
+      await time.increase(8600000)
+
+      // set expiry to OTM
+      await oracle.setExpiryPriceFinalizedAllPeiodOver(weth.address, expiry, createTokenAmount(1299), true)
+      await oracle.setExpiryPriceFinalizedAllPeiodOver(usdc.address, expiry, createTokenAmount(1), true)
+
+      // approve
+      const otoken = await MockERC20.at((await otcWrapperProxy.orders(orderID))[10].toString())
+      await otoken.approve(otcWrapperProxy.address, size, { from: user })
+
+      const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const userBalBeforeUSDC = new BigNumber(await usdc.balanceOf(user))
+      const userBalBeforeOtoken = new BigNumber(await otoken.balanceOf(user))
+
+      await otcWrapperProxy.redeem(orderID, { from: user })
+
+      const marginPoolBalAfterUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const userBalAfterUSDC = new BigNumber(await usdc.balanceOf(user))
+      const userBalAfterOtoken = new BigNumber(await otoken.balanceOf(user))
+
+      assert.equal(marginPoolBalBeforeUSDC.minus(marginPoolBalAfterUSDC).toString(), '0')
+      assert.equal(userBalAfterUSDC.minus(userBalBeforeUSDC).toString(), '0')
+      assert.equal(userBalBeforeOtoken.minus(userBalAfterOtoken).toString(), size.toString())
+
+      await otcWrapperProxy.settleVault(orderID, { from: marketMaker })
+
+      const marginPoolBalBeforeUSDC2 = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const userBalBeforeUSDC2 = new BigNumber(await usdc.balanceOf(user))
+      const userBalBeforeOtoken2 = new BigNumber(await otoken.balanceOf(user))
+
+      await otcWrapperProxy.redeem(orderID, { from: user })
+
+      const marginPoolBalAfterUSDC2 = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const userBalAfterUSDC2 = new BigNumber(await usdc.balanceOf(user))
+      const userBalAfterOtoken2 = new BigNumber(await otoken.balanceOf(user))
+
+      assert.equal(marginPoolBalBeforeUSDC2.minus(marginPoolBalAfterUSDC2).toString(), '0')
+      assert.equal(userBalAfterUSDC2.minus(userBalBeforeUSDC2).toString(), '0')
+      assert.equal(userBalBeforeOtoken2.minus(userBalAfterOtoken2).toString(), '0')
+    })
+
+    it('user successfully redeems before vault is settled', async () => {
+      const strikePrice = scaleBigNum(1300, 8)
+      // notional = parseUnits('150000', 6)
+      const size = parseUnits('100', 8)
+      const premium = parseUnits('5000', 6)
+      const collateralAmount = parseUnits('15001', 6)
+      const payout = parseUnits('10000', 6)
+      const expiry = createValidExpiry(Number(await time.latest()), 10)
+
+      await otcWrapperProxy.placeOrder(weth.address, false, strikePrice, expiry, parseUnits('5000', 6), size, {
+        from: user,
+      })
+
+      const orderID = await otcWrapperProxy.latestOrder()
+
+      await otcWrapperProxy.executeOrder(
+        orderID,
+        userSignature6,
+        mmSignatureUSDC5,
+        premium,
+        usdc.address,
+        collateralAmount,
+        {
+          from: marketMaker,
+        },
+      )
+
+      // move to past expiry date
+      await time.increase(8600000)
+
+      // set expiry to ITM with enough collateral
+      await oracle.setExpiryPriceFinalizedAllPeiodOver(weth.address, expiry, createTokenAmount(1400), true)
+      await oracle.setExpiryPriceFinalizedAllPeiodOver(usdc.address, expiry, createTokenAmount(1), true)
+
+      // approve
+      const otoken = await MockERC20.at((await otcWrapperProxy.orders(orderID))[10].toString())
+      await otoken.approve(otcWrapperProxy.address, size, { from: user })
+
+      // call redeem
+      const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const userBalBeforeUSDC = new BigNumber(await usdc.balanceOf(user))
+      const userBalBeforeOtoken = new BigNumber(await otoken.balanceOf(user))
+
+      const tx = await otcWrapperProxy.redeem(orderID, { from: user })
+
+      const marginPoolBalAfterUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const userBalAfterUSDC = new BigNumber(await usdc.balanceOf(user))
+      const userBalAfterOtoken = new BigNumber(await otoken.balanceOf(user))
+
+      assert.equal(marginPoolBalBeforeUSDC.minus(marginPoolBalAfterUSDC).toString(), payout.toString())
+      assert.equal(userBalAfterUSDC.minus(userBalBeforeUSDC).toString(), payout.toString())
+      assert.equal(userBalBeforeOtoken.minus(userBalAfterOtoken).toString(), size.toString())
+
+      // event
+      const { logs } = tx
+      assert.equal(logs[0].args.orderID.toString(), orderID.toString())
+      assert.equal(logs[0].args.size.toString(), size.toString())
+
+      // settle vault after redeem
+      const marginPoolBalBeforeUSDC2 = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const marketMakerBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marketMaker))
+
+      await otcWrapperProxy.settleVault(orderID, { from: marketMaker })
+
+      const marginPoolBalAfterUSDC2 = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const marketMakerBalAfterUSDC = new BigNumber(await usdc.balanceOf(marketMaker))
+
+      assert.equal(
+        marketMakerBalAfterUSDC.minus(marketMakerBalBeforeUSDC).toString(),
+        collateralAmount.sub(payout).toString(),
+      )
+      assert.equal(
+        marginPoolBalBeforeUSDC2.minus(marginPoolBalAfterUSDC2).toString(),
+        collateralAmount.sub(payout).toString(),
+      )
+    })
+
+    it('should revert if it is ITM and there is not enough collateral in the vault', async () => {
+      const strikePrice = scaleBigNum(1300, 8)
+      // notional = parseUnits('150000', 6)
+      const size = parseUnits('100', 8)
+      const premium = parseUnits('5000', 6)
+      const collateralAmount = parseUnits('15001', 6)
+      const expiry = createValidExpiry(Number(await time.latest()), 10)
+
+      await otcWrapperProxy.placeOrder(weth.address, false, strikePrice, expiry, parseUnits('5000', 6), size, {
+        from: user,
+      })
+
+      const orderID = await otcWrapperProxy.latestOrder()
+
+      await otcWrapperProxy.executeOrder(
+        orderID,
+        userSignature7,
+        mmSignatureUSDC6,
+        premium,
+        usdc.address,
+        collateralAmount,
+        {
+          from: marketMaker,
+        },
+      )
+
+      // move to past expiry date
+      await time.increase(8600000)
+
+      // set expiry to ITM without enough collateral
+      await oracle.setExpiryPriceFinalizedAllPeiodOver(weth.address, expiry, createTokenAmount(1451), true)
+      await oracle.setExpiryPriceFinalizedAllPeiodOver(usdc.address, expiry, createTokenAmount(1), true)
+
+      await expectRevert(
+        otcWrapperProxy.redeem(orderID, { from: user }),
+        'OTCWrapper: insuficient collateral to redeem',
+      )
+    })
+
+    it('user successfully redeems after vault is settled', async () => {
+      //set finalized prices to same as the moment vault was were settled
+      await oracle.setExpiryPriceFinalizedAllPeiodOver(weth.address, expiry, createTokenAmount(1400), true)
+
+      const userPayout = createTokenAmount(10000, USDCDECIMALS)
+      const otoken = await MockERC20.at((await otcWrapperProxy.orders(1))[10].toString())
+      const size = createTokenAmount(100)
+
+      const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const userBalBeforeUSDC = new BigNumber(await usdc.balanceOf(user))
+      const userBalBeforeOtoken = new BigNumber(await otoken.balanceOf(user))
+
+      await otoken.approve(otcWrapperProxy.address, size, { from: user })
+
+      const tx = await otcWrapperProxy.redeem(1, { from: user })
+
+      const marginPoolBalAfterUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
+      const userBalAfterUSDC = new BigNumber(await usdc.balanceOf(user))
+      const userBalAfterOtoken = new BigNumber(await otoken.balanceOf(user))
+
+      assert.equal(marginPoolBalBeforeUSDC.minus(marginPoolBalAfterUSDC).toString(), userPayout.toString())
+      assert.equal(userBalAfterUSDC.minus(userBalBeforeUSDC).toString(), userPayout.toString())
+      assert.equal(userBalBeforeOtoken.minus(userBalAfterOtoken).toString(), size.toString())
+
+      // event
+      const { logs } = tx
+      assert.equal(logs[0].args.orderID.toString(), "1")
+      assert.equal(logs[0].args.size.toString(), size.toString())
     })
   })
 
