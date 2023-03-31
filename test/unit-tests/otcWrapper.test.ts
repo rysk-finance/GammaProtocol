@@ -2325,9 +2325,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       await oracle.setExpiryPriceFinalizedAllPeiodOver(weth.address, expiry, createTokenAmount(1299), true)
       await oracle.setExpiryPriceFinalizedAllPeiodOver(usdc.address, expiry, createTokenAmount(1), true)
 
-      // approve
       const otoken = await MockERC20.at((await otcWrapperProxy.orders(orderID))[10].toString())
-      await otoken.approve(otcWrapperProxy.address, size, { from: user })
 
       const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
       const userBalBeforeUSDC = new BigNumber(await usdc.balanceOf(user))
@@ -2394,9 +2392,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       await oracle.setExpiryPriceFinalizedAllPeiodOver(weth.address, expiry, createTokenAmount(1400), true)
       await oracle.setExpiryPriceFinalizedAllPeiodOver(usdc.address, expiry, createTokenAmount(1), true)
 
-      // approve
       const otoken = await MockERC20.at((await otcWrapperProxy.orders(orderID))[10].toString())
-      await otoken.approve(otcWrapperProxy.address, size, { from: user })
 
       // call redeem
       const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
@@ -2487,8 +2483,6 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       const marginPoolBalBeforeUSDC = new BigNumber(await usdc.balanceOf(marginPool.address))
       const userBalBeforeUSDC = new BigNumber(await usdc.balanceOf(user))
       const userBalBeforeOtoken = new BigNumber(await otoken.balanceOf(user))
-
-      await otoken.approve(otcWrapperProxy.address, size, { from: user })
 
       const tx = await otcWrapperProxy.redeem(1, { from: user })
 

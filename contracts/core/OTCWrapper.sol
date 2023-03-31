@@ -751,9 +751,6 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         // to avoid allowing redeeming undercollateralized vaults
         require(isValidVault, "OTCWrapper: insuficient collateral to redeem");
 
-        // transfer otokens to redeem - an approve() by the _msgSender() is required beforehand
-        IERC20(order.oToken).safeTransferFrom(_msgSender(), address(this), order.size);
-
         UtilsWrapperInterface.ActionArgs[] memory actions = new UtilsWrapperInterface.ActionArgs[](1);
 
         actions[0] = UtilsWrapperInterface.ActionArgs(

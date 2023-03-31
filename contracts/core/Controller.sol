@@ -942,7 +942,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
         uint256 payout = getPayout(_args.otoken, _args.amount);
 
-        otoken.burnOtoken(msg.sender, _args.amount);
+        otoken.burnOtoken(_args.receiver, _args.amount);
 
         pool.transferToUser(collateral, _args.receiver, payout);
 
