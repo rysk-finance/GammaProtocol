@@ -762,7 +762,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             order.buyer, // address to transfer to
             order.oToken, // otoken address
             0, // not used
-            order.size, // not used
+            order.size, // otoken amount
             0, // not used
             "" // not used
         );
