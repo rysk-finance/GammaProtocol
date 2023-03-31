@@ -52,7 +52,8 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         uint256 expiry,
         uint256 premium,
         address indexed buyer,
-        uint256 size
+        uint256 size,
+        uint256 notional
     );
 
     /// @notice emits an event when an order is canceled
@@ -176,6 +177,9 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     ///@notice mapping between acct and list of all successful orders
     mapping(address => uint256[]) public ordersByAcct;
 
+    ///@notice mapping between asset and their allowed maximum price deviation between place order and execute time (percentage with 2 decimals)
+    mapping(address => uint256) public maxDeviation;
+
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
@@ -292,6 +296,19 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         require(_fillDeadline > 0, "OTCWrapper: fill deadline cannot be 0");
 
         fillDeadline = _fillDeadline;
+    }
+
+    /**
+     * @notice sets the maximum price deviation by asset between place order and execute time (percentage with 2 decimals)
+     * @dev can only be called by owner
+     * @param _underlying underlying asset address
+     * @param _maxDeviation max price deviation (percentage with 2 decimals - eg. 2% = 200)
+     */
+    function setMaxDeviation(address _underlying, uint256 _maxDeviation) external onlyOwner {
+        require(_underlying != address(0), "OTCWrapper: underlying address cannot be 0");
+        require(_maxDeviation <= 100e2, "OTCWrapper: max deviation should not be higher than 100%"); // 100e2 is equivalent to 100%
+
+        maxDeviation[_underlying] = _maxDeviation;
     }
 
     /************************************************
@@ -461,7 +478,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             _strikePrice,
             _expiry,
             _premium,
-            0,
+            notional,
             _msgSender(),
             address(0),
             0,
@@ -474,7 +491,17 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         orderStatus[latestOrder] = OrderStatus.Pending;
 
-        emit OrderPlaced(latestOrder, _underlying, _isPut, _strikePrice, _expiry, _premium, _msgSender(), _size);
+        emit OrderPlaced(
+            latestOrder,
+            _underlying,
+            _isPut,
+            _strikePrice,
+            _expiry,
+            _premium,
+            _msgSender(),
+            _size,
+            notional
+        );
     }
 
     /**
@@ -529,9 +556,16 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         // in aggregate we get 1e16 and therefore divide by 1e10 to obtain 6 decimals
         uint256 notional = (order.size * oracle.getPrice(order.underlying)) / (1e10);
 
+        uint256 deviation = maxDeviation[order.underlying];
+
+        // Example: if max deviation is 2% then
+        // (notional at execute time) * 100% < (notional at place order time) * (100% + 2%)
+        // (notional at execute time) * 100% > (notional at place order time) * (100% - 2%)
+        // 100e2 is equivalent to 100% by which notional is multiplied
         require(
-            notional >= minMaxNotional[order.underlying].min && notional <= minMaxNotional[order.underlying].max,
-            "OTCWrapper: invalid notional value"
+            notional * 100e2 <= order.notional * (100e2 + deviation) &&
+                notional * 100e2 >= order.notional * (100e2 - deviation),
+            "OTCWrapper: notional beyond allowed deviation"
         );
 
         require(

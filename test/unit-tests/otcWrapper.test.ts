@@ -1195,6 +1195,28 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     })
   })
 
+  describe('Set max deviation', () => {
+    it('should revert if initialized with 0 underlying', async () => {
+      await expectRevert(otcWrapperProxy.setMaxDeviation(ZERO_ADDR, 500), 'OTCWrapper: underlying address cannot be 0')
+    })
+    it('should revert if caller is not the owner', async () => {
+      await expectRevert(
+        otcWrapperProxy.setMaxDeviation(ZERO_ADDR, 500, { from: random }),
+        'Ownable: caller is not the owner',
+      )
+    })
+    it('should revert if max deviation is higher than 100%', async () => {
+      await expectRevert(otcWrapperProxy.setMaxDeviation(weth.address, 10001), 'OTCWrapper: max deviation should not be higher than 100%')
+    })
+    it('sucessfully sets max deviation to 1% for WETH', async () => {
+      assert.equal((await otcWrapperProxy.maxDeviation(weth.address)).toString(), '0')
+
+      await otcWrapperProxy.setMaxDeviation(weth.address, 100)
+
+      assert.equal((await otcWrapperProxy.maxDeviation(weth.address)).toString(), '100')
+    })
+  })
+
   describe('Place order', () => {
     it('should revert if notional amount is below min', async () => {
       await expectRevert(
@@ -1252,7 +1274,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orders(1))[3].toString(), strikePrice.toString())
       assert.equal((await otcWrapperProxy.orders(1))[4].toString(), expiry.toString())
       assert.equal((await otcWrapperProxy.orders(1))[5].toString(), parseUnits('5000', 6).toString())
-      assert.equal((await otcWrapperProxy.orders(1))[6].toString(), '0')
+      assert.equal((await otcWrapperProxy.orders(1))[6].toString(), parseUnits('150000', 6).toString())
       assert.equal((await otcWrapperProxy.orders(1))[7].toString(), user)
       assert.equal((await otcWrapperProxy.orders(1))[8].toString(), ZERO_ADDR)
       assert.equal((await otcWrapperProxy.orders(1))[9].toString(), '0')
@@ -1270,6 +1292,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal(logs[0].args.premium.toString(), parseUnits('5000', 6).toString())
       assert.equal(logs[0].args.size.toString(), size.toString())
       assert.equal(logs[0].args.buyer.toString(), user)
+      assert.equal(logs[0].args.notional.toString(), parseUnits('150000', 6).toString())
     })
     it('user sucessfully creates a new order via minimal forwarder', async () => {
       const strikePrice2 = scaleBigNum(1700, 8).toNumber()
@@ -1313,7 +1336,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
       assert.equal((await otcWrapperProxy.orders(2))[3].toString(), strikePrice2.toString())
       assert.equal((await otcWrapperProxy.orders(2))[4].toString(), expiry.toString())
       assert.equal((await otcWrapperProxy.orders(2))[5].toString(), '1')
-      assert.equal((await otcWrapperProxy.orders(2))[6].toString(), '0')
+      assert.equal((await otcWrapperProxy.orders(2))[6].toString(), parseUnits('165000', 6))
       assert.equal((await otcWrapperProxy.orders(2))[7].toString(), user)
       assert.equal((await otcWrapperProxy.orders(2))[8].toString(), ZERO_ADDR)
       assert.equal((await otcWrapperProxy.orders(2))[9].toString(), '0')
@@ -1536,9 +1559,9 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
         'OTCWrapper: signer is not the market maker',
       )
     })
-    it('should revert if price changed significnatly and notional value is no longer valid', async () => {
-      // sudden price drop
-      await oracle.setRealTimePrice(weth.address, scaleBigNum(300, 8))
+    it('should revert if price changed significantly and notional value is no longer within max deviation', async () => {
+      // price drop of over than 1% - max deviation
+      await oracle.setRealTimePrice(weth.address, scaleBigNum(1484, 8))
 
       await expectRevert(
         otcWrapperProxy.executeOrder(
@@ -1552,7 +1575,25 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
             from: marketMaker,
           },
         ),
-        'OTCWrapper: invalid notional value',
+        'OTCWrapper: notional beyond allowed deviation',
+      )
+
+      // price increase of over than 1% - max deviation
+      await oracle.setRealTimePrice(weth.address, scaleBigNum(1516, 8))
+
+      await expectRevert(
+        otcWrapperProxy.executeOrder(
+          1,
+          userSignature1,
+          mmSignatureUSDC1,
+          parseUnits('5000', 6),
+          usdc.address,
+          parseUnits('11501', 6),
+          {
+            from: marketMaker,
+          },
+        ),
+        'OTCWrapper: notional beyond allowed deviation',
       )
 
       // price restores
@@ -2496,7 +2537,7 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
 
       // event
       const { logs } = tx
-      assert.equal(logs[0].args.orderID.toString(), "1")
+      assert.equal(logs[0].args.orderID.toString(), '1')
       assert.equal(logs[0].args.size.toString(), size.toString())
     })
   })
