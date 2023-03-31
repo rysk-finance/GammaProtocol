@@ -317,16 +317,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
         require(order.seller == _msgSender(), "OTCWrapper: sender is not the order seller");
 
-        _deposit(
-            _mmSignature.acct,
-            order.collateral,
-            _amount,
-            _amount,
-            _mmSignature.deadline,
-            _mmSignature.v,
-            _mmSignature.r,
-            _mmSignature.s
-        );
+        _deposit(order.collateral, _amount, _mmSignature);
 
         // approve margin pool to deposit collateral
         IERC20(order.collateral).safeApproveNonCompliant(addressbook.getMarginPool(), _amount);
@@ -400,34 +391,32 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice Deposits the `asset` from _msgSender() without an approve
      * `v`, `r` and `s` must be a valid `secp256k1` signature from `owner`
      * over the EIP712-formatted function arguments
-     * @param _acct signer account
      * @param _asset is the asset address to deposit
-     * @param _signatureAmount is the permit signature amount (with its respective token decimals)
      * @param _depositAmount is the amount to deposit (with its respective token decimals)
-     * @param _deadline must be a timestamp in the future
-     * @param _v is a valid signature
-     * @param _r is a valid signature
-     * @param _s is a valid signature
+     * @param _signature account permit signature
      */
     function _deposit(
-        address _acct,
         address _asset,
-        uint256 _signatureAmount,
         uint256 _depositAmount,
-        uint256 _deadline,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s
+        Permit calldata _signature
     ) private {
         require(_depositAmount > 0, "OTCWrapper: amount cannot be 0");
 
         if (_asset == USDC) {
             // Sign for transfer approval
-            IERC20Permit(USDC).permit(_acct, address(this), _signatureAmount, _deadline, _v, _r, _s);
+            IERC20Permit(USDC).permit(
+                _signature.acct,
+                address(this),
+                _signature.amount,
+                _signature.deadline,
+                _signature.v,
+                _signature.r,
+                _signature.s
+            );
         }
 
         // An approve() or permit() by the _msgSender() is required beforehand
-        IERC20(_asset).safeTransferFrom(_acct, address(this), _depositAmount);
+        IERC20(_asset).safeTransferFrom(_signature.acct, address(this), _depositAmount);
     }
 
     /************************************************
@@ -596,28 +585,10 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         uint256 _notional
     ) private {
         // user inflow
-        _deposit(
-            _userSignature.acct,
-            USDC,
-            _userSignature.amount,
-            _premium,
-            _userSignature.deadline,
-            _userSignature.v,
-            _userSignature.r,
-            _userSignature.s
-        );
+        _deposit(USDC, _premium, _userSignature);
 
         // market maker inflow
-        _deposit(
-            _mmSignature.acct,
-            _collateralAsset,
-            _collateralAmount,
-            _collateralAmount,
-            _mmSignature.deadline,
-            _mmSignature.v,
-            _mmSignature.r,
-            _mmSignature.s
-        );
+        _deposit(_collateralAsset, _collateralAmount, _mmSignature);
 
         // eg. fee = 4bps = 0.04% , then need to divide by 100 again so (( 4 / 100 ) / 100)
         // after the above it is divided again by 1e2 which is the fee decimals
