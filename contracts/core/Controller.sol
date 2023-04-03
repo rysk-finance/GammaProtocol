@@ -1080,6 +1080,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _args Call action
      */
     function _call(Actions.CallArgs memory _args) internal notPartiallyPaused onlyWhitelistedCallee(_args.callee) {
+        _isOTCWrapper();
         CalleeInterface(_args.callee).callFunction(msg.sender, _args.data);
 
         emit CallExecuted(msg.sender, _args.callee, _args.data);
