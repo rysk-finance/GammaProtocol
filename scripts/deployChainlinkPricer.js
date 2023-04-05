@@ -1,6 +1,6 @@
 const yargs = require('yargs')
 
-const ChainlinkPricer = artifacts.require('ChainlinkPricer.sol')
+const ChainlinkPricer = artifacts.require('ChainLinkPricer.sol')
 
 module.exports = async function(callback) {
   try {
