@@ -444,7 +444,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice places an order
      * @param _underlying underlying asset address
      * @param _isPut option type the vault is selling
-     * @param _strikePrice option strike price (underlying USD denominated price with 8 decimals)
+     * @param _strikePrice option strike price (underlying USDC denominated price with 8 decimals)
      * @param _expiry option expiry timestamp
      * @param _premium order premium amount (USDC value with USDC decimals)
      * @param _size order size (with 8 decimals)
