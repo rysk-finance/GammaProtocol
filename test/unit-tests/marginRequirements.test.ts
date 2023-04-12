@@ -153,7 +153,7 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
     it('should revert if initialized with 0 maintenance margin', async () => {
       await expectRevert(
         marginRequirements.setMaintenanceMargin(0, 0, { from: keeper }),
-        'MarginRequirements: initial margin cannot be 0',
+        'MarginRequirements: maintenance margin cannot be 0',
       )
     })
     it('successfully sets maintenance margin to 7.5k USDC', async () => {
@@ -168,6 +168,33 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
   })
 
   describe('check mint collateral', () => {
+    it('should revert if initial margin is 0', async () => {
+
+      const isPut = true
+      const underlying = weth.address
+      const collateralAsset = usdc.address
+
+      // by using isPut = true - it is using a product that has zero initial margin since it was not previously set up
+      const hash = keccak256(defaultAbiCoder.encode(['address', 'address', 'bool'], [underlying, collateralAsset, isPut]))
+
+      // ensure initial margin is zero
+      assert.equal((await marginRequirements.initialMargin(hash, accountOwner1)).toString(), '0')
+
+      const notionalAmount = scaleBigNum(150000, 6).toNumber()
+      const collateralAmount = scaleBigNum(14999, USDCDECIMALS).toNumber()
+
+      await expectRevert(
+        marginRequirements.checkMintCollateral(
+          accountOwner1,
+          notionalAmount,
+          underlying,
+          isPut,
+          collateralAmount,
+          collateralAsset,
+        ),
+        'MarginRequirements: initial margin cannot be 0 when checking mint collateral',
+      )
+    })
     it('should revert if there is insufficient collateral to mint', async () => {
       const notionalAmount = scaleBigNum(150000, 6).toNumber()
       const collateralAmount = scaleBigNum(14999, USDCDECIMALS).toNumber()
@@ -217,6 +244,67 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
   })
 
   describe('check withdraw collateral', () => {
+    it('should revert if initial margin is 0', async () => {
+      const isPut = true
+      const underlying = weth.address
+      const collateralAsset = usdc.address
+
+      // by using isPut = true - it is using a product that has zero initial margin since it was not previously set up
+      const hash = keccak256(defaultAbiCoder.encode(['address', 'address', 'bool'], [underlying, collateralAsset, isPut]))
+
+      // ensure initial margin is zero
+      assert.equal((await marginRequirements.initialMargin(hash, accountOwner1)).toString(), '0')
+
+      const shortStrike = 100
+      const strikeAsset = usdc.address
+      const optionExpiry = new BigNumber(await time.latest()).plus(timeToExpiry[0])
+
+      const shortOtoken = await MockOtoken.new()
+      await shortOtoken.init(
+        addressBook.address,
+        underlying,
+        strikeAsset,
+        collateralAsset,
+        scaleNum(shortStrike),
+        optionExpiry,
+        isPut,
+      )
+      // whitelist otoken
+      await whitelist.whitelistOtoken(shortOtoken.address)
+
+      // set oracleprice
+      await oracle.setRealTimePrice(usdc.address, scaleBigNum(1, 8))
+
+      // main numbers
+      // initial margin = 0%
+      // maintenance margin = 7500 USDC
+      const notionalAmount = parseUnits('150000', 6)
+      const withdrawamount = parseUnits('1001', 6)
+      const collateralAmount = parseUnits('23500', USDCDECIMALS)
+
+      // create mock vault
+      const vault = createVault(
+        shortOtoken.address,
+        undefined,
+        collateralAsset,
+        scaleNum(100),
+        undefined,
+        collateralAmount,
+      )
+      const vaultId = 0
+
+      await expectRevert(
+        marginRequirements.checkWithdrawCollateral(
+          accountOwner1,
+          notionalAmount,
+          withdrawamount,
+          shortOtoken.address,
+          vaultId,
+          vault,
+        ),
+        'MarginRequirements: initial margin cannot be 0 when checking withdraw collateral',
+      )
+    })
     it('should revert if there is insufficient collateral to withdraw', async () => {
       const shortStrike = 100
       const isPut = false

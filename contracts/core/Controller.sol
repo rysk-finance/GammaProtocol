@@ -56,6 +56,7 @@ import {CalleeInterface} from "../interfaces/CalleeInterface.sol";
  * C36: cap amount should be greater than zero
  * C37: collateral exceed naked margin cap
  * C38: msg.sender is not the liquidation manager
+ * C39: caller is not OTC wrapper contract
  */
 
 /**
@@ -273,17 +274,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     }
 
     /**
-     * @notice modifier to check if the sender is the liquidation manager address
-     */
-    modifier onlyLiquidationManager() {
-        require(
-            msg.sender == addressbook.getLiquidationManager() || addressbook.getLiquidationManager() == address(0),
-            "C38"
-        );
-        _;
-    }
-
-    /**
      * @dev check if the system is not in a partiallyPaused state
      */
     function _isNotPartiallyPaused() internal view {
@@ -303,7 +293,24 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _accountOwner owner of a vault
      */
     function _isAuthorized(address _sender, address _accountOwner) internal view {
+        _isOTCWrapper();
         require((_sender == _accountOwner) || (operators[_accountOwner][_sender]), "C6");
+    }
+
+    /**
+     * @dev check if the sender is the OTC wrapper contract
+     */
+    function _isOTCWrapper() internal view {
+        address OTCWrapper = addressbook.getOTCWrapper();
+        require(msg.sender == OTCWrapper || OTCWrapper == address(0), "C39");
+    }
+
+    /**
+     * @dev check if the sender is the liquidation manager
+     */
+    function _isLiquidationManager() internal view {
+        address liquidationManager = addressbook.getLiquidationManager();
+        require(msg.sender == liquidationManager || liquidationManager == address(0), "C38");
     }
 
     /**
@@ -444,6 +451,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _vaultId vault id
      */
     function sync(address _owner, uint256 _vaultId) external nonReentrant notFullyPaused {
+        _isLiquidationManager();
         _verifyFinalState(_owner, _vaultId);
         vaultLatestUpdate[_owner][_vaultId] = now;
     }
@@ -453,6 +461,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _vaultId vaultId to return balances for
      */
     function clearVaultLiquidationDetails(uint256 _vaultId) external {
+        _isLiquidationManager();
         delete vaultLiquidationDetails[msg.sender][_vaultId];
     }
 
@@ -918,6 +927,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _args RedeemArgs structure
      */
     function _redeem(Actions.RedeemArgs memory _args) internal {
+        _isOTCWrapper();
         OtokenInterface otoken = OtokenInterface(_args.otoken);
 
         // check that otoken to redeem is whitelisted
@@ -932,7 +942,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
         uint256 payout = getPayout(_args.otoken, _args.amount);
 
-        otoken.burnOtoken(msg.sender, _args.amount);
+        otoken.burnOtoken(_args.receiver, _args.amount);
 
         pool.transferToUser(collateral, _args.receiver, payout);
 
@@ -1002,7 +1012,8 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @dev can liquidate different vaults id in the same operate() call
      * @param _args liquidation action arguments struct
      */
-    function _liquidate(Actions.LiquidateArgs memory _args) internal notPartiallyPaused onlyLiquidationManager {
+    function _liquidate(Actions.LiquidateArgs memory _args) internal notPartiallyPaused {
+        _isLiquidationManager();
         require(_checkVaultId(_args.owner, _args.vaultId), "C35");
 
         // check if vault is undercollateralized
@@ -1069,6 +1080,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _args Call action
      */
     function _call(Actions.CallArgs memory _args) internal notPartiallyPaused onlyWhitelistedCallee(_args.callee) {
+        _isOTCWrapper();
         CalleeInterface(_args.callee).callFunction(msg.sender, _args.data);
 
         emit CallExecuted(msg.sender, _args.callee, _args.data);

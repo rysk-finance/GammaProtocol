@@ -98,7 +98,7 @@ contract MarginRequirements is Ownable {
         uint256 _initialMargin
     ) external onlyOwner {
         require(
-            _initialMargin > 0 && _initialMargin <= 100 * 10**2,
+            _initialMargin > 0 && _initialMargin <= MAX_INITIAL_MARGIN,
             "MarginRequirements: initial margin cannot be 0 or higher than 100%"
         );
         require(_underlying != address(0), "MarginRequirements: invalid underlying");
@@ -115,7 +115,7 @@ contract MarginRequirements is Ownable {
      * @param _maintenanceMargin maintenance margin absolute amount with its respective token decimals
      */
     function setMaintenanceMargin(uint256 _vaultID, uint256 _maintenanceMargin) external onlyKeeper {
-        require(_maintenanceMargin > 0, "MarginRequirements: initial margin cannot be 0");
+        require(_maintenanceMargin > 0, "MarginRequirements: maintenance margin cannot be 0");
 
         maintenanceMargin[_vaultID] = _maintenanceMargin;
     }
@@ -149,6 +149,12 @@ contract MarginRequirements is Ownable {
         uint256 initialMarginRequired = initialMargin[keccak256(abi.encode(_underlying, _collateralAsset, _isPut))][
             _account
         ];
+
+        // initial margin must have been set up before this call
+        require(
+            initialMarginRequired > 0,
+            "MarginRequirements: initial margin cannot be 0 when checking mint collateral"
+        );
 
         // InitialMargin <= Collateral
 
@@ -221,9 +227,16 @@ contract MarginRequirements is Ownable {
     function _getInitialMargin(address _otoken, address _account) internal view returns (uint256) {
         OtokenInterface otoken = OtokenInterface(_otoken);
 
-        return
-            initialMargin[keccak256(abi.encode(otoken.underlyingAsset(), otoken.collateralAsset(), otoken.isPut()))][
-                _account
-            ];
+        uint256 initialMarginRequired = initialMargin[
+            keccak256(abi.encode(otoken.underlyingAsset(), otoken.collateralAsset(), otoken.isPut()))
+        ][_account];
+
+        // initial margin must have been set up before this call
+        require(
+            initialMarginRequired > 0,
+            "MarginRequirements: initial margin cannot be 0 when checking withdraw collateral"
+        );
+
+        return initialMarginRequired;
     }
 }

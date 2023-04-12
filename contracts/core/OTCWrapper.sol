@@ -8,7 +8,6 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {ERC2771ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
@@ -21,6 +20,7 @@ import {OracleWrapperInterface} from "../interfaces/otcWrapperInterfaces/OracleW
 import {IOtokenFactoryWrapperInterface} from "../interfaces/otcWrapperInterfaces/IOtokenFactoryWrapperInterface.sol";
 import {MinimalForwarder} from "@openzeppelin/contracts/metatx/MinimalForwarder.sol";
 import {SupportsNonCompliantERC20} from "../libs/SupportsNonCompliantERC20.sol";
+import {MarginCalculatorWrapperInterface} from "../interfaces/otcWrapperInterfaces/MarginCalculatorWrapperInterface.sol";
 
 /**
  * @title OTC Wrapper
@@ -30,7 +30,6 @@ import {SupportsNonCompliantERC20} from "../libs/SupportsNonCompliantERC20.sol";
 contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, ERC2771ContextUpgradeable {
     using SafeERC20 for IERC20;
     using SupportsNonCompliantERC20 for IERC20;
-    using SafeMath for uint256;
 
     AddressBookWrapperInterface public addressbook;
     MarginRequirementsWrapperInterface public marginRequirements;
@@ -38,6 +37,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     OracleWrapperInterface public oracle;
     WhitelistWrapperInterface public whitelist;
     IOtokenFactoryWrapperInterface public OTokenFactory;
+    MarginCalculatorWrapperInterface public calculator;
 
     /************************************************
      *  EVENTS
@@ -51,8 +51,9 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         uint256 strikePrice,
         uint256 expiry,
         uint256 premium,
-        uint256 notional,
-        address indexed buyer
+        address indexed buyer,
+        uint256 size,
+        uint256 notional
     );
 
     /// @notice emits an event when an order is canceled
@@ -77,6 +78,9 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
 
     /// @notice emits an event when a vault is settled
     event VaultSettled(uint256 indexed orderID);
+
+    /// @notice emits an event when redeem occurs
+    event Reedem(uint256 indexed orderID, uint256 size);
 
     /************************************************
      *  STORAGE
@@ -127,6 +131,8 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         address oToken;
         // timestamp of when the order was opened
         uint256 openedAt;
+        // order size (with 8 decimals)
+        uint256 size;
     }
 
     // struct defining permit signature details
@@ -171,6 +177,9 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     ///@notice mapping between acct and list of all successful orders
     mapping(address => uint256[]) public ordersByAcct;
 
+    ///@notice mapping between asset and their allowed maximum price deviation between place order and execute time (percentage with 2 decimals)
+    mapping(address => uint256) public maxDeviation;
+
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
@@ -213,6 +222,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         oracle = OracleWrapperInterface(addressbook.getOracle());
         whitelist = WhitelistWrapperInterface(addressbook.getWhitelist());
         OTokenFactory = IOtokenFactoryWrapperInterface(addressbook.getOtokenFactory());
+        calculator = MarginCalculatorWrapperInterface(addressbook.getMarginCalculator());
 
         beneficiary = _beneficiary;
         fillDeadline = _fillDeadline;
@@ -254,13 +264,14 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
     }
 
     /**
-     * @notice sets the fee for a given the underlying asset
+     * @notice sets the fee for a given underlying asset
      * @dev can only be called by owner
      * @param _underlying underlying asset address
      * @param _fee fee amount in bps with 2 decimals (400 = 4bps = 0.04%)
      */
     function setFee(address _underlying, uint256 _fee) external onlyOwner {
         require(_underlying != address(0), "OTCWrapper: asset address cannot be 0");
+        require(_fee <= 1e6, "OTCWrapper: fee cannot be higher than 100%"); // 1e6 is equivalent to 100%
 
         fee[_underlying] = _fee;
     }
@@ -287,6 +298,19 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         fillDeadline = _fillDeadline;
     }
 
+    /**
+     * @notice sets the maximum price deviation by asset between place order and execute time (percentage with 2 decimals)
+     * @dev can only be called by owner
+     * @param _underlying underlying asset address
+     * @param _maxDeviation max price deviation (percentage with 2 decimals - eg. 2% = 200)
+     */
+    function setMaxDeviation(address _underlying, uint256 _maxDeviation) external onlyOwner {
+        require(_underlying != address(0), "OTCWrapper: underlying address cannot be 0");
+        require(_maxDeviation <= 100e2, "OTCWrapper: max deviation should not be higher than 100%"); // 100e2 is equivalent to 100%
+
+        maxDeviation[_underlying] = _maxDeviation;
+    }
+
     /************************************************
      *  DEPOSIT & WITHDRAWALS
      ***********************************************/
@@ -304,20 +328,13 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         Permit calldata _mmSignature
     ) external nonReentrant {
         require(orderStatus[_orderID] == OrderStatus.Succeeded, "OTCWrapper: inexistent or unsuccessful order");
+        require(_mmSignature.acct == _msgSender(), "OTCWrapper: signer is not the market maker");
 
         Order memory order = orders[_orderID];
 
         require(order.seller == _msgSender(), "OTCWrapper: sender is not the order seller");
 
-        _deposit(
-            _mmSignature.acct,
-            order.collateral,
-            _amount,
-            _mmSignature.deadline,
-            _mmSignature.v,
-            _mmSignature.r,
-            _mmSignature.s
-        );
+        _deposit(order.collateral, _amount, _mmSignature);
 
         // approve margin pool to deposit collateral
         IERC20(order.collateral).safeApproveNonCompliant(addressbook.getMarginPool(), _amount);
@@ -391,32 +408,32 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice Deposits the `asset` from _msgSender() without an approve
      * `v`, `r` and `s` must be a valid `secp256k1` signature from `owner`
      * over the EIP712-formatted function arguments
-     * @param _acct signer account
      * @param _asset is the asset address to deposit
-     * @param _amount is the amount to deposit (with its respective token decimals)
-     * @param _deadline must be a timestamp in the future
-     * @param _v is a valid signature
-     * @param _r is a valid signature
-     * @param _s is a valid signature
+     * @param _depositAmount is the amount to deposit (with its respective token decimals)
+     * @param _signature account permit signature
      */
     function _deposit(
-        address _acct,
         address _asset,
-        uint256 _amount,
-        uint256 _deadline,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s
+        uint256 _depositAmount,
+        Permit calldata _signature
     ) private {
-        require(_amount > 0, "OTCWrapper: amount cannot be 0");
+        require(_depositAmount > 0, "OTCWrapper: amount cannot be 0");
 
         if (_asset == USDC) {
             // Sign for transfer approval
-            IERC20Permit(USDC).permit(_acct, address(this), _amount, _deadline, _v, _r, _s);
+            IERC20Permit(USDC).permit(
+                _signature.acct,
+                address(this),
+                _signature.amount,
+                _signature.deadline,
+                _signature.v,
+                _signature.r,
+                _signature.s
+            );
         }
 
         // An approve() or permit() by the _msgSender() is required beforehand
-        IERC20(_asset).safeTransferFrom(_acct, address(this), _amount);
+        IERC20(_asset).safeTransferFrom(_signature.acct, address(this), _depositAmount);
     }
 
     /************************************************
@@ -427,10 +444,10 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice places an order
      * @param _underlying underlying asset address
      * @param _isPut option type the vault is selling
-     * @param _strikePrice option strike price (with its respective token decimals)
+     * @param _strikePrice option strike price (underlying USDC denominated price with 8 decimals)
      * @param _expiry option expiry timestamp
      * @param _premium order premium amount (USDC value with USDC decimals)
-     * @param _notional order notional (USD value with 6 decimals)
+     * @param _size order size (with 8 decimals)
      */
     function placeOrder(
         address _underlying,
@@ -438,10 +455,16 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         uint256 _strikePrice,
         uint256 _expiry,
         uint256 _premium,
-        uint256 _notional
+        uint256 _size
     ) external {
+        require(_size > 0, "OTCWrapper: size cannot be 0");
+
+        // notional is expected to have 6 decimals
+        // size and oracle price are expected to have 8 decimals
+        // in aggregate we get 1e16 and therefore divide by 1e10 to obtain 6 decimals
+        uint256 notional = (_size * oracle.getPrice(_underlying)) / (1e10);
         require(
-            _notional > minMaxNotional[_underlying].min && _notional < minMaxNotional[_underlying].max,
+            notional >= minMaxNotional[_underlying].min && notional <= minMaxNotional[_underlying].max,
             "OTCWrapper: invalid notional value"
         );
         require(_expiry > block.timestamp, "OTCWrapper: expiry must be in the future");
@@ -455,19 +478,30 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             _strikePrice,
             _expiry,
             _premium,
-            _notional,
+            notional,
             _msgSender(),
             address(0),
             0,
             address(0),
-            block.timestamp
+            block.timestamp,
+            _size
         );
 
         ordersByAcct[_msgSender()].push(latestOrder);
 
         orderStatus[latestOrder] = OrderStatus.Pending;
 
-        emit OrderPlaced(latestOrder, _underlying, _isPut, _strikePrice, _expiry, _premium, _notional, _msgSender());
+        emit OrderPlaced(
+            latestOrder,
+            _underlying,
+            _isPut,
+            _strikePrice,
+            _expiry,
+            _premium,
+            _msgSender(),
+            _size,
+            notional
+        );
     }
 
     /**
@@ -487,6 +521,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @notice executes an order
      * @dev can only be called by whitelisted market makers
      *      requires that product and collateral have already been whitelisted beforehand
+     *      ensure that initial margin has been set up beforehand
      *      ensure collateral naked cap from Controller.sol is high enough for the additional collateral
      *      ensure setUpperBoundValues and setSpotShock from MarginCalculator.sol have been set up
      * @param _orderID id of the order
@@ -511,13 +546,32 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         Order memory order = orders[_orderID];
 
         require(_userSignature.acct == order.buyer, "OTCWrapper: signer is not the buyer");
-        require(block.timestamp <= order.openedAt.add(fillDeadline), "OTCWrapper: deadline has passed");
+        require(_userSignature.amount == order.premium, "OTCWrapper: invalid signature amount");
+        require(_mmSignature.acct == _msgSender(), "OTCWrapper: signer is not the market maker");
+        require(block.timestamp <= (order.openedAt + fillDeadline), "OTCWrapper: deadline has passed");
         require(whitelist.isWhitelistedCollateral(_collateralAsset), "OTCWrapper: collateral is not whitelisted");
+
+        // notional is expected to have 6 decimals
+        // size and oracle price are expected to have 8 decimals
+        // in aggregate we get 1e16 and therefore divide by 1e10 to obtain 6 decimals
+        uint256 notional = (order.size * oracle.getPrice(order.underlying)) / (1e10);
+
+        uint256 deviation = maxDeviation[order.underlying];
+
+        // Example: if max deviation is 2% then
+        // (notional at execute time) * 100% < (notional at place order time) * (100% + 2%)
+        // (notional at execute time) * 100% > (notional at place order time) * (100% - 2%)
+        // 100e2 is equivalent to 100% by which notional is multiplied
+        require(
+            notional * 100e2 <= order.notional * (100e2 + deviation) &&
+                notional * 100e2 >= order.notional * (100e2 - deviation),
+            "OTCWrapper: notional beyond allowed deviation"
+        );
 
         require(
             marginRequirements.checkMintCollateral(
                 _msgSender(),
-                order.notional,
+                notional,
                 order.underlying,
                 order.isPut,
                 _collateralAmount,
@@ -527,7 +581,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         );
 
         // settle funds
-        _settleFunds(order, _userSignature, _mmSignature, _premium, _collateralAsset, _collateralAmount);
+        _settleFunds(order, _userSignature, _mmSignature, _premium, _collateralAsset, _collateralAmount, notional);
 
         // deposit collateral and mint otokens
         (uint256 vaultID, address oToken) = _depositCollateralAndMint(order, _collateralAsset, _collateralAmount);
@@ -538,6 +592,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         orders[_orderID].seller = _msgSender();
         orders[_orderID].vaultID = vaultID;
         orders[_orderID].oToken = oToken;
+        orders[_orderID].notional = notional;
         orderStatus[_orderID] = OrderStatus.Succeeded;
         ordersByAcct[_msgSender()].push(_orderID);
 
@@ -552,6 +607,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
      * @param _premium order premium amount (USDC value with USDC decimals)
      * @param _collateralAsset collateral asset address
      * @param _collateralAmount collateral amount (with its respective token decimals)
+     * @param _notional notional amount (USD value with 6 decimals)
      */
     function _settleFunds(
         Order memory _order,
@@ -559,40 +615,25 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         Permit calldata _mmSignature,
         uint256 _premium,
         address _collateralAsset,
-        uint256 _collateralAmount
+        uint256 _collateralAmount,
+        uint256 _notional
     ) private {
         // user inflow
-        _deposit(
-            _userSignature.acct,
-            USDC,
-            _premium,
-            _userSignature.deadline,
-            _userSignature.v,
-            _userSignature.r,
-            _userSignature.s
-        );
+        _deposit(USDC, _premium, _userSignature);
 
         // market maker inflow
-        _deposit(
-            _mmSignature.acct,
-            _collateralAsset,
-            _collateralAmount,
-            _mmSignature.deadline,
-            _mmSignature.v,
-            _mmSignature.r,
-            _mmSignature.s
-        );
+        _deposit(_collateralAsset, _collateralAmount, _mmSignature);
 
         // eg. fee = 4bps = 0.04% , then need to divide by 100 again so (( 4 / 100 ) / 100)
         // after the above it is divided again by 1e2 which is the fee decimals
         // when aggregated the division becomes by 1e6
-        uint256 orderFee = (_order.notional.mul(fee[_order.underlying])).div(1e6);
+        uint256 orderFee = (_notional * (fee[_order.underlying])) / (1e6);
 
         // transfer fee to beneficiary address
         IERC20(USDC).safeTransfer(beneficiary, orderFee);
 
         // transfer premium to market maker
-        IERC20(USDC).safeTransfer(_msgSender(), _premium.sub(orderFee));
+        IERC20(USDC).safeTransfer(_msgSender(), (_premium - orderFee));
     }
 
     /**
@@ -608,7 +649,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         uint256 _collateralAmount
     ) private returns (uint256, address) {
         // open vault
-        uint256 vaultID = (controller.getAccountVaultCounter(address(this))).add(1);
+        uint256 vaultID = (controller.getAccountVaultCounter(address(this))) + 1;
 
         UtilsWrapperInterface.ActionArgs[] memory actions = new UtilsWrapperInterface.ActionArgs[](3);
 
@@ -641,10 +682,6 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         // retrieve otoken address
         address oToken = _getOrDeployOToken(_order, _collateralAsset);
 
-        // scales by 1e8 for division with oracle price
-        // scales by 1e2 to increase from 6 decimals (notional) to 8 decimals (otoken)
-        uint256 mintAmount = _order.notional.mul(1e10).div(oracle.getPrice(_order.underlying));
-
         // mint otokens
         actions[2] = UtilsWrapperInterface.ActionArgs(
             UtilsWrapperInterface.ActionType.MintShortOption,
@@ -652,7 +689,7 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
             _order.buyer, // address to transfer to
             oToken, // option address
             vaultID, // vaultId
-            mintAmount, // amount
+            _order.size, // mint amount
             0, // index
             "" // data
         );
@@ -722,6 +759,51 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         controller.operate(actions);
 
         emit VaultSettled(_orderID);
+    }
+
+    /**
+     * @notice allows user to redeem after expiry
+     * @dev can only be called by the user who is the order buyer
+     * @param _orderID order id
+     */
+    function redeem(uint256 _orderID) external nonReentrant {
+        require(orderStatus[_orderID] == OrderStatus.Succeeded, "OTCWrapper: inexistent or unsuccessful order");
+
+        Order memory order = orders[_orderID];
+
+        require(order.buyer == _msgSender(), "OTCWrapper: sender is not the order buyer");
+
+        // check if vault has enough collateral to cover payout
+        (UtilsWrapperInterface.Vault memory vault, uint256 typeVault, ) = controller.getVaultWithDetails(
+            address(this),
+            order.vaultID
+        );
+
+        (, bool isValidVault) = calculator.getExcessCollateral(vault, typeVault);
+
+        // require that vault is valid (has excess collateral) before redeeming
+        // to avoid allowing redeeming undercollateralized vaults
+        require(isValidVault, "OTCWrapper: insuficient collateral to redeem");
+
+        UtilsWrapperInterface.ActionArgs[] memory actions = new UtilsWrapperInterface.ActionArgs[](1);
+
+        actions[0] = UtilsWrapperInterface.ActionArgs(
+            UtilsWrapperInterface.ActionType.Redeem,
+            address(0), // not used
+            order.buyer, // address to transfer to
+            order.oToken, // otoken address
+            0, // not used
+            order.size, // otoken amount
+            0, // not used
+            "" // not used
+        );
+
+        // execute actions
+        controller.operate(actions);
+
+        orders[_orderID].size = 0;
+
+        emit Reedem(_orderID, order.size);
     }
 
     /************************************************
