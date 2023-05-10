@@ -120,6 +120,13 @@ contract MarginRequirements is Ownable {
         maintenanceMargin[_vaultID] = _maintenanceMargin;
     }
 
+    /**
+     * @dev updates the configuration of the margin requirements. can only be called by the owner
+     */
+    function refreshConfiguration() external onlyOwner {
+        oracle = OracleInterface(AddressBookInterface(addressBook).getOracle());
+    }
+
     /************************************************
      *  MARGIN OPERATIONS
      ***********************************************/
