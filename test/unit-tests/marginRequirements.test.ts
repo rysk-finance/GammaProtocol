@@ -167,6 +167,30 @@ contract('MarginRequirements', ([admin, keeper, OTCWrapper, accountOwner1, rando
     })
   })
 
+  describe('refresh configuration', () => {
+    it('should revert if not called by the owner', async () => {
+      await expectRevert(
+        marginRequirements.refreshConfiguration({ from: random }),
+        'Ownable: caller is not the owner',
+      )
+    })
+    it('successfully refreshes configuration', async () => {
+      assert.equal(await marginRequirements.oracle(), oracle.address)
+
+      // set new oracle
+      await addressBook.setOracle(random)
+      await marginRequirements.refreshConfiguration()
+
+      assert.equal(await marginRequirements.oracle(), random)
+
+      // set oracle back to original
+      await addressBook.setOracle(oracle.address)
+      await marginRequirements.refreshConfiguration()
+
+      assert.equal(await marginRequirements.oracle(), oracle.address)
+    })
+  })
+
   describe('check mint collateral', () => {
     it('should revert if initial margin is 0', async () => {
 

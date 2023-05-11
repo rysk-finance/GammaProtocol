@@ -1217,6 +1217,50 @@ contract('OTCWrapper', ([admin, beneficiary, keeper, random]) => {
     })
   })
 
+  describe('Refresh configuration', () => {
+    it('should revert if caller is not the owner', async () => {
+      await expectRevert(
+        otcWrapperProxy.refreshConfiguration({ from: random }),
+        'Ownable: caller is not the owner',
+      )
+    })
+    it('successfully refreshes configuration', async () => {
+      assert.equal(await otcWrapperProxy.marginRequirements(), marginRequirements.address)
+      assert.equal(await otcWrapperProxy.oracle(), oracle.address)
+      assert.equal(await otcWrapperProxy.whitelist(), whitelist.address)
+      assert.equal(await otcWrapperProxy.OTokenFactory(), otokenFactory.address)
+      assert.equal(await otcWrapperProxy.calculator(), calculator.address)
+      
+       // set new addresses
+      await addressBook.setMarginRequirements(random)
+      await addressBook.setOracle(random)
+      await addressBook.setWhitelist(random)
+      await addressBook.setOtokenFactory(random)
+      await addressBook.setMarginCalculator(random)
+      await otcWrapperProxy.refreshConfiguration()
+
+      assert.equal(await otcWrapperProxy.marginRequirements(), random)
+      assert.equal(await otcWrapperProxy.oracle(), random)
+      assert.equal(await otcWrapperProxy.whitelist(), random)
+      assert.equal(await otcWrapperProxy.OTokenFactory(), random)
+      assert.equal(await otcWrapperProxy.calculator(), random)
+
+      // set addresses back to original
+      await addressBook.setMarginRequirements(marginRequirements.address)
+      await addressBook.setOracle(oracle.address)
+      await addressBook.setWhitelist(whitelist.address)
+      await addressBook.setOtokenFactory(otokenFactory.address)
+      await addressBook.setMarginCalculator(calculator.address)
+      await otcWrapperProxy.refreshConfiguration()
+
+      assert.equal(await otcWrapperProxy.marginRequirements(), marginRequirements.address)
+      assert.equal(await otcWrapperProxy.oracle(), oracle.address)
+      assert.equal(await otcWrapperProxy.whitelist(), whitelist.address)
+      assert.equal(await otcWrapperProxy.OTokenFactory(), otokenFactory.address)
+      assert.equal(await otcWrapperProxy.calculator(), calculator.address)
+    })
+  })
+
   describe('Place order', () => {
     it('should revert if notional amount is below min', async () => {
       await expectRevert(

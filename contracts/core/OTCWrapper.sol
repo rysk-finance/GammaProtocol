@@ -311,6 +311,18 @@ contract OTCWrapper is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrade
         maxDeviation[_underlying] = _maxDeviation;
     }
 
+    /**
+     * @dev updates the configuration of the OTC wrapper. can only be called by the owner
+     */
+    function refreshConfiguration() external onlyOwner {
+        marginRequirements = MarginRequirementsWrapperInterface(addressbook.getMarginRequirements());
+        controller = ControllerWrapperInterface(addressbook.getController());
+        oracle = OracleWrapperInterface(addressbook.getOracle());
+        whitelist = WhitelistWrapperInterface(addressbook.getWhitelist());
+        OTokenFactory = IOtokenFactoryWrapperInterface(addressbook.getOtokenFactory());
+        calculator = MarginCalculatorWrapperInterface(addressbook.getMarginCalculator());
+    }
+
     /************************************************
      *  DEPOSIT & WITHDRAWALS
      ***********************************************/
