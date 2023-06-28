@@ -8,8 +8,8 @@ import {
   WhitelistInstance,
   MarginPoolInstance,
   OtokenFactoryInstance,
-} from '../../build/types/truffle-types'
-import { createTokenAmount, createValidExpiry, createScaledBigNumber as scaleBigNum } from '../utils'
+} from '../../../../build/types/truffle-types'
+import { createTokenAmount, createValidExpiry, createScaledBigNumber as scaleBigNum } from '../../../utils'
 import BigNumber from 'bignumber.js'
 
 const { time } = require('@openzeppelin/test-helpers')
@@ -97,8 +97,9 @@ contract('Naked Put Option expires Itm flow', ([accountOwner1, buyer]) => {
     await whitelist.whitelistCollateral(usdc.address)
     await whitelist.whitelistProduct(weth.address, stableStrikeAsset.address, usdc.address, true)
     await whitelist.whitelistNakedCollateral(usdc.address, weth.address, true)
-    // TODO understand this
     // set upper bound values and spot shock
+    // In combination when the spot shock and upperBoundValue are set to a very high number and anvery low number respectively,
+    // they make the Opyn restrictions to be very low collateral - which means that our restrictions from MarginRequirements.sol are the ones that become active
     const upperBoundValue = 1
     await calculator.setUpperBoundValues(
       weth.address,
@@ -113,11 +114,6 @@ contract('Naked Put Option expires Itm flow', ([accountOwner1, buyer]) => {
     otokenImplementation = await Otoken.new()
     // setup factory
     otokenFactory = await OTokenFactory.new(addressBook.address)
-
-    // TODO why do we need to do this?
-    // set oracle price
-    await oracle.setRealTimePrice(stableStrikeAsset.address, scaleBigNum(1, 8))
-    await oracle.setRealTimePrice(weth.address, scaleBigNum(1500, 8))
 
     // setup address book
     await addressBook.setOracle(oracle.address)
@@ -153,9 +149,8 @@ contract('Naked Put Option expires Itm flow', ([accountOwner1, buyer]) => {
 
     ethPut = await Otoken.at(ethPutAddress)
 
-    // TODO check if this minting is sufficient
     // mint usdc to user
-    const accountOwner1Usdc = createTokenAmount(2 * collateralAmount, usdcDecimals)
+    const accountOwner1Usdc = createTokenAmount(10 * collateralAmount, usdcDecimals)
     await usdc.mint(accountOwner1, accountOwner1Usdc)
 
     // have the user approve all the usdc transfers
@@ -165,12 +160,16 @@ contract('Naked Put Option expires Itm flow', ([accountOwner1, buyer]) => {
     vaultCounter = vaultCounterBefore.toNumber() + 1
   })
 
-  describe('Integration test: Close a naked put after it expires ITM', () => {
+  describe('Integration test: Close a naked put after it expires ITM without depeg', () => {
     const scaledOptionsAmount = createTokenAmount(optionsAmount, 8)
     const scaledCollateralAmount = createTokenAmount(collateralAmount, usdcDecimals)
     const expirySpotPrice = 1300
 
     before('Seller should be able to open a short put option', async () => {
+      // set oracle price
+      await oracle.setRealTimePrice(stableStrikeAsset.address, scaleBigNum(1, 8))
+      await oracle.setRealTimePrice(weth.address, scaleBigNum(1500, 8))
+
       const actionArgs = [
         {
           actionType: ActionType.OpenVault,
@@ -227,7 +226,7 @@ contract('Naked Put Option expires Itm flow', ([accountOwner1, buyer]) => {
       }
       const strikePriceChange = Math.max(strikePrice - expirySpotPrice, 0)
       const scaledETHPrice = createTokenAmount(expirySpotPrice, 8)
-      const scaledUSDCPrice = createTokenAmount(1)
+      const scaledUSDCPrice = createTokenAmount(0.5) // Simulate a depeg of USDC/USD to 0.5
       const scaledStableStrikeAssetPrice = createTokenAmount(1)
       await oracle.setExpiryPriceFinalizedAllPeiodOver(weth.address, expiry, scaledETHPrice, true)
       await oracle.setExpiryPriceFinalizedAllPeiodOver(usdc.address, expiry, scaledUSDCPrice, true)
@@ -238,7 +237,7 @@ contract('Naked Put Option expires Itm flow', ([accountOwner1, buyer]) => {
         true,
       )
 
-      const collateralPayout = collateralAmount - strikePriceChange * optionsAmount
+      const collateralPayout = collateralAmount - strikePriceChange * optionsAmount * 2 // Since USDC/USD now 0.5, payout in USDC doubles
       const scaledPayout = createTokenAmount(collateralPayout, usdcDecimals)
 
       // Check that after expiry, the vault excess balance has updated as expected
@@ -327,7 +326,7 @@ contract('Naked Put Option expires Itm flow', ([accountOwner1, buyer]) => {
       const ownerOtokenBalanceAfter = new BigNumber(await ethPut.balanceOf(buyer))
       const oTokenSupplyAfter = new BigNumber(await ethPut.totalSupply())
 
-      const payout = strikePriceChange * optionsAmount
+      const payout = strikePriceChange * optionsAmount * 2 // Since USDC/USD now 0.5, payout in USDC doubles
       const scaledPayout = createTokenAmount(payout, usdcDecimals)
 
       // check balances before and after changed as expected
