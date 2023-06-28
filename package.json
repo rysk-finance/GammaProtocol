@@ -39,6 +39,7 @@
     "lint:sol:prettier:fix": "prettier --write \"contracts/**/*.sol\"",
     "lint:tests:prettier:fix": "prettier --write \"test/**/*.ts\"",
     "test:unit": "truffle test ./test/unit-tests/*.ts",
+    "test:upgrade": "truffle test ./test/upgrade-tests/*.ts",
     "test:integration": "truffle test ./test/integration-tests/*.ts",
     "test:testing-engine": "truffle test ./test/test-engine/*.ts",
     "test:mainnet-fork": "./scripts/local-e2e.sh",
