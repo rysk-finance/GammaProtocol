@@ -124,6 +124,13 @@ module.exports = {
 			chainId: 421611,
 			gas: 10000000000,
 			saveDeployments: true
+		},
+		arbitrumgoerli: {
+			url: `https://arb-goerli.g.alchemy.com/v2/${process.env.ALCHEMY}`,
+			accounts,
+			chainId: 421613,
+			gas: 10000000000,
+			saveDeployments: true
 		}
 	},
 	etherscan: {

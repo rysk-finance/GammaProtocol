@@ -88,7 +88,7 @@ async function main() {
 
     // deploy Calculator module & set address
     // const calculator = await (await ethers.getContractFactory("MarginCalculator")).deploy(oracle.address, addressbook.address)
-    await addressbook.setMarginCalculator(calculator.address)
+    // await addressbook.setMarginCalculator(calculator.address)
     // console.log("calculator: " + calculator.address)
 
     // deploy Controller & set address
