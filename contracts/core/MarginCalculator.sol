@@ -678,12 +678,17 @@ contract MarginCalculator is Ownable {
                     )
                 );
             } else {
-                // this is a fully collateralized vault
+                // this is a fully collateralized vault or spread vault
                 FPI.FixedPointInt memory longStrike = _vaultDetails.hasLong
                     ? FPI.fromScaledUint(_vaultDetails.longStrikePrice, BASE)
                     : ZERO;
 
                 if (otokenDetails.isPut) {
+                    // we only want to allow strike asset collateralised put spreads as weth collateralised put credit spreads are bad
+                    require(
+                        otokenDetails.otokenCollateralAsset == otokenDetails.otokenStrikeAsset,
+                        "MarginCalculator: put spread vault should be collateralised with strike asset"
+                    );
                     FPI.FixedPointInt memory strikeNeeded = _getPutSpreadMarginRequired(
                         shortAmount,
                         longAmount,
@@ -700,17 +705,27 @@ contract MarginCalculator is Ownable {
                         )
                     );
                 } else {
-                    FPI.FixedPointInt memory underlyingNeeded = _getCallSpreadMarginRequired(
+                    FPI.FixedPointInt memory collateralNeeded = _getCallSpreadMarginRequired(
                         shortAmount,
                         longAmount,
                         shortStrike,
-                        longStrike
+                        longStrike,
+                        otokenDetails.otokenCollateralAsset == otokenDetails.otokenStrikeAsset
                     );
-                    // convert amount to be denominated in collateral
+                    if (otokenDetails.otokenCollateralAsset == otokenDetails.otokenStrikeAsset) {
+                        return (
+                            collateralAmount,
+                            _convertAmountOnLivePrice(
+                                collateralNeeded,
+                                otokenDetails.otokenStrikeAsset,
+                                otokenDetails.otokenCollateralAsset
+                            )
+                        );
+                    }
                     return (
                         collateralAmount,
                         _convertAmountOnLivePrice(
-                            underlyingNeeded,
+                            collateralNeeded,
                             otokenDetails.otokenUnderlyingAsset,
                             otokenDetails.otokenCollateralAsset
                         )
@@ -876,13 +891,19 @@ contract MarginCalculator is Ownable {
         FPI.FixedPointInt memory _shortAmount,
         FPI.FixedPointInt memory _longAmount,
         FPI.FixedPointInt memory _shortStrike,
-        FPI.FixedPointInt memory _longStrike
+        FPI.FixedPointInt memory _longStrike,
+        bool strikeAssetIsCollateral
     ) internal view returns (FPI.FixedPointInt memory) {
         // max (short amount - long amount , 0)
         if (_longStrike.isEqual(ZERO)) {
             return FPI.max(_shortAmount.sub(_longAmount), ZERO);
         }
-
+        // if the collateral is the same as the strike asset then the correct amount is just the long strike - short strike
+        if (strikeAssetIsCollateral) {
+            // be certain the amounts are the same as the collateral requirements become problematic
+            require(_shortAmount.isEqual(_longAmount), "MarginCalculator: long and short amounts must be the same");
+            return FPI.max(_longAmount.mul(_longStrike).sub(_shortStrike.mul(_shortAmount)), ZERO);
+        }
         /**
          *             (long strike - short strike) * short amount
          * calculate  ----------------------------------------------
