@@ -9,8 +9,15 @@ import {
   MarginPoolInstance,
   OtokenFactoryInstance,
 } from '../../build/types/truffle-types'
-import { createTokenAmount, createValidExpiry } from '../utils'
 import BigNumber from 'bignumber.js'
+import {
+  createTokenAmount,
+  createValidExpiry,
+  createScaledNumber as scaleNum,
+  createScaledBigNumber as scaleBigNum,
+  calcRelativeDiff,
+} from '../utils'
+const { expectRevert } = require('@openzeppelin/test-helpers')
 
 const { time } = require('@openzeppelin/test-helpers')
 const AddressBook = artifacts.require('AddressBook.sol')
@@ -57,6 +64,7 @@ contract('Long Put Spread Option closed ITM flow', ([accountOwner1, accountOwner
   let weth: MockERC20Instance
 
   let lowerStrikePut: OtokenInstance
+  let lowerStrikePutWeth: OtokenInstance
   let higherStrikePut: OtokenInstance
   const lowerStrike = 200
   const higherStrike = 300
@@ -69,6 +77,24 @@ contract('Long Put Spread Option closed ITM flow', ([accountOwner1, accountOwner
 
   const usdcDecimals = 6
   const wethDecimals = 18
+
+  const vaultType = web3.eth.abi.encodeParameter('uint256', 1)
+  const productSpotShockValue = scaleBigNum(0.75, 27)
+  // array of time to expiry
+  const day = 60 * 60 * 24
+  const timeToExpiry = [day * 7, day * 14, day * 28, day * 42, day * 56]
+  // array of upper bound value correspond to time to expiry
+  const expiryToValue = [
+    scaleNum(0.1678, 27),
+    scaleNum(0.237, 27),
+    scaleNum(0.3326, 27),
+    scaleNum(0.4032, 27),
+    scaleNum(0.4603, 27),
+  ]
+  const usdcDust = scaleNum(0.1, usdcDecimals)
+  const usdcCap = scaleNum(500000, usdcDecimals)
+  const oracleDeviation = 0.05
+  const oracleDeviationValue = scaleNum(oracleDeviation, 27)
 
   before('set up contracts', async () => {
     const now = (await time.latest()).toNumber()
@@ -97,8 +123,12 @@ contract('Long Put Spread Option closed ITM flow', ([accountOwner1, accountOwner
     await whitelist.whitelistCollateral(usdc.address)
     await whitelist.whitelistCoveredCollateral(weth.address, weth.address, false)
     await whitelist.whitelistCoveredCollateral(usdc.address, weth.address, true)
+    await whitelist.whitelistNakedCollateral(weth.address, weth.address, true)
+    await whitelist.whitelistNakedCollateral(usdc.address, weth.address, false)
     whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, true)
     whitelist.whitelistProduct(weth.address, usdc.address, weth.address, false)
+    whitelist.whitelistProduct(weth.address, usdc.address, usdc.address, false)
+    whitelist.whitelistProduct(weth.address, usdc.address, weth.address, true)
     // setup otoken
     otokenImplementation = await Otoken.new()
     // setup factory
@@ -116,6 +146,16 @@ contract('Long Put Spread Option closed ITM flow', ([accountOwner1, accountOwner
     const controllerProxyAddress = await addressBook.getController()
     controllerProxy = await Controller.at(controllerProxyAddress)
 
+    // configure controller
+    await controllerProxy.setNakedCap(usdc.address, usdcCap)
+
+    // config calculator
+    await calculator.setSpotShock(weth.address, usdc.address, usdc.address, true, productSpotShockValue)
+    await calculator.setOracleDeviation(oracleDeviationValue)
+    await calculator.setCollateralDust(usdc.address, usdcDust)
+    // set product upper bound values
+    await calculator.setUpperBoundValues(weth.address, usdc.address, usdc.address, true, timeToExpiry, expiryToValue)
+
     await otokenFactory.createOtoken(
       weth.address,
       usdc.address,
@@ -129,6 +169,15 @@ contract('Long Put Spread Option closed ITM flow', ([accountOwner1, accountOwner
       weth.address,
       usdc.address,
       usdc.address,
+      createTokenAmount(lowerStrike, 8),
+      expiry,
+      true,
+    )
+
+    await otokenFactory.createOtoken(
+      weth.address,
+      usdc.address,
+      weth.address,
       createTokenAmount(lowerStrike, 8),
       expiry,
       true,
@@ -156,6 +205,15 @@ contract('Long Put Spread Option closed ITM flow', ([accountOwner1, accountOwner
 
     lowerStrikePut = await Otoken.at(lowerStrikePutAddress)
 
+    const lowerStrikePutWethAddress = await otokenFactory.getOtoken(
+      weth.address,
+      usdc.address,
+      weth.address,
+      createTokenAmount(lowerStrike, 8),
+      expiry,
+      true,
+    )
+    lowerStrikePutWeth = await Otoken.at(lowerStrikePutWethAddress)
     // mint usdc to user
     const accountOwner1Usdc = createTokenAmount(2 * collateralAmount, usdcDecimals)
     const accountOwner2Usdc = createTokenAmount(higherStrike * optionsAmount, usdcDecimals)
@@ -188,7 +246,7 @@ contract('Long Put Spread Option closed ITM flow', ([accountOwner1, accountOwner
           vaultId: vaultCounter2,
           amount: '0',
           index: '0',
-          data: ZERO_ADDR,
+          data: vaultType,
         },
         {
           actionType: ActionType.MintShortOption,
@@ -216,6 +274,67 @@ contract('Long Put Spread Option closed ITM flow', ([accountOwner1, accountOwner
 
       // accountOwner2 transfers their higher strike put option to accountOwner1
       await higherStrikePut.transfer(accountOwner1, scaledOptionsAmount, { from: accountOwner2 })
+    })
+    it('FAILS: accountOwner1 should be unable to open a long put spread with weth collat', async () => {
+
+      // Check that we start at a valid state
+      const vaultBefore = await controllerProxy.getVaultWithDetails(accountOwner1, vaultCounter1)
+      const vaultStateBefore = await calculator.getExcessCollateral(vaultBefore[0], vaultBefore[1])
+      assert.equal(vaultStateBefore[0].toString(), '0')
+      assert.equal(vaultStateBefore[1], true)
+
+      // Check the vault balances stored in the contract
+      assert.equal(vaultBefore[0].shortOtokens.length, 0, 'Length of the short otoken array in the vault is incorrect')
+      assert.equal(
+        vaultBefore[0].collateralAssets.length,
+        0,
+        'Length of the collateral array in the vault is incorrect',
+      )
+      assert.equal(vaultBefore[0].longOtokens.length, 0, 'Length of the long otoken array in the vault is incorrect')
+
+      assert.equal(vaultBefore[0].shortAmounts.length, 0, 'Length of the short amounts array in the vault is incorrect')
+      assert.equal(
+        vaultBefore[0].collateralAmounts.length,
+        0,
+        'Length of the collateral amounts array in the vault is incorrect',
+      )
+      assert.equal(vaultBefore[0].longAmounts.length, 0, 'Length of the long amounts array in the vault is incorrect')
+
+      const actionArgs = [
+        {
+          actionType: ActionType.OpenVault,
+          owner: accountOwner1,
+          secondAddress: accountOwner1,
+          asset: ZERO_ADDR,
+          vaultId: vaultCounter1,
+          amount: '0',
+          index: '0',
+          data: vaultType,
+        },
+        {
+          actionType: ActionType.MintShortOption,
+          owner: accountOwner1,
+          secondAddress: accountOwner1,
+          asset: lowerStrikePutWeth.address,
+          vaultId: vaultCounter1,
+          amount: scaledOptionsAmount,
+          index: '0',
+          data: ZERO_ADDR,
+        },
+        {
+          actionType: ActionType.DepositLongOption,
+          owner: accountOwner1,
+          secondAddress: accountOwner1,
+          asset: higherStrikePut.address,
+          vaultId: vaultCounter1,
+          amount: scaledOptionsAmount,
+          index: '0',
+          data: ZERO_ADDR,
+        },
+      ]
+
+      await higherStrikePut.approve(marginPool.address, scaledOptionsAmount, { from: accountOwner1 })
+      await expectRevert(controllerProxy.operate(actionArgs, { from: accountOwner1 }), "MarginCalculator: long asset not marginable for short asset")
     })
     it('accountOwner1 should be able to open a long put spread', async () => {
       // Keep track of balances before
@@ -261,7 +380,7 @@ contract('Long Put Spread Option closed ITM flow', ([accountOwner1, accountOwner
           vaultId: vaultCounter1,
           amount: '0',
           index: '0',
-          data: ZERO_ADDR,
+          data: vaultType,
         },
         {
           actionType: ActionType.MintShortOption,
