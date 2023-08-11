@@ -99,6 +99,11 @@ contract MarginCalculator is Ownable {
     /// @dev addressbook module
     AddressBookInterface public addressBook;
 
+    /// @dev fee in percentage terms (1e18 is 100%)
+    uint256 public fee;
+    /// @dev fee recipient
+    address public feeRecipient;
+
     /// @notice emits an event when collateral dust is updated
     event CollateralDustUpdated(address indexed collateral, uint256 dust);
     /// @notice emits an event when new time to expiry is added for a specific product
@@ -113,6 +118,10 @@ contract MarginCalculator is Ownable {
     event OracleDeviationUpdated(uint256 oracleDeviation);
     /// @notice emits an event when the liquidation multiplier is updated
     event LiquidationMultiplierUpdated(uint256 liquidationMultiplier);
+    /// @notice emits an event when the fee is updated
+    event FeeUpdated(uint256 fee);
+    /// @notice emits an event when the fee recipient is updated
+    event FeeRecipientUpdated(address feeRecipient);
 
     /**
      * @notice constructor
@@ -154,6 +163,37 @@ contract MarginCalculator is Ownable {
         liquidationMultiplier = _liquidationMultiplier;
 
         emit LiquidationMultiplierUpdated(_liquidationMultiplier);
+    }
+
+    /**
+     * @notice set the fee
+     * @dev can only be called by owner
+     * @param _fee the fee to apply to redemptions
+     */
+    function setFee(uint256 _fee) external onlyOwner {
+        require(_fee <= 1e18, "MarginCalculator: fee should be less than 1e18 (100%)");
+
+        fee = _fee;
+
+        emit FeeUpdated(_fee);
+    }
+
+    /**
+     * @notice set the fee recipient
+     * @dev can only be called by owner
+     * @param _feeRecipient the fee recipient to send fees to
+     */
+    function setFeeRecipient(address _feeRecipient) external onlyOwner {
+        feeRecipient = _feeRecipient;
+
+        emit FeeRecipientUpdated(_feeRecipient);
+    }
+
+    /**
+     * @notice function to get the fee and fee recipient in one call
+     */
+    function getFeeInformation() external view returns (uint256, address) {
+        return (fee, feeRecipient);
     }
 
     /**
