@@ -12,7 +12,7 @@ import {
 import {
   createTokenAmount,
   createValidExpiry,
-  createScaledNumber as scaleNum
+  createScaledNumber as scaleNum,
   createScaledBigNumber as scaleBigNum,
   calcRelativeDiff,
 } from '../utils'

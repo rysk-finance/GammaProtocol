@@ -777,7 +777,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         'big error delta',
       )
     })
-
+    /// BROKEN: naked margin vaults are now allowed long otokens
     it('should revert if naked margin vault have long otoken', async () => {
       const optionExpiry = new BigNumber(await time.latest()).plus(timeToExpiry[1])
 
