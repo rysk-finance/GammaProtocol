@@ -184,8 +184,7 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
           isPut,
         ),
       )
-      console.log(requiredMargin)
-      console.log(((await calculator.getCollateralDust(usdc.address))).toString())
+
       const vault = createVault(
         shortOtoken.address,
         undefined,
@@ -196,8 +195,6 @@ contract('MarginCalculator: liquidation', ([owner, random]) => {
       )
       const randomVaultLatestUpdate = '0'
       const isLiquidatable = await calculator.isLiquidatable(vault, vaultType)
-      console.log(isLiquidatable[1].toString())
-      console.log(isLiquidatable[2].toString())
       assert.equal(isLiquidatable[0], false, 'isLiquidatable boolean value mismatch')
       assert.equal(new BigNumber(isLiquidatable[1]).toString(), '0', 'debt price value mismatch')
       assert.equal(new BigNumber(isLiquidatable[2]).toString(), '0', 'collateral dust value mismatch')
