@@ -703,7 +703,7 @@ contract('MarginCalculator', () => {
         assert.equal(netValue.toString(), expectedOutput.toString())
       })
     })
-
+    // fails due to banning alternative strike assets for long and short otokens
     describe('Put vault (cUSDC collateral) check before expiry', () => {
       const amountOne = scaleNum(1)
 

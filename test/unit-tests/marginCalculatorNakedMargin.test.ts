@@ -777,7 +777,7 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
         'big error delta',
       )
     })
-
+    /// BROKEN: naked margin vaults are now allowed long otokens
     it('should revert if naked margin vault have long otoken', async () => {
       const optionExpiry = new BigNumber(await time.latest()).plus(timeToExpiry[1])
 
@@ -1070,7 +1070,6 @@ contract('MarginCalculator: partial collateralization', ([owner, random]) => {
       assert.equal(getExcessCollateralResult[1], false, 'isValid vault result mismatch')
     })
   })
-
   describe('Update upper bound value', async () => {
     it('should revert updating time to expiry upper bound to a value equal to zero', async () => {
       const timeToExpiry = 60 * 24 * 7

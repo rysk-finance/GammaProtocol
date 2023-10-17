@@ -9,7 +9,13 @@ import {
   MarginPoolInstance,
   OtokenFactoryInstance,
 } from '../../build/types/truffle-types'
-import { createTokenAmount, createValidExpiry } from '../utils'
+import {
+  createTokenAmount,
+  createValidExpiry,
+  createScaledNumber as scaleNum,
+  createScaledBigNumber as scaleBigNum,
+  calcRelativeDiff,
+} from '../utils'
 import BigNumber from 'bignumber.js'
 
 const { time } = require('@openzeppelin/test-helpers')
@@ -70,6 +76,24 @@ contract('Short Put Spread Option expires Itm flow', ([accountOwner1, nakedBuyer
   const usdcDecimals = 6
   const wethDecimals = 18
 
+  const vaultType = web3.eth.abi.encodeParameter('uint256', 1)
+  const productSpotShockValue = scaleBigNum(0.75, 27)
+  // array of time to expiry
+  const day = 60 * 60 * 24
+  const timeToExpiry = [day * 7, day * 14, day * 28, day * 42, day * 56]
+  // array of upper bound value correspond to time to expiry
+  const expiryToValue = [
+    scaleNum(0.1678, 27),
+    scaleNum(0.237, 27),
+    scaleNum(0.3326, 27),
+    scaleNum(0.4032, 27),
+    scaleNum(0.4603, 27),
+  ]
+  const usdcDust = scaleNum(0.1, usdcDecimals)
+  const usdcCap = scaleNum(500000, usdcDecimals)
+  const oracleDeviation = 0.05
+  const oracleDeviationValue = scaleNum(oracleDeviation, 27)
+
   before('set up contracts', async () => {
     const now = (await time.latest()).toNumber()
     expiry = createValidExpiry(now, 30)
@@ -116,6 +140,15 @@ contract('Short Put Spread Option expires Itm flow', ([accountOwner1, nakedBuyer
     const controllerProxyAddress = await addressBook.getController()
     controllerProxy = await Controller.at(controllerProxyAddress)
 
+    // configure controller
+    await controllerProxy.setNakedCap(usdc.address, usdcCap)
+
+    // config calculator
+    await calculator.setSpotShock(weth.address, usdc.address, usdc.address, true, productSpotShockValue)
+    await calculator.setOracleDeviation(oracleDeviationValue)
+    await calculator.setCollateralDust(usdc.address, usdcDust)
+    // set product upper bound values
+    await calculator.setUpperBoundValues(weth.address, usdc.address, usdc.address, true, timeToExpiry, expiryToValue)
     await otokenFactory.createOtoken(
       weth.address,
       usdc.address,
@@ -194,7 +227,7 @@ contract('Short Put Spread Option expires Itm flow', ([accountOwner1, nakedBuyer
             vaultId: vaultCounter2,
             amount: '0',
             index: '0',
-            data: ZERO_ADDR,
+            data: vaultType,
           },
           {
             actionType: ActionType.MintShortOption,
@@ -232,7 +265,7 @@ contract('Short Put Spread Option expires Itm flow', ([accountOwner1, nakedBuyer
             vaultId: vaultCounter1,
             amount: '0',
             index: '0',
-            data: ZERO_ADDR,
+            data: vaultType,
           },
           {
             actionType: ActionType.MintShortOption,

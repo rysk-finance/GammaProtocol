@@ -2925,7 +2925,16 @@ contract(
 
         await expectRevert(controllerProxy.operate(actionArgs, { from: holder1 }), 'A14')
       })
-
+      it('should set the fee and fee recipient', async () => {
+        assert.equal((await calculator.fee()).toString(), createTokenAmount(0, 1))
+        assert.equal(await calculator.feeRecipient(), ZERO_ADDR)
+        await calculator.setFee(createTokenAmount(1, 16), {from: owner});
+        await calculator.setFeeRecipient(owner, {from: owner})
+        assert.equal((await calculator.fee()).toString(), createTokenAmount(1, 16))
+        assert.equal(await calculator.feeRecipient(), owner)
+        await expectRevert(calculator.setFee(0, {from: holder1}), "Ownable: caller is not the owner")
+        await expectRevert(calculator.setFeeRecipient(ZERO_ADDR, {from: holder1}), "Ownable: caller is not the owner")
+      })
       it('should redeem after expiry + price is finalized', async () => {
         const shortAmountToBurn = createTokenAmount(1)
         const actionArgs = [
@@ -2943,15 +2952,19 @@ contract(
         assert.equal(await controllerProxy.hasExpired(shortOtoken.address), true, 'Short otoken is not expired yet')
 
         const payout = createTokenAmount(50, usdcDecimals)
+        const fee = createTokenAmount(50 * 0.01, usdcDecimals)
+        const payoutWithFee = createTokenAmount(50 * 0.99, usdcDecimals)
         const marginPoolBalanceBefore = new BigNumber(await usdc.balanceOf(marginPool.address))
         const senderBalanceBefore = new BigNumber(await usdc.balanceOf(holder1))
         const senderShortBalanceBefore = new BigNumber(await shortOtoken.balanceOf(holder1))
+        const ownerBalanceBefore = new BigNumber(await usdc.balanceOf(owner))
 
         await controllerProxy.operate(actionArgs, { from: holder1 })
 
         const marginPoolBalanceAfter = new BigNumber(await usdc.balanceOf(marginPool.address))
         const senderBalanceAfter = new BigNumber(await usdc.balanceOf(holder1))
         const senderShortBalanceAfter = new BigNumber(await shortOtoken.balanceOf(holder1))
+        const ownerBalanceAfter = new BigNumber(await usdc.balanceOf(owner))
 
         assert.equal(
           marginPoolBalanceBefore.minus(marginPoolBalanceAfter).toString(),
@@ -2960,8 +2973,13 @@ contract(
         )
         assert.equal(
           senderBalanceAfter.minus(senderBalanceBefore).toString(),
-          payout.toString(),
+          payoutWithFee.toString(),
           'Sender collateral asset balance mismatch',
+        )
+        assert.equal(
+          ownerBalanceAfter.minus(ownerBalanceBefore).toString(),
+          fee.toString(),
+          'Owner collateral asset balance mismatch',
         )
         assert.equal(
           senderShortBalanceBefore.minus(senderShortBalanceAfter).toString(),
@@ -2969,7 +2987,12 @@ contract(
           ' Burned short otoken amount mismatch',
         )
       })
-
+      it('should set the fee and fee recipient back', async () => {
+        await calculator.setFee(0, {from: owner});
+        await calculator.setFeeRecipient(ZERO_ADDR, {from: owner})
+        assert.equal((await calculator.fee()).toString(), createTokenAmount(0,1))
+        assert.equal(await calculator.feeRecipient(), ZERO_ADDR)
+      })
       it('should redeem call option correctly', async () => {
         const expiry = new BigNumber(await time.latest()).plus(new BigNumber(60 * 60)).toNumber()
         const call: MockOtokenInstance = await MockOtoken.new()
@@ -4259,7 +4282,7 @@ contract(
         await controllerProxy.setPartialPauser(partialPauser, { from: owner })
         assert.equal(await controllerProxy.partialPauser(), partialPauser, 'pauser address mismatch')
       })
-
+      /// TEST BROKEN: CONTROLLER SIZE REASONS
       it('should revert set pauser address to the same previous address', async () => {
         await expectRevert(controllerProxy.setPartialPauser(partialPauser, { from: owner }), 'C9')
       })
@@ -4546,7 +4569,7 @@ contract(
           'Ownable: caller is not the owner',
         )
       })
-
+      /// TEST BROKEN: space on controller 
       it('should revert set fullPauser address to address zero', async () => {
         await expectRevert(controllerProxy.setFullPauser(ZERO_ADDR, { from: owner }), 'C10')
       })
