@@ -4,6 +4,7 @@ import "@nomiclabs/hardhat-etherscan"
 import "@nomiclabs/hardhat-waffle"
 import "@typechain/hardhat"
 import * as dotenv from "dotenv"
+import "hardhat-deploy"
 
 const ethers = require("ethers")
 const bip39 = require("bip39")
@@ -131,7 +132,14 @@ module.exports = {
 			chainId: 421613,
 			gas: 10000000000,
 			saveDeployments: true
-		}
+		},
+		basemainnet: {
+			url: `https://base-mainnet.g.alchemy.com/v2/sPLbeK1fKZsqDemsivHO1d3AUlfZMBl-`,
+			accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : accounts,
+			chainId: 8453,
+			gas: 10000000000,
+			saveDeployments: true
+		},
 	},
 	etherscan: {
 		apiKey: process.env.ETHERSCAN
