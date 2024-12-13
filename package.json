@@ -84,8 +84,8 @@
     ]
   },
   "dependencies": {
-    "@truffle/hdwallet-provider": "^1.6.0",
-    "hardhat": "^2.14.0",
+    "@truffle/hdwallet-provider": "^2.1.15",
+    "hardhat": "^0.0.7",
     "solc": "0.6.10",
     "solc-0.6.10": "npm:solc@0.6.10",
     "solidity-docgen": "^0.5.6",
@@ -93,7 +93,7 @@
   },
   "devDependencies": {
     "@0x/protocol-utils": "^1.4.0",
-    "@codechecks/client": "^0.1.10",
+    "@codechecks/client": "^0.0.50",
     "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/test-helpers": "^0.5.4",
     "@types/chai": "4.2.5",
@@ -117,10 +117,10 @@
     "lint-staged": "^9.5.0",
     "prettier": "2.3.2",
     "prettier-plugin-solidity": "1.0.0-beta.17",
-    "sol2uml": "^1.1.25",
+    "sol2uml": "^2.5.20",
     "solhint": "3.0.0",
     "solhint-plugin-prettier": "0.0.4",
-    "solidity-coverage": "0.7.5",
+    "solidity-coverage": "^0.7.22",
     "surya": "^0.4.0",
     "truffle": "^5.1.32",
     "truffle-assertions": "0.9.2",

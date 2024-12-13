@@ -24,19 +24,6 @@ import {Controller} from "../types/Controller"
 // controller: 0xb2923CAbbC7dd78e9573D1D6d755E75dCB49CE47
 
 const chainlinkOracle = "0x5f0423B1a6935dc5596e7A24d98532b67A0AeFd8"
-const productSpotShockValue = scaleNum(0.5, 27)
-// array of time to expiry
-const day = 60 * 60 * 24
-const timeToExpiry = [day * 7, day * 14, day * 28, day * 42, day * 56, day * 84]
-// array of upper bound value correspond to time to expiry
-const expiryToValue = [
-	scaleNum(0.1678, 27),
-	scaleNum(0.237, 27),
-	scaleNum(0.3326, 27),
-	scaleNum(0.4032, 27),
-	scaleNum(0.4603, 27),
-	scaleNum(0.5, 27)
-]
 
 async function main() {
     const [deployer] = await ethers.getSigners();
