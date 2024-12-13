@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.6.10;
 
-import {Script, console2} from 'forge-std/Script.sol';
+import {Script} from 'forge-std/Script.sol';
 import {StdCheats} from 'forge-std/StdCheats.sol';
 
 import {AddressBook} from 'contracts/core/AddressBook.sol';
@@ -22,22 +22,15 @@ contract GammaDeploymentScript is Script, StdCheats {
 
   AddressBook internal addressBook;
   OtokenFactory internal otokenFactory;
-  OtokenImpl internal otokenImpl;
+  Otoken internal otokenImpl;
   Whitelist internal whitelist;
   Oracle internal oracle;
   MarginPool internal marginPool;
   MarginCalculator internal marginCalculator;
-  MarginVault internal marginVault;
-  ControllerImpl internal controllerImpl;
-
-  Ciao internal ciaoImpl;
-  TransparentUpgradeableProxy internal ciaoProxy;
-  ProxyAdmin internal ciaoProxyAdmin;
-
-  UserAndSystemStateReader internal userAndSystemStateReader;
+  Controller internal controllerImpl;
 
   function run() public virtual {
-    uint256 deployerPrivateKey = vm.envUint('BLAST_MAINNET_DEPLOYER_PRIVATE_KEY');
+    uint256 deployerPrivateKey = vm.envUint('BASE_MAINNET_DEPLOYER_PRIVATE_KEY');
 
     vm.startBroadcast(deployerPrivateKey);
     deployer = vm.addr(deployerPrivateKey);
@@ -74,22 +67,6 @@ contract GammaDeploymentScript is Script, StdCheats {
     whitelist.whitelistCoveredCollateral(weth, weth, false);
 
     oracle.setStablePrice(usdc, 1e8);
-
-    // console.log("USDC: ", address(usdc));
-    // console.log("WETH: ", address(weth));
-    // console.log("AddressBook: ", address(addressBook));
-    // console.log("OtokenFactory: ", address(otokenFactory));
-    // console.log("OtokenImpl: ", address(otokenImpl));
-    // console.log("Whitelist: ", address(whitelist));
-    // console.log("Oracle: ", address(oracle));
-    // console.log("MarginPool: ", address(marginPool));
-    // console.log("MarginCalculator: ", address(marginCalculator));
-    // console.log("Controller: ", address(controllerImpl));
-    // console.log("Deployer: ", vm.addr(deployerPrivateKey));
-
-    // console.log(
-    //     "Deployment concluded, thank you for Using GammaProtocol.s.sol"
-    // );
 
     vm.stopBroadcast();
   }
