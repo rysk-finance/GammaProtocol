@@ -1,5 +1,5 @@
 [profile.default]
-src = "src"
+src = "GammaProtocol"
 out = "artifacts"
 libs = ["node_modules", "lib"]
 remappings = [
@@ -13,5 +13,5 @@ remappings = [
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
 [etherscan]
-blastSepolia = { key = "${BLASTSCAN_API_KEY}", url = "https://api-sepolia.blastscan.io/api", chain = 168587773 }
-blastMainnet = { key = "${BLASTSCAN_API_KEY}", url = "https://api.blastscan.io/api", chain = 81457 }
+baseSepolia = { key = "${BASESCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api", chain = 84532 }
+blastMainnet = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.io/api", chain = 81457 }
