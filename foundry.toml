@@ -1,0 +1,17 @@
+[profile.default]
+src = "GammaProtocol"
+out = "artifacts"
+libs = ["node_modules", "lib"]
+remappings = [
+    "@ensdomains/=node_modules/@ensdomains/",
+    "@openzeppelin/=node_modules/@openzeppelin/",
+    "@solidity-parser/=node_modules/solhint/node_modules/@solidity-parser/",
+    "eth-gas-reporter/=node_modules/eth-gas-reporter/",
+    "truffle/=node_modules/truffle/",
+]
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+[etherscan]
+baseSepolia = { key = "${BASESCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api", chain = 84532 }
+blastMainnet = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.io/api", chain = 81457 }
