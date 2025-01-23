@@ -57,7 +57,7 @@ contract GammaDeploymentScript is Script, StdCheats {
 
     controllerImpl = new Controller();
     addressBook.setController(address(controllerImpl));
-    controllerImpl.initialize(address(addressBook), deployer);
+    controllerImpl.initialize(address(addressBook), deployer, deployer); // set manager to owner for now
     controllerImpl.refreshConfiguration();
 
     whitelist.whitelistCollateral(weth);

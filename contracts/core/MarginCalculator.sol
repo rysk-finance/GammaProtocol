@@ -732,27 +732,35 @@ contract MarginCalculator is Ownable {
                         longStrike
                     );
                     // convert amount to be denominated in collateral
-                    return (collateralAmount, strikeNeeded);
+                    return (
+                        collateralAmount,
+                        _convertAmountOnLivePrice(
+                            strikeNeeded,
+                            otokenDetails.otokenStrikeAsset,
+                            otokenDetails.otokenCollateralAsset
+                        )
+                    );
                 } else {
-                    FPI.FixedPointInt memory assetNeeded = _getCallSpreadMarginRequired(
+                    FPI.FixedPointInt memory collateralNeeded = _getCallSpreadMarginRequired(
                         shortAmount,
                         longAmount,
                         shortStrike,
                         longStrike,
                         otokenDetails.otokenCollateralAsset == otokenDetails.otokenStrikeAsset
                     );
+                    // TODO: adjust for decimals here for non e18 collateral assets.
                     if (otokenDetails.otokenCollateralAsset == otokenDetails.otokenStrikeAsset) {
-                        // collateral needed is denominated in underlying asset so we need to convert to strike asset
                         return (
                             collateralAmount,
                             _convertAmountOnLivePrice(
-                                assetNeeded,
+                                collateralNeeded,
                                 otokenDetails.otokenStrikeAsset,
                                 otokenDetails.otokenCollateralAsset
                             )
                         );
                     }
-                    return (collateralAmount, assetNeeded);
+                    // no need to convert collateralNeeded to other unit if we assume 1 unit of LST collateral per contract
+                    return (collateralAmount, collateralNeeded);
                 }
             }
         } else {
@@ -908,7 +916,7 @@ contract MarginCalculator is Ownable {
      *                                           long strike
      *
      * @dev if long strike = 0, return max( short amount - long amount, 0)
-     * @return margin requirement denominated in the collateral asset
+     * @return margin requirement denominated in the underlying asset
      */
     function _getCallSpreadMarginRequired(
         FPI.FixedPointInt memory _shortAmount,
@@ -925,7 +933,7 @@ contract MarginCalculator is Ownable {
         if (strikeAssetIsCollateral) {
             // be certain the amounts are the same as the collateral requirements become problematic
             require(_shortAmount.isEqual(_longAmount), "MarginCalculator: long and short amounts must be the same");
-            return FPI.max((_longStrike).sub(_shortStrike).mul(_shortAmount), ZERO);
+            return FPI.max(_longAmount.mul(_longStrike).sub(_shortStrike.mul(_shortAmount)), ZERO);
         }
         /**
          *             (long strike - short strike) * short amount
