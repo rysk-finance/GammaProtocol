@@ -785,4 +785,274 @@ contract ControllerTest is Base_Test {
     assertEq(userWstethBalanceAfter, userWstethBalanceBefore + 18e16);
     assertEq(Otoken(oTokenAddress).totalSupply(), 0);
   }
+
+  function test_Happy_manager_redeems_payout_collateral_decimals_different_to_underlying() public {
+    address oTokenAddress = otokenFactory.createOtoken(
+      address(wbtc),
+      address(usdc),
+      address(solvbtc),
+      90000e8, // strikes in e8 decimals on gamma
+      fridayExpiration,
+      false
+    );
+
+    // ======= open vault =======
+
+    test_Happy_manager_opening_vault_in_random_name(); // open vault
+
+    // ======= open short position =======
+
+    uint256 userSolvbtcBalanceBefore = solvbtc.balanceOf(users.manager);
+
+    Actions.ActionArgs memory mintArgs = Actions.ActionArgs(
+      Actions.ActionType.MintShortOption, // action type
+      users.alice, // vault owner
+      users.manager, // secondAddress (who oToken is sent to)
+      oTokenAddress, // asset
+      1, // vault ID
+      10e8, // asset amount
+      0, // index
+      bytes('0x') // data bytes
+    );
+
+    Actions.ActionArgs memory depositArgs = Actions.ActionArgs(
+      Actions.ActionType.DepositCollateral, // action type
+      users.alice, // vault owner
+      users.manager, // secondAddress (who the collateral comes from)
+      address(solvbtc), // asset
+      1, // vault ID
+      10e18, // asset amount
+      0, // index
+      bytes('0x') // data bytes
+    );
+
+    Actions.ActionArgs[] memory argsArray = new Actions.ActionArgs[](2);
+    argsArray[0] = mintArgs;
+    argsArray[1] = depositArgs;
+
+    vm.stopPrank();
+    vm.startPrank(users.manager);
+
+    solvbtc.approve(address(marginPool), 10e18);
+
+    controller.operate(argsArray);
+
+    uint256 userSolvbtcBalanceAfter = solvbtc.balanceOf(users.manager);
+    MarginVault.Vault memory vault = controller.getVault(users.alice, 1);
+
+    assertEq(userSolvbtcBalanceAfter, userSolvbtcBalanceBefore - 10e18);
+    assertEq(Otoken(oTokenAddress).totalSupply(), 10e8);
+    assertEq(vault.shortOtokens[0], oTokenAddress);
+    assertEq(vault.shortAmounts[0], 10e8);
+
+    // ======= fast forward to expiry and settle =======
+
+    vm.warp(fridayExpiration + 3600); // 1hr past expiration
+
+    vm.stopPrank();
+    vm.startPrank(users.gov);
+
+    oracle.setExpiryPrice(address(wbtc), fridayExpiration, 100000e8); // 100k
+    oracle.setExpiryPrice(address(solvbtc), fridayExpiration, 125000e8); // 125k
+
+    Actions.ActionArgs memory settleArgs = Actions.ActionArgs(
+      Actions.ActionType.SettleVault, // action type
+      users.alice, // vault owner
+      users.manager, // secondAddress (who the leftover collateral is sent to)
+      ZERO_ADDRESS, // asset
+      1, // vault ID
+      0, // asset amount
+      0, // index
+      bytes('0x') // data bytes
+    );
+    Actions.ActionArgs[] memory argsArray2 = new Actions.ActionArgs[](1);
+    argsArray2[0] = settleArgs;
+
+    vm.stopPrank();
+    vm.startPrank(users.manager);
+
+    vm.warp(fridayExpiration + 3601); // dispute period is set to 0 by default so go ahead 1 second
+
+    userSolvbtcBalanceBefore = solvbtc.balanceOf(users.manager);
+
+    controller.operate(argsArray2);
+
+    userSolvbtcBalanceAfter = solvbtc.balanceOf(users.manager);
+
+    // option $10k in profit, 10 options = $100k
+    // solvBTC collateral prices at $125k, therefore
+    // 100k/125k = 0.8 solvBTC to remain in vault.
+    // 9.2 to be removed
+
+    assertEq(userSolvbtcBalanceAfter, userSolvbtcBalanceBefore + 92e17);
+    assertEq(Otoken(oTokenAddress).totalSupply(), 10e8);
+
+    // ======= redeem oTokens =======
+
+    Actions.ActionArgs memory redeemArgs = Actions.ActionArgs(
+      Actions.ActionType.Redeem, // action type
+      users.alice, // vault owner
+      users.dan, // secondAddress (who the payout is sent to)
+      address(oTokenAddress), // asset
+      1, // vault ID
+      10e8, // asset amount
+      0, // index
+      bytes('0x') // data bytes
+    );
+    Actions.ActionArgs[] memory argsArray3 = new Actions.ActionArgs[](1);
+    argsArray3[0] = redeemArgs;
+
+    vm.stopPrank();
+    vm.startPrank(users.manager);
+
+    vm.warp(fridayExpiration + 3601); // dispute period is set to 0 by default so go ahead
+
+    userSolvbtcBalanceBefore = solvbtc.balanceOf(users.dan);
+
+    controller.operate(argsArray3);
+
+    userSolvbtcBalanceAfter = solvbtc.balanceOf(users.dan);
+
+    // option $10k in profit, 10 options = $100k
+    // solvBTC collateral prices at $125000, therefore
+    // 100k/125k = 0.8 solvBTC to Dan
+
+    assertEq(userSolvbtcBalanceAfter, userSolvbtcBalanceBefore + 8e17);
+    assertEq(Otoken(oTokenAddress).totalSupply(), 0);
+  }
+
+  function test_Happy_manager_redeems_payout_collateral_and_underlying_e8_decimals() public {
+    address oTokenAddress = otokenFactory.createOtoken(
+      address(wbtc),
+      address(usdc),
+      address(lbtc),
+      90000e8, // strikes in e8 decimals on gamma
+      fridayExpiration,
+      false
+    );
+
+    // ======= open vault =======
+
+    test_Happy_manager_opening_vault_in_random_name(); // open vault
+
+    // ======= open short position =======
+
+    uint256 userLbtcBalanceBefore = lbtc.balanceOf(users.manager);
+
+    Actions.ActionArgs memory mintArgs = Actions.ActionArgs(
+      Actions.ActionType.MintShortOption, // action type
+      users.alice, // vault owner
+      users.manager, // secondAddress (who oToken is sent to)
+      oTokenAddress, // asset
+      1, // vault ID
+      10e8, // asset amount
+      0, // index
+      bytes('0x') // data bytes
+    );
+
+    Actions.ActionArgs memory depositArgs = Actions.ActionArgs(
+      Actions.ActionType.DepositCollateral, // action type
+      users.alice, // vault owner
+      users.manager, // secondAddress (who the collateral comes from)
+      address(lbtc), // asset
+      1, // vault ID
+      10e8, // asset amount
+      0, // index
+      bytes('0x') // data bytes
+    );
+
+    Actions.ActionArgs[] memory argsArray = new Actions.ActionArgs[](2);
+    argsArray[0] = mintArgs;
+    argsArray[1] = depositArgs;
+
+    vm.stopPrank();
+    vm.startPrank(users.manager);
+
+    lbtc.approve(address(marginPool), 10e8);
+
+    controller.operate(argsArray);
+
+    uint256 userLbtcBalanceAfter = lbtc.balanceOf(users.manager);
+    MarginVault.Vault memory vault = controller.getVault(users.alice, 1);
+
+    assertEq(userLbtcBalanceAfter, userLbtcBalanceBefore - 10e8);
+    assertEq(Otoken(oTokenAddress).totalSupply(), 10e8);
+    assertEq(vault.shortOtokens[0], oTokenAddress);
+    assertEq(vault.shortAmounts[0], 10e8);
+
+    // ======= fast forward to expiry and settle =======
+
+    vm.warp(fridayExpiration + 3600); // 1hr past expiration
+
+    vm.stopPrank();
+    vm.startPrank(users.gov);
+
+    oracle.setExpiryPrice(address(wbtc), fridayExpiration, 100000e8); // 100k
+    oracle.setExpiryPrice(address(lbtc), fridayExpiration, 125000e8); // 125k
+
+    Actions.ActionArgs memory settleArgs = Actions.ActionArgs(
+      Actions.ActionType.SettleVault, // action type
+      users.alice, // vault owner
+      users.manager, // secondAddress (who the leftover collateral is sent to)
+      ZERO_ADDRESS, // asset
+      1, // vault ID
+      0, // asset amount
+      0, // index
+      bytes('0x') // data bytes
+    );
+    Actions.ActionArgs[] memory argsArray2 = new Actions.ActionArgs[](1);
+    argsArray2[0] = settleArgs;
+
+    vm.stopPrank();
+    vm.startPrank(users.manager);
+
+    vm.warp(fridayExpiration + 3601); // dispute period is set to 0 by default so go ahead 1 second
+
+    userLbtcBalanceBefore = lbtc.balanceOf(users.manager);
+
+    controller.operate(argsArray2);
+
+    userLbtcBalanceAfter = lbtc.balanceOf(users.manager);
+
+    // option $10k in profit, 10 options = $100k
+    // LBTC collateral prices at $125k, therefore
+    // 100k/125k = 0.8 LBTC to remain in vault.
+    // 9.2 to be removed
+
+    assertEq(userLbtcBalanceAfter, userLbtcBalanceBefore + 92e7);
+    assertEq(Otoken(oTokenAddress).totalSupply(), 10e8);
+
+    // ======= redeem oTokens =======
+
+    Actions.ActionArgs memory redeemArgs = Actions.ActionArgs(
+      Actions.ActionType.Redeem, // action type
+      users.alice, // vault owner
+      users.dan, // secondAddress (who the payout is sent to)
+      address(oTokenAddress), // asset
+      1, // vault ID
+      10e8, // asset amount
+      0, // index
+      bytes('0x') // data bytes
+    );
+    Actions.ActionArgs[] memory argsArray3 = new Actions.ActionArgs[](1);
+    argsArray3[0] = redeemArgs;
+
+    vm.stopPrank();
+    vm.startPrank(users.manager);
+
+    vm.warp(fridayExpiration + 3601); // dispute period is set to 0 by default so go ahead
+
+    userLbtcBalanceBefore = lbtc.balanceOf(users.dan);
+
+    controller.operate(argsArray3);
+
+    userLbtcBalanceAfter = lbtc.balanceOf(users.dan);
+
+    // option $10k in profit, 10 options = $100k
+    // LBTC collateral prices at $125000, therefore
+    // 100k/125k = 0.8 LBTC to Dan
+
+    assertEq(userLbtcBalanceAfter, userLbtcBalanceBefore + 8e7);
+    assertEq(Otoken(oTokenAddress).totalSupply(), 0);
+  }
 }

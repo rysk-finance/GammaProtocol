@@ -45,6 +45,9 @@ contract Base_Test is Test {
   MockERC20 internal usdc;
   MockERC20 internal weth;
   MockERC20 internal wsteth;
+  MockERC20 internal wbtc;
+  MockERC20 internal solvbtc;
+  MockERC20 internal lbtc;
   AddressBook internal addressBook;
   OtokenFactory internal otokenFactory;
   Otoken internal otokenImpl;
@@ -64,6 +67,10 @@ contract Base_Test is Test {
     usdc = new MockERC20('USDC Stablecoin', 'USDC', 6);
     weth = new MockERC20('WETH', 'WETH', 18);
     wsteth = new MockERC20('Wrapped Staked Ether', 'wstETH', 18);
+    wbtc = new MockERC20('Wrapped BTC', 'WBTC', 8);
+    solvbtc = new MockERC20('Solv BTC', 'SolvBTC', 18);
+    lbtc = new MockERC20('Lombard BTC', 'LBTC', 8);
+
     // Create users for testing.
     users = Users({
       gov: createUser('gov'),
@@ -78,18 +85,33 @@ contract Base_Test is Test {
     usdc.mint(users.gov, 1e20);
     weth.mint(users.gov, 1e32);
     wsteth.mint(users.gov, 1e32);
+    wbtc.mint(users.gov, 1e10);
+    solvbtc.mint(users.gov, 1e20);
+    lbtc.mint(users.gov, 1e10);
     usdc.mint(users.alice, 1000e6);
     weth.mint(users.alice, 10e18);
     wsteth.mint(users.alice, 1e32);
+    wbtc.mint(users.alice, 1e10);
+    solvbtc.mint(users.alice, 1e20);
+    lbtc.mint(users.alice, 1e10);
     usdc.mint(users.hackerman, 1000e6);
     weth.mint(users.hackerman, 10e18);
     wsteth.mint(users.hackerman, 1e32);
+    wbtc.mint(users.hackerman, 1e10);
+    solvbtc.mint(users.hackerman, 1e20);
+    lbtc.mint(users.hackerman, 1e10);
     usdc.mint(users.manager, 1000e6);
     weth.mint(users.manager, 10e18);
     wsteth.mint(users.manager, 1e32);
+    wbtc.mint(users.manager, 1e10);
+    solvbtc.mint(users.manager, 1e20);
+    lbtc.mint(users.manager, 1e10);
     usdc.mint(users.operator, 1000e6);
     weth.mint(users.operator, 10e18);
     wsteth.mint(users.operator, 1e32);
+    wbtc.mint(users.operator, 1e10);
+    solvbtc.mint(users.operator, 1e20);
+    lbtc.mint(users.operator, 1e10);
 
     // Warp to Jan 1, 2025 at 00:00 GMT to provide a more consistent testing environment.
     vm.warp(1735689600);
@@ -127,16 +149,26 @@ contract Base_Test is Test {
 
     whitelist.whitelistCollateral(address(weth));
     whitelist.whitelistCollateral(address(wsteth));
+    whitelist.whitelistCollateral(address(solvbtc));
+    whitelist.whitelistCollateral(address(lbtc));
 
     whitelist.whitelistProduct(address(weth), address(usdc), address(weth), false);
     whitelist.whitelistProduct(address(weth), address(usdc), address(wsteth), false);
+    whitelist.whitelistProduct(address(wbtc), address(usdc), address(solvbtc), false);
+    whitelist.whitelistProduct(address(wbtc), address(usdc), address(lbtc), false);
 
     whitelist.whitelistCoveredCollateral(address(weth), address(weth), false);
     whitelist.whitelistCoveredCollateral(address(wsteth), address(weth), false);
+    whitelist.whitelistCoveredCollateral(address(solvbtc), address(wbtc), false);
+    whitelist.whitelistCoveredCollateral(address(lbtc), address(wbtc), false);
 
     oracle.setStablePrice(address(usdc), 1e8);
     oracle.setAssetPricer(address(weth), users.gov);
     oracle.setAssetPricer(address(wsteth), users.gov);
+    oracle.setAssetPricer(address(wbtc), users.gov);
+    oracle.setAssetPricer(address(solvbtc), users.gov);
+    oracle.setAssetPricer(address(lbtc), users.gov);
+
     vm.stopPrank();
   }
 
