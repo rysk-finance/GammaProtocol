@@ -36,6 +36,13 @@ contract ControllerTest is Base_Test {
     controllerNew.initialize(address(addressBook), ZERO_ADDRESS, users.manager);
   }
 
+  function test_Fail_unauthorised_user_set_operators_enabled() public {
+    vm.stopPrank();
+    vm.startPrank(users.dan);
+    vm.expectRevert();
+    controller.setOperatorsEnabled(true);
+  }
+
   function test_Fail_random_address_opening_vault() public {
     Actions.ActionArgs memory args = Actions.ActionArgs(
       Actions.ActionType.OpenVault, // action type
@@ -129,6 +136,30 @@ contract ControllerTest is Base_Test {
     argsArray[0] = args;
 
     vm.expectRevert(bytes('C6'));
+    controller.operate(argsArray);
+  }
+
+  function test_Happy_alice_opening_vault_in_own_name() public {
+    vm.stopPrank();
+    vm.startPrank(users.gov);
+    controller.setOperatorsEnabled(true);
+    vm.stopPrank();
+    vm.startPrank(users.alice);
+
+    Actions.ActionArgs memory args = Actions.ActionArgs(
+      Actions.ActionType.OpenVault, // action type
+      users.alice, // vault owner
+      ZERO_ADDRESS, // secondAddress
+      ZERO_ADDRESS, // asset
+      1, // vault ID
+      0, // asset amount
+      0, // index
+      bytes('0x') // data bytes
+    );
+    Actions.ActionArgs[] memory argsArray = new Actions.ActionArgs[](1);
+    argsArray[0] = args;
+
+    // vm.expectRevert(bytes('C6'));
     controller.operate(argsArray);
   }
 
@@ -397,6 +428,73 @@ contract ControllerTest is Base_Test {
     controller.operate(argsArray);
 
     uint256 userWstethBalanceAfter = wsteth.balanceOf(users.manager);
+    MarginVault.Vault memory vault = controller.getVault(users.alice, 1);
+
+    assertEq(userWstethBalanceAfter, userWstethBalanceBefore - 10e18);
+    assertEq(Otoken(oTokenAddress).totalSupply(), 10e8);
+    assertEq(vault.shortOtokens[0], oTokenAddress);
+    assertEq(vault.shortAmounts[0], 10e8);
+  }
+
+  function test_Happy_alice_shorts_oToken_from_vault_created_by_manager_with_operators_enabled() public {
+    address oTokenAddress = otokenFactory.createOtoken(
+      address(weth),
+      address(usdc),
+      address(wsteth),
+      4000e8, // strikes in e8 decimals on gamma
+      fridayExpiration,
+      false
+    );
+
+    test_Happy_manager_opening_vault_in_random_name(); // open vault
+
+    uint256 userWstethBalanceBefore = wsteth.balanceOf(users.alice);
+
+    Actions.ActionArgs memory mintArgs = Actions.ActionArgs(
+      Actions.ActionType.MintShortOption, // action type
+      users.alice, // vault owner
+      users.alice, // secondAddress (who oToken is sent to)
+      oTokenAddress, // asset
+      1, // vault ID
+      10e8, // asset amount
+      0, // index
+      bytes('0x') // data bytes
+    );
+
+    Actions.ActionArgs memory depositArgs = Actions.ActionArgs(
+      Actions.ActionType.DepositCollateral, // action type
+      users.alice, // vault owner
+      users.alice, // secondAddress (who the collateral comes from)
+      address(wsteth), // asset
+      1, // vault ID
+      10e18, // asset amount
+      0, // index
+      bytes('0x') // data bytes
+    );
+
+    Actions.ActionArgs[] memory argsArray = new Actions.ActionArgs[](2);
+    argsArray[0] = mintArgs;
+    argsArray[1] = depositArgs;
+
+    vm.stopPrank();
+    vm.startPrank(users.alice);
+
+    wsteth.approve(address(marginPool), 10e18);
+
+    // operators not enabled yet
+    vm.expectRevert(bytes('C6'));
+    controller.operate(argsArray);
+
+    // ---- enable operators ------
+    vm.stopPrank();
+    vm.startPrank(users.gov);
+    controller.setOperatorsEnabled(true);
+    vm.stopPrank();
+    vm.startPrank(users.alice);
+    // ----------------------------
+    controller.operate(argsArray);
+
+    uint256 userWstethBalanceAfter = wsteth.balanceOf(users.alice);
     MarginVault.Vault memory vault = controller.getVault(users.alice, 1);
 
     assertEq(userWstethBalanceAfter, userWstethBalanceBefore - 10e18);

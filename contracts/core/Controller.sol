@@ -98,12 +98,15 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     /// @notice True if a call action can only be executed to a whitelisted callee
     bool public callRestricted;
 
+    /// @notice True if operators and vault owners are allowed to interact with vaults, false if not
+    bool public operatorsEnabled = false;
+
     /// @dev mapping between an owner address and the number of owner address vaults
     mapping(address => uint256) internal accountVaultCounter;
     /// @dev mapping between an owner address and a specific vault using a vault id
     mapping(address => mapping(uint256 => MarginVault.Vault)) internal vaults;
-    // /// @dev mapping between an account owner and their approved or unapproved account operators -- unused
-    // mapping(address => mapping(address => bool)) internal operators;
+    /// @dev mapping between an account owner and their approved or unapproved account operators
+    mapping(address => mapping(address => bool)) internal operators;
 
     /******************************************************************** V2.0.0 storage upgrade ******************************************************/
 
@@ -121,8 +124,8 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     ///@dev mapping to store liquidation states of a naked margin vault
     mapping(address => mapping(uint256 => MarginVault.VaultLiquidationDetails)) internal vaultLiquidationDetails;
 
-    // /// @notice emits an event when an account operator is updated for a specific account owner
-    // event AccountOperatorUpdated(address indexed accountOwner, address indexed operator, bool isSet);
+    /// @notice emits an event when an account operator is updated for a specific account owner
+    event AccountOperatorUpdated(address indexed accountOwner, address indexed operator, bool isSet);
     /// @notice emits an event when a new vault is opened
     event VaultOpened(address indexed accountOwner, uint256 vaultId, uint256 indexed vaultType);
     /// @notice emits an event when a long oToken is deposited into a vault
@@ -220,6 +223,8 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     event Donated(address indexed donator, address indexed asset, uint256 amount);
     /// @notice emits an event when naked cap is updated
     event NakedCapUpdated(address indexed collateral, uint256 cap);
+    /// @notice emits an event operatorsEnabled is toggled on or off
+    event OperatorsEnabled(bool enabled);
 
     /**
      * @notice modifier to check if the system is not partially paused, where only redeem and settleVault is allowed
@@ -261,8 +266,8 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @notice modifier to check if the sender is the account owner or an approved account operator
      * @param _sender sender address
      */
-    modifier onlyAuthorized(address _sender) {
-        _isAuthorized(_sender);
+    modifier onlyAuthorized(address _sender, address _accountOwner) {
+        _isAuthorized(_sender, _accountOwner);
 
         _;
     }
@@ -297,8 +302,13 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @dev check if the sender is an authorized operator (the manager address)
      * @param _sender msg.sender
      */
-    function _isAuthorized(address _sender) internal view {
-        require((_sender == manager), "C6");
+    function _isAuthorized(address _sender, address _accountOwner) internal view {
+        require(
+            (_sender == manager) ||
+                (operators[_accountOwner][_sender] && operatorsEnabled) ||
+                (_sender == _accountOwner && operatorsEnabled),
+            "C6"
+        );
     }
 
     /**
@@ -404,19 +414,28 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         emit CallRestricted(callRestricted);
     }
 
-    // /**
-    //  * @notice allows a user to give or revoke privileges to an operator which can act on their behalf on their vaults
-    //  * @dev can only be updated by the vault owner
-    //  * @param _operator operator that the sender wants to give privileges to or revoke them from
-    //  * @param _isOperator new boolean value that expresses if the sender is giving or revoking privileges for _operator
-    //  */
-    // function setOperator(address _operator, bool _isOperator) external {
-    //     require(operators[msg.sender][_operator] != _isOperator, "C9");
+    /**
+     * @notice allows the owner to toggle operatorsEnabled
+     * @param _enabled whether operators are enabled or not
+     */
+    function setOperatorsEnabled(bool _enabled) external onlyOwner {
+        emit OperatorsEnabled(_enabled);
+        operatorsEnabled = _enabled;
+    }
 
-    //     operators[msg.sender][_operator] = _isOperator;
+    /**
+     * @notice allows a user to give or revoke privileges to an operator which can act on their behalf on their vaults
+     * @dev can only be updated by the vault owner
+     * @param _operator operator that the sender wants to give privileges to or revoke them from
+     * @param _isOperator new boolean value that expresses if the sender is giving or revoking privileges for _operator
+     */
+    function setOperator(address _operator, bool _isOperator) external {
+        require(operators[msg.sender][_operator] != _isOperator, "C9");
 
-    //     emit AccountOperatorUpdated(msg.sender, _operator, _isOperator);
-    // }
+        operators[msg.sender][_operator] = _isOperator;
+
+        emit AccountOperatorUpdated(msg.sender, _operator, _isOperator);
+    }
 
     /**
      * @dev updates the configuration of the controller. can only be called by the owner
@@ -472,15 +491,15 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         delete vaultLiquidationDetails[msg.sender][_vaultId];
     }
 
-    // /**
-    //  * @notice check if a specific address is an operator for an owner account
-    //  * @param _owner account owner address
-    //  * @param _operator account operator address
-    //  * @return True if the _operator is an approved operator for the _owner account
-    //  */
-    // function isOperator(address _owner, address _operator) external view returns (bool) {
-    //     return operators[_owner][_operator];
-    // }
+    /**
+     * @notice check if a specific address is an operator for an owner account
+     * @param _owner account owner address
+     * @param _operator account operator address
+     * @return True if the _operator is an approved operator for the _owner account
+     */
+    function isOperator(address _owner, address _operator) external view returns (bool) {
+        return operators[_owner][_operator];
+    }
 
     /**
      * @notice returns the current controller configuration
@@ -747,7 +766,11 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @dev only the account owner or operator can open a vault, cannot be called when system is partiallyPaused or fullyPaused
      * @param _args OpenVaultArgs structure
      */
-    function _openVault(Actions.OpenVaultArgs memory _args) internal notPartiallyPaused onlyAuthorized(msg.sender) {
+    function _openVault(Actions.OpenVaultArgs memory _args)
+        internal
+        notPartiallyPaused
+        onlyAuthorized(msg.sender, _args.owner)
+    {
         uint256 vaultId = accountVaultCounter[_args.owner].add(1);
 
         require(_args.vaultId == vaultId, "C15");
@@ -764,7 +787,11 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @dev only the account owner or operator can deposit a long oToken, cannot be called when system is partiallyPaused or fullyPaused
      * @param _args DepositArgs structure
      */
-    function _depositLong(Actions.DepositArgs memory _args) internal notPartiallyPaused onlyAuthorized(msg.sender) {
+    function _depositLong(Actions.DepositArgs memory _args)
+        internal
+        notPartiallyPaused
+        onlyAuthorized(msg.sender, _args.owner)
+    {
         require(_checkVaultId(_args.owner, _args.vaultId), "C35");
         // only allow vault owner or vault operator to deposit long otoken
         require((_args.from == msg.sender) || (_args.from == _args.owner), "C16");
@@ -787,7 +814,11 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @dev only the account owner or operator can withdraw a long oToken, cannot be called when system is partiallyPaused or fullyPaused
      * @param _args WithdrawArgs structure
      */
-    function _withdrawLong(Actions.WithdrawArgs memory _args) internal notPartiallyPaused onlyAuthorized(msg.sender) {
+    function _withdrawLong(Actions.WithdrawArgs memory _args)
+        internal
+        notPartiallyPaused
+        onlyAuthorized(msg.sender, _args.owner)
+    {
         require(_checkVaultId(_args.owner, _args.vaultId), "C35");
 
         OtokenInterface otoken = OtokenInterface(_args.asset);
@@ -809,7 +840,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     function _depositCollateral(Actions.DepositArgs memory _args)
         internal
         notPartiallyPaused
-        onlyAuthorized(msg.sender)
+        onlyAuthorized(msg.sender, _args.owner)
     {
         require(_checkVaultId(_args.owner, _args.vaultId), "C35");
         // only allow vault owner or vault operator to deposit collateral
@@ -840,7 +871,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     function _withdrawCollateral(Actions.WithdrawArgs memory _args)
         internal
         notPartiallyPaused
-        onlyAuthorized(msg.sender)
+        onlyAuthorized(msg.sender, _args.owner)
     {
         require(_checkVaultId(_args.owner, _args.vaultId), "C35");
 
@@ -868,7 +899,11 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @dev only the account owner or operator can mint an oToken, cannot be called when system is partiallyPaused or fullyPaused
      * @param _args MintArgs structure
      */
-    function _mintOtoken(Actions.MintArgs memory _args) internal notPartiallyPaused onlyAuthorized(msg.sender) {
+    function _mintOtoken(Actions.MintArgs memory _args)
+        internal
+        notPartiallyPaused
+        onlyAuthorized(msg.sender, _args.owner)
+    {
         require(_checkVaultId(_args.owner, _args.vaultId), "C35");
         require(whitelist.isWhitelistedOtoken(_args.otoken), "C23");
 
@@ -888,7 +923,11 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @dev only the account owner or operator can burn an oToken, cannot be called when system is partiallyPaused or fullyPaused
      * @param _args MintArgs structure
      */
-    function _burnOtoken(Actions.BurnArgs memory _args) internal notPartiallyPaused onlyAuthorized(msg.sender) {
+    function _burnOtoken(Actions.BurnArgs memory _args)
+        internal
+        notPartiallyPaused
+        onlyAuthorized(msg.sender, _args.owner)
+    {
         // check that vault id is valid for this vault owner
         require(_checkVaultId(_args.owner, _args.vaultId), "C35");
         // only allow vault owner or vault operator to burn otoken
@@ -951,7 +990,7 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @dev deletes a vault of vaultId after net proceeds/collateral is removed, cannot be called when system is fullyPaused
      * @param _args SettleVaultArgs structure
      */
-    function _settleVault(Actions.SettleVaultArgs memory _args) internal onlyAuthorized(msg.sender) {
+    function _settleVault(Actions.SettleVaultArgs memory _args) internal onlyAuthorized(msg.sender, _args.owner) {
         require(_checkVaultId(_args.owner, _args.vaultId), "C35");
 
         (MarginVault.Vault memory vault, uint256 typeVault, ) = getVaultWithDetails(_args.owner, _args.vaultId);
