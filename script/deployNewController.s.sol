@@ -27,7 +27,7 @@ contract GammaDeploymentScript is Script, StdCheats {
   Oracle internal oracle;
   MarginPool internal marginPool;
   MarginCalculator internal marginCalculator;
-  Controller internal controllerImpl;
+  Controller internal newControllerImpl;
 
   function run() public virtual {
     uint256 deployerPrivateKey = vm.envUint('BASE_MAINNET_DEPLOYER_PRIVATE_KEY');
@@ -35,39 +35,9 @@ contract GammaDeploymentScript is Script, StdCheats {
     vm.startBroadcast(deployerPrivateKey);
     deployer = vm.addr(deployerPrivateKey);
 
-    addressBook = new AddressBook();
-
-    otokenFactory = new OtokenFactory(address(addressBook));
-    addressBook.setOtokenFactory(address(otokenFactory));
-
-    otokenImpl = new Otoken();
-    addressBook.setOtokenImpl(address(otokenImpl));
-
-    whitelist = new Whitelist(address(addressBook));
-    addressBook.setWhitelist(address(whitelist));
-
-    oracle = new Oracle();
-    addressBook.setOracle(address(oracle));
-
-    marginPool = new MarginPool(address(addressBook));
-    addressBook.setMarginPool(address(marginPool));
-
-    marginCalculator = new MarginCalculator(address(oracle), address(addressBook));
-    addressBook.setMarginCalculator(address(marginCalculator));
-
-    controllerImpl = new Controller();
-    addressBook.setController(address(controllerImpl));
-    controllerImpl.initialize(address(addressBook), deployer, deployer); // set manager to owner for now
-    controllerImpl.refreshConfiguration();
-
-    whitelist.whitelistCollateral(weth);
-
-    whitelist.whitelistProduct(weth, usdc, weth, false);
-
-    whitelist.whitelistCoveredCollateral(weth, weth, false);
-
-    oracle.setStablePrice(usdc, 1e8);
-
-    vm.stopBroadcast();
+    newControllerImpl = new Controller();
+    addressBook.setController(address(newControllerImpl));
+    newControllerImpl.initialize(address(addressBook), deployer, deployer); // set manager to owner for now
+    newControllerImpl.refreshConfiguration();
   }
 }

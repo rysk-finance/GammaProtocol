@@ -78,6 +78,10 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     ///@dev scale used in MarginCalculator
     uint256 internal constant BASE = 8;
 
+    /// @notice only address that has permission to interact with the vaults in the system.
+    /// the only function that will not be access controlled is Redeem()
+    address public manager;
+
     /// @notice address that has permission to partially pause the system, where system functionality is paused
     /// except redeem and settleVault
     address public partialPauser;
@@ -93,6 +97,9 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
 
     /// @notice True if a call action can only be executed to a whitelisted callee
     bool public callRestricted;
+
+    /// @notice True if operators and vault owners are allowed to interact with vaults, false if not
+    bool public operatorsEnabled = false;
 
     /// @dev mapping between an owner address and the number of owner address vaults
     mapping(address => uint256) internal accountVaultCounter;
@@ -198,22 +205,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         uint256 vaultId,
         address indexed series
     );
-    /// @notice emits an event when a call action is executed
-    event CallExecuted(address indexed from, address indexed to, bytes data);
-    /// @notice emits an event when the fullPauser address changes
-    event FullPauserUpdated(address indexed oldFullPauser, address indexed newFullPauser);
-    /// @notice emits an event when the partialPauser address changes
-    event PartialPauserUpdated(address indexed oldPartialPauser, address indexed newPartialPauser);
-    /// @notice emits an event when the system partial paused status changes
-    event SystemPartiallyPaused(bool isPaused);
-    /// @notice emits an event when the system fully paused status changes
-    event SystemFullyPaused(bool isPaused);
-    /// @notice emits an event when the call action restriction changes
-    event CallRestricted(bool isRestricted);
-    /// @notice emits an event when a donation transfer executed
-    event Donated(address indexed donator, address indexed asset, uint256 amount);
-    /// @notice emits an event when naked cap is updated
-    event NakedCapUpdated(address indexed collateral, uint256 cap);
 
     /**
      * @notice modifier to check if the system is not partially paused, where only redeem and settleVault is allowed
@@ -254,7 +245,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     /**
      * @notice modifier to check if the sender is the account owner or an approved account operator
      * @param _sender sender address
-     * @param _accountOwner account owner address
      */
     modifier onlyAuthorized(address _sender, address _accountOwner) {
         _isAuthorized(_sender, _accountOwner);
@@ -289,12 +279,16 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
     }
 
     /**
-     * @dev check if the sender is an authorized operator
+     * @dev check if the sender is an authorized operator (the manager address)
      * @param _sender msg.sender
-     * @param _accountOwner owner of a vault
      */
     function _isAuthorized(address _sender, address _accountOwner) internal view {
-        require((_sender == _accountOwner) || (operators[_accountOwner][_sender]), "C6");
+        require(
+            (_sender == manager) ||
+                (operators[_accountOwner][_sender] && operatorsEnabled) ||
+                (_sender == _accountOwner && operatorsEnabled),
+            "C6"
+        );
     }
 
     /**
@@ -302,13 +296,17 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _addressBook addressbook module
      * @param _owner account owner address
      */
-    function initialize(address _addressBook, address _owner) external initializer {
+    function initialize(
+        address _addressBook,
+        address _owner,
+        address _manager
+    ) external initializer {
         require(_addressBook != address(0), "C7");
         require(_owner != address(0), "C8");
 
         __Ownable_init(_owner);
         __ReentrancyGuard_init_unchained();
-
+        manager = _manager;
         addressbook = AddressBookInterface(_addressBook);
         _refreshConfigInternal();
 
@@ -323,8 +321,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      */
     function donate(address _asset, uint256 _amount) external {
         pool.transferToPool(_asset, msg.sender, _amount);
-
-        emit Donated(msg.sender, _asset, _amount);
     }
 
     /**
@@ -336,8 +332,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         require(systemPartiallyPaused != _partiallyPaused, "C9");
 
         systemPartiallyPaused = _partiallyPaused;
-
-        emit SystemPartiallyPaused(systemPartiallyPaused);
     }
 
     /**
@@ -349,8 +343,14 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         require(systemFullyPaused != _fullyPaused, "C9");
 
         systemFullyPaused = _fullyPaused;
+    }
 
-        emit SystemFullyPaused(systemFullyPaused);
+    /**
+     * @notice allows the owner to set a new manager
+     * @param _manager new manager address
+     */
+    function setManager(address _manager) external onlyOwner {
+        manager = _manager;
     }
 
     /**
@@ -359,7 +359,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _fullPauser new fullPauser address
      */
     function setFullPauser(address _fullPauser) external onlyOwner {
-        emit FullPauserUpdated(fullPauser, _fullPauser);
         fullPauser = _fullPauser;
     }
 
@@ -369,7 +368,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      * @param _partialPauser new partialPauser address
      */
     function setPartialPauser(address _partialPauser) external onlyOwner {
-        emit PartialPauserUpdated(partialPauser, _partialPauser);
         partialPauser = _partialPauser;
     }
 
@@ -383,8 +381,14 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         require(callRestricted != _isRestricted, "C9");
 
         callRestricted = _isRestricted;
+    }
 
-        emit CallRestricted(callRestricted);
+    /**
+     * @notice allows the owner to toggle operatorsEnabled
+     * @param _enabled whether operators are enabled or not
+     */
+    function setOperatorsEnabled(bool _enabled) external onlyOwner {
+        operatorsEnabled = _enabled;
     }
 
     /**
@@ -397,8 +401,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         require(operators[msg.sender][_operator] != _isOperator, "C9");
 
         operators[msg.sender][_operator] = _isOperator;
-
-        emit AccountOperatorUpdated(msg.sender, _operator, _isOperator);
     }
 
     /**
@@ -418,8 +420,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
         require(_cap > 0, "C36");
 
         nakedCap[_collateral] = _cap;
-
-        emit NakedCapUpdated(_collateral, _cap);
     }
 
     /**
@@ -1080,8 +1080,6 @@ contract Controller is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrade
      */
     function _call(Actions.CallArgs memory _args) internal notPartiallyPaused onlyWhitelistedCallee(_args.callee) {
         CalleeInterface(_args.callee).callFunction(msg.sender, _args.data);
-
-        emit CallExecuted(msg.sender, _args.callee, _args.data);
     }
 
     /**

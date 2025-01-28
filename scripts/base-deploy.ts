@@ -83,7 +83,7 @@ async function main() {
     const controller = await (await ethers.getContractFactory("Controller", {libraries:{MarginVault: vault.address}})).deploy()
     await addressbook.setController(controller.address)
     console.log("controller: " + controller.address)
-    await controller.initialize(addressbook.address, await deployer.getAddress())
+    await controller.initialize(addressbook.address, await deployer.getAddress(), await deployer.getAddress()) // set manager to owner for now
     await controller.refreshConfiguration()
     
     // whitelist stuff

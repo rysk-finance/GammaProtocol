@@ -197,12 +197,18 @@ contract AddressBook is Ownable {
      * @dev function to update the implementation of a specific component of the protocol
      * @param _id id of the contract to be updated
      * @param _newAddress address of the new implementation
-     **/
+     *
+     */
     function updateImpl(bytes32 _id, address _newAddress) public onlyOwner {
         address payable proxyAddress = address(uint160(getAddress(_id)));
 
         if (proxyAddress == address(0)) {
-            bytes memory params = abi.encodeWithSignature("initialize(address,address)", address(this), owner());
+            bytes memory params = abi.encodeWithSignature(
+                "initialize(address,address,address)",
+                address(this),
+                owner(),
+                owner()
+            );
             OwnedUpgradeabilityProxy proxy = new OwnedUpgradeabilityProxy();
             setAddress(_id, address(proxy));
             emit ProxyCreated(_id, address(proxy));

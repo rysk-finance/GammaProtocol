@@ -15,3 +15,4 @@ remappings = [
 [etherscan]
 baseSepolia = { key = "${BASESCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api", chain = 84532 }
 blastMainnet = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.io/api", chain = 81457 }
+monadTesnet = { key = "${BASESCAN_API_KEY}", url = "https://explorer.monad-testnet.category.xyz/api/", chain = 10143 }
